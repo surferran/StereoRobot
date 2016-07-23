@@ -138,6 +138,7 @@
     <ClInclude Include="..\src\GUI_functions.h" />
     <ClInclude Include="..\src\OdroidC1_handlers\pwm.h" />
     <ClInclude Include="..\src\stereo_calib.h" />
+    <ClInclude Include="..\src\stereo_functions.hpp" />
     <ClInclude Include="..\src\utilFunctions.h" />
     <ClInclude Include="..\src\working_consts.h" />
   </ItemGroup>

@@ -2,6 +2,8 @@
 GUI_functions.h file
 */
 //////////
+#ifndef GUI_FUNC_H
+#define GUI_FUNC_H
 
 #include "opencv2/opencv.hpp"
 
@@ -309,6 +311,14 @@ string _intToString(int number){
 	ss << number;
 	return ss.str();
 }
+//double to string helper function
+string _doubleToString(double number){
+
+	//this function has a number input and string output
+	std::stringstream ss;
+	ss << number;
+	return ss.str();
+}
 /////////////////////////////
 
 /*
@@ -332,3 +342,5 @@ void add_Cross_to_Image(int x, int y, bool addLabel, Mat &cameraFeed)
 			Point(x/20+1,y/20+20),1,0.51,Scalar(255,0,0),1);
 
 }
+
+#endif   // GUI_FUNC_H

@@ -1,18 +1,13 @@
-/*#include "opencv2/video/tracking.hpp"
+#include "opencv2/video/tracking.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/video/background_segm.hpp"
 #include "opencv2/features2d/features2d.hpp"
-#include <stdio.h>*/
-//using namespace cv;
+#include <stdio.h>
 
-// use this one for better implementation/demonstartion:
-// http://docs.opencv.org/master/d1/dc5/tutorial_background_subtraction.html#gsc.tab=0 
+//#include "opencv2/opencv.hpp"
+#include "GUI_functions.h"		// for using _intToString
 
-// ref by http://docs.opencv.org/2.4/doc/tutorials/imgproc/shapedescriptors/bounding_rects_circles/bounding_rects_circles.html 
-// http://docs.opencv.org/3.1.0/dd/d49/tutorial_py_contour_features.html#gsc.tab=0
-
-#include "opencv2/opencv.hpp"
 using namespace cv;
 
 class BackSubs
@@ -25,18 +20,18 @@ public:
 
 private:
 	VideoCapture			cap;
-	String					vidName = ""; 
-	String					StatusText = "NAN";
+	String					vidName		= ""; 
+	String					StatusText	= "NAN";
 
 	int						fps;
 	Mat						frame, foreground, image;
+	Mat						middle_tmp_frame;
 	vector<vector<Point> >	contours;
 	vector<vector<Point> >	selected_shapes_contours;
 	int						area;
 	Rect					rect;
     
-	cv::Ptr<BackgroundSubtractorMOG2> mog  ;
-	////Ptr<BackgroundSubtractorKNN> mog = createBackgroundSubtractorKNN(330, 16.0, false);
+	cv::Ptr<BackgroundSubtractorMOG2> mog ;
 	Scalar					random_color;
 	int						loopWait = 0;
 	int						found_contours_num ;
@@ -65,6 +60,8 @@ static void drawShapesContours(Mat& image, const vector<vector<Point> >& ShapesC
 
 	imshow("Capture ", image);
 }
+
+// TODO: return parameters of rCircle, boundRect, theta, frame_counter(of bkgSubs)
 void doMYbsManipulation( Mat & mask)
 { 
 	static int frame_counter=0;
@@ -75,7 +72,15 @@ void doMYbsManipulation( Mat & mask)
 	double rCircle = sqrt(m.m00/3.14)/13 ; //10~  // estimated rounding circle for the object area
 	circle(mask, p1, rCircle, Scalar(128,220,220), 3); 
 
+	Rect boundRect = boundingRect ( mask );
+	rectangle(mask,
+		boundRect.tl(), boundRect.br(),
+		Scalar(128,220,220) ,	2, 8, 0);
+
 	double theta = 0.5 * atan2(2*m.m11, m.m20-m.m02) * 57.3;
+	String StatusText = "theta=" + _doubleToString(theta);
+	putText(mask, StatusText, Point(15, 15), FONT_HERSHEY_COMPLEX, 0.4, (0, 0, 255), 1);
+
 	//double lamda = ( m.m20 + m.m02)*0.5 +  
 	frame_counter++;
 	//if (frame_counter % 5)
@@ -83,11 +88,14 @@ void doMYbsManipulation( Mat & mask)
 	imshow("Foreground debug", mask);
 
 }
+
+
 int BackSubs::show_forgnd_and_bgnd_init(VideoCapture vidSource_LeftCam)
 {
 	vidName		= ""; 
 	StatusText	= "NAN";
-	mog			= createBackgroundSubtractorMOG2(330, 16.0, false);
+	//mog			= createBackgroundSubtractorMOG2(330, 16.0, false);
+	mog			= createBackgroundSubtractorMOG2(120, 16.0, false);
 
 	cap = vidSource_LeftCam;
 	fps = cap.get(CV_CAP_PROP_FPS);
@@ -102,108 +110,97 @@ int BackSubs::show_forgnd_and_bgnd_init(VideoCapture vidSource_LeftCam)
 	return 0;
 }
 
-int BackSubs::show_forgnd_and_bgnd(Mat frame)
+int BackSubs::show_forgnd_and_bgnd(Mat frame)  // assuming input of vreified non-empty frame
 {
+	
+	// clear list, copy image
+	selected_shapes_contours.clear();
+    image	=	frame.clone();
 
-    //for(;;)
-    {
-		/* get new frame */
-     /*   cap	>>	frame;   
-        if( frame.empty() )
-                break;*/
+	/* apply background substraction and manipulate the resultant frame */
+	mog->apply(frame,foreground); 
+	imshow("BackSubs Foreground before manipulations",foreground); //debugging
 
-		// clear list, copy image
-		selected_shapes_contours.clear();
-        image	=	frame.clone();
+    threshold	(foreground,	foreground,	128,	255,THRESH_BINARY);//28,128,198
+    medianBlur	(foreground,	foreground,	3);//9
+    erode		(foreground,	foreground,	Mat());
+    dilate		(foreground,	foreground,	Mat());
 
-		/* apply background substraction and manipulate the resultant frame */
-		mog->apply(frame,foreground); 
-		imshow("Foreground debug",foreground); //debugging
+	middle_tmp_frame = foreground.clone();
+	// ---now 'foreground' it is a workable image binary--- // 
+	doMYbsManipulation(middle_tmp_frame);
 
-        threshold	(foreground,	foreground,	128,	255,THRESH_BINARY);//28,128,198
-        medianBlur	(foreground,	foreground,	3);//9
-        erode		(foreground,	foreground,	Mat());
-        dilate		(foreground,	foreground,	Mat());
+	/// thus far the main stuff of BackgroundSubs. from now on just extra manipulations
 
-		// ---now 'foreground' it is a workable image binary--- // 
-		doMYbsManipulation(foreground.clone());
-		// find contours and store them all as a list
-		findContours(foreground.clone(), contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);// See squares.c in the OpenCV sample directory.
-		found_contours_num = contours.size();
+	// find contours and store them all as a list
+	middle_tmp_frame = foreground.clone();
+	findContours(middle_tmp_frame, contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);// See squares.c in the OpenCV sample directory.
+	found_contours_num = contours.size();
 
-		vector<Point> approx;
+	vector<Point> approx;
 
-		/// Approximate contours to polygons + get bounding rects and circles
-		vector<vector<Point> >	contours_poly	(found_contours_num);
-		vector<Rect>			boundRect		(found_contours_num);
-		vector<Point2f>			center			(found_contours_num);
-		vector<float>			radius			(found_contours_num);
-		vector<Moments>			curves_moments	(found_contours_num);
-		vector<Point2f>			mass_centers	(found_contours_num);
-		// draw cursers on screen
-		// draw distance of target from screenn center
-		// set text strings and text layer to display		
+	/// Approximate contours to polygons + get bounding rects and circles
+	vector<vector<Point> >	contours_poly	(found_contours_num);
+	vector<Rect>			boundRect		(found_contours_num);
+	vector<Point2f>			center			(found_contours_num);
+	vector<float>			radius			(found_contours_num);
+	vector<Moments>			curves_moments	(found_contours_num);
+	vector<Point2f>			mass_centers	(found_contours_num); 
 
-		// TODO: resize image if not set in init. or use different resulutions for capture and for analysis.
-		//	//TODO:  to gray, and low freq noise reduction
-		//gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-		//	gray = cv2.GaussianBlur(gray, (21, 21), 0)
+	// TODO:  use different resulutions for capture and for analysis.
+	//	//TODO:  to gray, and low freq noise reduction
+	//gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+	//	gray = cv2.GaussianBlur(gray, (21, 21), 0)
 
-		//////////////////////////
+	//////////////////////////
 //			 test each contour
-		StatusText = "";
-		if (found_contours_num > 0) {
-			StatusText = " sensed some movement ";
-		}
-		vector<Vec4i> hierarchy;
-		for (size_t i = 0; i <found_contours_num ; i++)
-		{
-			// approximate contour with accuracy proportional to the contour perimeter
-		    approxPolyDP(Mat(contours[i]), approx, arcLength(Mat(contours[i]), true)*0.02, true);
-			boundRect[i] = boundingRect(approx);
-			random_color = Scalar(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
-			if (SHOW_MOVING_CONTOURS)
+	StatusText = "";
+	if (found_contours_num > 0) {
+		StatusText = " sensed some movement ";
+	}
+	vector<Vec4i> hierarchy;
+	for (size_t i = 0; i <found_contours_num ; i++)
+	{
+		// approximate contour with accuracy proportional to the contour perimeter
+		approxPolyDP(Mat(contours[i]), approx, arcLength(Mat(contours[i]), true)*0.02, true);
+		boundRect[i] = boundingRect(approx);
+		random_color = Scalar(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
+		if (SHOW_MOVING_CONTOURS)
+			//drawContours(image, approx, i, random_color, 1, 8, vector<Vec4i>(), 0, Point());
+			drawContours(image, contours, i, random_color, 1, 8, vector<Vec4i>(), 0, Point());
+		if (SHOW_MOVING_RECTANGLES)
+			rectangle(image,
+				boundRect[i].tl(), boundRect[i].br(),
+				random_color,		1, 8, 0);
+		// contours should have relatively large area (to filter out noisy contours)
+		// and be convex.
+		// Note: absolute value of an area is used because area may be positive or negative - 
+		// in accordance with the contour orientation
+			
+		area = fabs(contourArea(Mat(contours[i])));
+		if (area > MIN_CURVE_AREA && area < MAX_CURVE_AREA && isContourConvex(Mat(contours[i]))) {
+			StatusText = "--Major Movement detected--";
+
+			///// .push_back(area);->weighted area->center of movement, and avereged
+			selected_shapes_contours	.push_back(contours[i]);///approx
+			curves_moments				.push_back(moments(contours[i], false));  // not for display. just for info or other use.
+			mass_centers				.push_back(Point2f(	curves_moments[i].m10 / curves_moments[i].m00,
+															curves_moments[i].m01 / curves_moments[i].m00));
+			if (SHOW_MOVING_BIG_CONTOURS)
 				//drawContours(image, approx, i, random_color, 1, 8, vector<Vec4i>(), 0, Point());
 				drawContours(image, contours, i, random_color, 1, 8, vector<Vec4i>(), 0, Point());
-			if (SHOW_MOVING_RECTANGLES)
-				rectangle(image,
-					boundRect[i].tl(), boundRect[i].br(),
-					random_color,		1, 8, 0);
-			// contours should have relatively large area (to filter out noisy contours)
-			// and be convex.
-			// Note: absolute value of an area is used because area may be positive or negative - 
-			// in accordance with the contour orientation
-			
-			area = fabs(contourArea(Mat(contours[i])));
-			if (area > MIN_CURVE_AREA && area < MAX_CURVE_AREA && isContourConvex(Mat(contours[i]))) {
-				StatusText = "--Major Movement detected--";
 
-				///// .push_back(area);->weighted area->center of movement, and avereged
-				selected_shapes_contours	.push_back(contours[i]);///approx
-				curves_moments				.push_back(moments(contours[i], false));  // not for display. just for info or other use.
-				mass_centers				.push_back(Point2f(	curves_moments[i].m10 / curves_moments[i].m00,
-																curves_moments[i].m01 / curves_moments[i].m00));
-				if (SHOW_MOVING_BIG_CONTOURS)
-					//drawContours(image, approx, i, random_color, 1, 8, vector<Vec4i>(), 0, Point());
-					drawContours(image, contours, i, random_color, 1, 8, vector<Vec4i>(), 0, Point());
-
-			}
 		}
-		// keep history of points.
-		// dispay a line of done trajectory in 3D space, and show prediction for planned trajectory.
+	}
+	// keep history of points.
+	// dispay a line of done trajectory in 3D space, and show prediction for planned trajectory.
 		
-		/* displays and drawings */
-		putText(image, StatusText, Point(10, 30), FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 255), 2);
-		///drawShapesContours(image, selected_shapes_contours, curves_moments, mass_centers);
-       // imshow( "Capture "		,image );
-        imshow( "Foreground "	,foreground);
-
-		///* wait shortly for optional user input */
-  //      char c = (char)waitKey(loopWait);
-  //      if( c == 27 )   // ESC key
-  //          break;
-
-    }
+	/* displays and drawings */
+	putText(image, StatusText, Point(10, 30), FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 255), 2);
+	///drawShapesContours(image, selected_shapes_contours, curves_moments, mass_centers);
+    //
+	imshow( "BackSubs Capture "		,image );
+    imshow( "Foreground "	,foreground);
 
 	//TODO:
 	//return foreground

@@ -40,6 +40,8 @@
 
 #include "stereo_calib.h" 
 
+#include "myTracker.cpp"
+
 ////when need to eliminate the consule that is opened in parallel 
 //#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
 
@@ -61,8 +63,13 @@ void specific_match()
 	main_SBM(imgLeft,imgRight, outM);
 
 	imshow("right",imgR);
-	imshow("left",imgL);
+	imshow("left" ,imgL);
 	imshow("disp out",outM);
+	
+	waitKey(0);
+
+	destroyAllWindows();
+
 	return;
 	///////////////////////////////
 /*
@@ -80,10 +87,9 @@ void specific_match()
 
 int main(int argc, char** argv) 
 {
-	//
-	specific_match();  // testing for sending right parameters
+	//	specific_match();  // testing for sending right parameters, and images order
 
-	thisStereo.input_source =LIVE_CAM;
+	thisStereo.input_source = LIVE_CAM;
 		
 	show_buttons_gui();  
 
@@ -113,7 +119,10 @@ int main(int argc, char** argv)
 	plotWindowsNames[3] = "win4 - background substruction output";
 	plotWindowsNames[4] = "win5 - tracked object";
 
-	BackSubs localBackSubs ;
+	BackSubs	localBackSubs ;
+
+	Tracker		tracker;
+
 	do_stereo_disp_init();
 
 	while (1)
@@ -128,11 +137,6 @@ int main(int argc, char** argv)
 			op_flags.make_stereo_calibration	=	false;
 		}
 
-		if (op_flags.calc_background_subs)
-		{
-			//localBackSubs.show_forgnd_and_bgnd();
-		}
-
 		if(op_flags.show_stereo)
 		{
 			relative_counter++;
@@ -144,45 +148,75 @@ int main(int argc, char** argv)
 
 				vidR.open(RIGHT_CAMERA_INDEX);	
 				vidL.open(LEFT_CAMERA_INDEX);
-				cout <<" waiting 5 sec to initialze cameras";
-				cvWaitKey(5*1000); // initial delay for init
-				cout <<" .. continuing ";
-				int w=320,	h=240;
+				int w=320,	h=240 , waitSec = 5;
 				vidR.set(CAP_PROP_FRAME_WIDTH, w);	vidR.set(CAP_PROP_FRAME_HEIGHT, h);
 				vidL.set(CAP_PROP_FRAME_WIDTH, w);	vidL.set(CAP_PROP_FRAME_HEIGHT, h);
 				first_setup = false;
+				cout <<" waiting "<<waitSec<<" sec to initialze cameras";
+				cvWaitKey(waitSec*1000); // initial delay for init
+				cout <<" .. continuing ";
 
 				localBackSubs.show_forgnd_and_bgnd_init(LEFT_CAMERA_INDEX); //with Left cam
 			}
-			vidL >> plotImages[1];
+
 			vidR >> plotImages[0];
+			vidL >> plotImages[1];
+			
 			// add check for empty
-			Mat left_disp = plotImages[1].clone();   // some additional display layer
+			Mat left_cam = plotImages[1].clone();   // for some additional display layer
 			if (op_flags.draw_middle_x)
 			{
 				//on the right image
-				add_Cross_to_Image(left_disp.size[1]/2, left_disp.size[0]/2, false, left_disp); // 120h,160w , with no coor. label
+				add_Cross_to_Image(left_cam.size[1]/2, left_cam.size[0]/2, false, left_cam); // 120h,160w , with no coor. label
 			}
 			imshow(plotWindowsNames[0],	plotImages[0] );
-			imshow(plotWindowsNames[1],	left_disp);
+			imshow(plotWindowsNames[1],	left_cam);
 			
-			localBackSubs.show_forgnd_and_bgnd( plotImages[1]) ;
+			left_cam = plotImages[1].clone();		// copy again, without the added UI graphics
 
-			//if (relative_counter>10)
+			localBackSubs.show_forgnd_and_bgnd( left_cam ) ;
+
+			if (relative_counter>2) //10
 			{
 				cv::cvtColor(plotImages[0+1], plotImages[0+1], CV_BGR2GRAY);
 				cv::cvtColor(plotImages[0*1], plotImages[0*1], CV_BGR2GRAY);
-				do_stereo_disp(plotImages[0+1],plotImages[1*0], plotImages[2]);  // plotImages[2] is the disparity output
 
-				//if (op_flags.draw_middle_x)
-				//{
-				//	add_Target_Cross_to_Image(plotImages[2].size[1]/2, plotImages[2].size[0]/2, plotImages[2]);
-				//}
+				do_stereo_disp(plotImages[0+1],plotImages[1*0], plotImages[2]);  // plotImages[2] is the disparity output
 
 				//main_SBM(plotImages[0+1],plotImages[1*0], plotImages[2]); 
 				imshow(plotWindowsNames[2],  plotImages[2]);
 				relative_counter	=	0;
 			}
+
+			////////////////////////////////////////////////
+			//			tracking part (by 'goodFeatures')
+
+			/* clear points that are out of my desired ROI (center of image) */
+			int frame_boundary = 30;  //TODO:make 20 h , 30 w /// sizes are for after resize
+									  //CV_EXPORTS_W void rectangle(InputOutputArray img, Point pt1, Point pt2,
+									  //	const Scalar& color, int thickness = 1,
+									  //	int lineType = LINE_8, int shift = 0);
+			Point	TopLeft(frame_boundary, frame_boundary);
+			Point	LowRight(left_cam.size().width - frame_boundary , left_cam.size().height - frame_boundary);
+			Rect	myGeneralROI = Rect(TopLeft, LowRight ); 
+
+			// add ROI update relevant to BkgSubs points/area only
+
+			////////////////////////////////////////////////
+			//			make tracking of the 'goodFeatures'
+			//			from previous frame to the new one		
+			tracker.processImage(left_cam (myGeneralROI) );   // myROI
+
+			//// check direction change from the previous tracked poits center. mark an arrow .
+			//////////////////////////////////////////////////
+			////	calculate translation from previous to current.
+			////	display modified current 
+			Mat invTrans = tracker.rigidTransform.inv(DECOMP_SVD);
+			Mat orig_warped;
+			warpAffine(left_cam,orig_warped,invTrans.rowRange(0,2),Size());
+			imshow("stabilized",orig_warped);
+
+
 			//op_flags.show_stereo = false;
 		}
 
@@ -192,10 +226,12 @@ int main(int argc, char** argv)
 			op_flags.reset_identification	 = true;
 			op_flags.reset_vid_file_location = false;
 		}
+
 		if (op_flags.reset_identification){
 			reset_camshift_vars();			// a funciton to reset the camshift main variables. 
 			op_flags.reset_identification	= false;
 		}
+
 		if (op_flags.play_on){
 
 			vid >> plotImages[0];

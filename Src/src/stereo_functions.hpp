@@ -82,7 +82,7 @@ private:
 
 int myLocalDisparity::do_stereo_match_init(int argc, char** argv)
 {  
-	if(argc < 3)
+	if(argc < 3)  
     {
         print_helpM();
         return 0;
