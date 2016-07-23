@@ -1,0 +1,15 @@
+paths structure:
+- _Docs
+- WorkFiles
+- Src
+
+details:
+-Docs:
+	- 	project REPORT.docx	-	details about the project implementation. 
+	
+-WorkFiles:
+	-	current path where this file is present.
+	
+	
+Src:
+	-	source code files.
