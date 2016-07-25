@@ -16,9 +16,14 @@ public:
 
 	BackSubs(){};
 	int show_forgnd_and_bgnd_init(VideoCapture vidSource_LeftCam);
-	int show_forgnd_and_bgnd(Mat frame);
+	int show_forgnd(Mat frame);
+
+	SYSTEM_STATUS BackSubs_State = INITIALIZING ;
 
 private:
+
+	int show_more_details(Mat frame) ;
+
 	VideoCapture			cap;
 	String					vidName		= ""; 
 	String					StatusText	= "NAN";
@@ -35,6 +40,10 @@ private:
 	Scalar					random_color;
 	int						loopWait = 0;
 	int						found_contours_num ;
+
+	const int				BackSubs_History		= 120;
+	const double			BackSubs_Threshould		= 16.0;	
+	const bool				BackSubs_DetectShadows	= false;   // only for better run-time performance
 
 };
 
@@ -62,9 +71,10 @@ static void drawShapesContours(Mat& image, const vector<vector<Point> >& ShapesC
 }
 
 // TODO: return parameters of rCircle, boundRect, theta, frame_counter(of bkgSubs)
-void doMYbsManipulation( Mat & mask)
+int doMYbsManipulation( Mat & mask)
 { 
 	static int frame_counter=0;
+	int mask_status = 0;
 
 	Moments m = moments(mask, false);	// points moment 
 	Point p1(m.m10/m.m00, m.m01/m.m00); // mass_centers
@@ -80,6 +90,14 @@ void doMYbsManipulation( Mat & mask)
 	double theta = 0.5 * atan2(2*m.m11, m.m20-m.m02) * 57.3;
 	String StatusText = "theta=" + _doubleToString(theta);
 	putText(mask, StatusText, Point(15, 15), FONT_HERSHEY_COMPLEX, 0.4, (0, 0, 255), 1);
+	       StatusText = "rCircle=" + _doubleToString(rCircle);
+	putText(mask, StatusText, Point(15, 25), FONT_HERSHEY_COMPLEX, 0.4, (0, 0, 255), 1);
+
+	double tmp1 = 100. * boundRect.area() ;
+	double tmp2 = (mask.size()).area() ; 
+	mask_status = tmp1 / tmp2;
+	StatusText  = "status=" + _intToString(mask_status);
+	putText(mask, StatusText, Point(15, 35), FONT_HERSHEY_COMPLEX, 0.4, (0, 0, 255), 1);
 
 	//double lamda = ( m.m20 + m.m02)*0.5 +  
 	frame_counter++;
@@ -87,15 +105,16 @@ void doMYbsManipulation( Mat & mask)
 	//	cout << frame_counter << " : " << theta << endl;//Mat(p1) << endl;
 	imshow("Foreground debug", mask);
 
+
+	return mask_status;
 }
 
 
 int BackSubs::show_forgnd_and_bgnd_init(VideoCapture vidSource_LeftCam)
 {
 	vidName		= ""; 
-	StatusText	= "NAN";
-	//mog			= createBackgroundSubtractorMOG2(330, 16.0, false);
-	mog			= createBackgroundSubtractorMOG2(120, 16.0, false);
+	StatusText	= "NAN"; 
+	mog			= createBackgroundSubtractorMOG2(BackSubs_History , BackSubs_Threshould , BackSubs_DetectShadows);
 
 	cap = vidSource_LeftCam;
 	fps = cap.get(CV_CAP_PROP_FPS);
@@ -110,13 +129,8 @@ int BackSubs::show_forgnd_and_bgnd_init(VideoCapture vidSource_LeftCam)
 	return 0;
 }
 
-int BackSubs::show_forgnd_and_bgnd(Mat frame)  // assuming input of vreified non-empty frame
+int BackSubs::show_forgnd(Mat frame)  // assuming input of vreified non-empty frame
 {
-	
-	// clear list, copy image
-	selected_shapes_contours.clear();
-    image	=	frame.clone();
-
 	/* apply background substraction and manipulate the resultant frame */
 	mog->apply(frame,foreground); 
 	imshow("BackSubs Foreground before manipulations",foreground); //debugging
@@ -126,16 +140,31 @@ int BackSubs::show_forgnd_and_bgnd(Mat frame)  // assuming input of vreified non
     erode		(foreground,	foreground,	Mat());
     dilate		(foreground,	foreground,	Mat());
 
+	imshow("BackSubs Foreground",foreground); 
+
 	middle_tmp_frame = foreground.clone();
 	// ---now 'foreground' it is a workable image binary--- // 
-	doMYbsManipulation(middle_tmp_frame);
-
+	int frame_status = doMYbsManipulation(middle_tmp_frame);
+	BackSubs_State = STANDBY ;
+	if (frame_status> 10)
+		BackSubs_State = FOUND_SOME_MOVEMENT ;
+	if (frame_status> 95)
+		BackSubs_State = INITIALIZING ;
 	/// thus far the main stuff of BackgroundSubs. from now on just extra manipulations
+	//show_more_details(foreground);
+	return frame_status;
+}
+
+int BackSubs::show_more_details(Mat frame) 
+{
+	// clear list, copy image
+	selected_shapes_contours.clear();
+	image	=	frame.clone();
 
 	// find contours and store them all as a list
-	middle_tmp_frame = foreground.clone();
+	middle_tmp_frame	= foreground.clone();
 	findContours(middle_tmp_frame, contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);// See squares.c in the OpenCV sample directory.
-	found_contours_num = contours.size();
+	found_contours_num	= contours.size();
 
 	vector<Point> approx;
 

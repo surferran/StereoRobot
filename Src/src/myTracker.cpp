@@ -19,7 +19,7 @@ public:
     bool            freshStart;
     Mat_<float>     rigidTransform;
 	int				min_features				= 40;//200; 
-	int				num_of_maxCornersFeatures	= 500;//300;
+	int				num_of_maxCornersFeatures	= 300;//300;
 
 	int		alphaSlider = 0;
 	int		alphaSlider2 = 0;

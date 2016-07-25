@@ -167,14 +167,16 @@ int main(int argc, char** argv)
 			if (op_flags.draw_middle_x)
 			{
 				//on the right image
-				add_Cross_to_Image(left_cam.size[1]/2, left_cam.size[0]/2, false, left_cam); // 120h,160w , with no coor. label
+				add_Cross_to_Image(left_cam.size[1]/2, left_cam.size[0]/2, false, localBackSubs.BackSubs_State , left_cam); // 120h,160w , with no coor. label
 			}
 			imshow(plotWindowsNames[0],	plotImages[0] );
 			imshow(plotWindowsNames[1],	left_cam);
 			
 			left_cam = plotImages[1].clone();		// copy again, without the added UI graphics
 
-			localBackSubs.show_forgnd_and_bgnd( left_cam ) ;
+			////////
+			localBackSubs.show_forgnd( left_cam ) ;////
+			////////
 
 			if (relative_counter>2) //10
 			{

@@ -48,3 +48,11 @@ Temporary Items
 _Docs/~$oject REPORT.docx
 *.tmp
 *.log
+*.tlog
+*.obj
+*.pdb
+*.idb
+*.ipdb
+*.map
+*.iobj
+*.ilk

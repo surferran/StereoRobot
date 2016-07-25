@@ -37,6 +37,8 @@ const String STEREO_CALIBRATION_IMAGES_LIST = "fileList.txt";	// will include fi
 const String STEREO_CALIBRATION_VIDEO_PAIR  = "output_#.avi";  // '#' will be 1,2 , respectivley for cams 0,1
 
 															   /* constants */
+
+
 enum USER_STATUS_SELECTION {
 	JUST_INITIALIZED	=	0 ,		 // mode 0 is the initialization. as NULL
 	CAPTURE_CALIBRATION_IMAGES	=	1,			// right - index 0, window title as 1. 	// left - index 1, window title as 2. 
@@ -90,37 +92,13 @@ struct StereoCams
 
 StereoCams thisStereo;				// global 
 
-
-//---------------------------------------------------
-//
-//class CMyCam
-//{
-//public:
-//	CMyCam(int HW_cam_index);					// size by default application definition.
-//	CMyCam(int HW_cam_index, FRAME_SIZES size); // overloading. size by var input
-//	~CMyCam();
-//
-//	//get_cam_properties(j);
-//
-//private:
-//	VideoCapture	cam;
-//	int				HW_cam_index;
-//	int				w, h;
-//	char			window_name[CHAR_LEN];
-//};
-//
-//CMyCam::CMyCam(int HW_cam_index)
-//{
-//
-//}
-//
-//CMyCam::CMyCam(int HW_cam_index, FRAME_SIZES size)
-//{
-//
-//}
-//
-//CMyCam::~CMyCam()
-//{
-//}
+							
+enum SYSTEM_STATUS{
+	INITIALIZING	=	0 ,		// Should show GRAY cross	 
+	STANDBY			=	1 ,		// Should show ORANGE cross
+	FOUND_SOME_MOVEMENT	,
+	TRACKING			,		// Should show GREEN cross
+	TARGET_IS_LOST			// Should show RED cross	,	after 3 sec will turn to ORANGE (while stopping the robot)
+};
 
 #endif //WORKING_CONSTS_H

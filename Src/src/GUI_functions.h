@@ -325,14 +325,24 @@ string _doubleToString(double number){
 add sign of cross on the x,y point, on the delivered image.
 usually to show Target location, or image center.
 */
-void add_Cross_to_Image(int x, int y, bool addLabel, Mat &cameraFeed)   
+void add_Cross_to_Image(int x, int y, bool addLabel, SYSTEM_STATUS sys_stat, Mat &cameraFeed)   
 {
+	Scalar color = Scalar(0,255,0) ;
+	if (sys_stat==INITIALIZING)
+		color = Scalar(100, 55, 10) ;
+	else
+		if (sys_stat==STANDBY)
+			color = Scalar(100, 155, 110) ;
+	else
+		if (sys_stat==FOUND_SOME_MOVEMENT)
+			color = Scalar(100, 255, 10) ;
 	//draw some crosshairs around the object
-	circle	(cameraFeed,Point(x,y),10,Scalar(0,255,0),2); //r20
-	line	(cameraFeed,Point(x,y),Point(x,y-25),Scalar(0,255,0),2);
-	line	(cameraFeed,Point(x,y),Point(x,y+25),Scalar(0,255,0),2);
-	line	(cameraFeed,Point(x,y),Point(x-25,y),Scalar(0,255,0),2);
-	line	(cameraFeed,Point(x,y),Point(x+25,y),Scalar(0,255,0),2);
+	
+	circle	(cameraFeed,Point(x,y), 10			,color,2); //r20
+	line	(cameraFeed,Point(x,y),Point(x,y-25),color,2);
+	line	(cameraFeed,Point(x,y),Point(x,y+25),color,2);
+	line	(cameraFeed,Point(x,y),Point(x-25,y),color,2);
+	line	(cameraFeed,Point(x,y),Point(x+25,y),color,2);
 
 	// TODO: consider print it in the image corner. in status bar for example.
 	//write the position of the object to the screen
