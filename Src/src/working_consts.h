@@ -36,7 +36,9 @@ const FRAME_SIZES	frame_size   = SMALL;
 const String STEREO_CALIBRATION_IMAGES_LIST = "fileList.txt";	// will include files names in left-right pairs order
 const String STEREO_CALIBRATION_VIDEO_PAIR  = "output_#.avi";  // '#' will be 1,2 , respectivley for cams 0,1
 
-															   /* constants */
+const int frame_boundary		= 30;	  // for the tracking functions. to not consider the image boundaries.
+
+	  /* constants */
 
 
 enum USER_STATUS_SELECTION {
@@ -93,11 +95,13 @@ struct StereoCams
 StereoCams thisStereo;				// global 
 
 							
+// system status to include BackgroundSubstraction & Tracker.
 enum SYSTEM_STATUS{
 	INITIALIZING	=	0 ,		// Should show GRAY cross	 
 	STANDBY			=	1 ,		// Should show ORANGE cross
 	FOUND_SOME_MOVEMENT	,
-	TRACKING			,		// Should show GREEN cross
+	TRACKING_GOOD_QUALITY_TARGET,		// Should show GREEN cross
+	TRACKING_LOW_QUALITY_TARGET,
 	TARGET_IS_LOST			// Should show RED cross	,	after 3 sec will turn to ORANGE (while stopping the robot)
 };
 

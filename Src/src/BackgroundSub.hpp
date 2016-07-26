@@ -17,6 +17,7 @@ public:
 	BackSubs(){};
 	int show_forgnd_and_bgnd_init(VideoCapture vidSource_LeftCam);
 	int show_forgnd(Mat frame);
+	Mat get_foreground_mat() { return foreground; } ;
 
 	SYSTEM_STATUS BackSubs_State = INITIALIZING ;
 
@@ -29,8 +30,8 @@ private:
 	String					StatusText	= "NAN";
 
 	int						fps;
-	Mat						frame, foreground, image;
-	Mat						middle_tmp_frame;
+	Mat						frame, foreground, image;	// inner vars for class functions.
+	Mat						middle_tmp_frame;			//	
 	vector<vector<Point> >	contours;
 	vector<vector<Point> >	selected_shapes_contours;
 	int						area;
@@ -70,7 +71,8 @@ static void drawShapesContours(Mat& image, const vector<vector<Point> >& ShapesC
 	imshow("Capture ", image);
 }
 
-// TODO: return parameters of rCircle, boundRect, theta, frame_counter(of bkgSubs)
+// TODO: return parameters of rCircle, boundRect, theta, frame_counter(of bkgSubs) (as part of class?)
+// calculate and print some parameters for the current frame foreground
 int doMYbsManipulation( Mat & mask)
 { 
 	static int frame_counter=0;
@@ -148,8 +150,9 @@ int BackSubs::show_forgnd(Mat frame)  // assuming input of vreified non-empty fr
 	BackSubs_State = STANDBY ;
 	if (frame_status> 10)
 		BackSubs_State = FOUND_SOME_MOVEMENT ;
-	if (frame_status> 95)
-		BackSubs_State = INITIALIZING ;
+	else
+		if (frame_status> 95)
+			BackSubs_State = INITIALIZING ;
 	/// thus far the main stuff of BackgroundSubs. from now on just extra manipulations
 	//show_more_details(foreground);
 	return frame_status;

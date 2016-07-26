@@ -305,7 +305,7 @@ void show_vidSource_options_gui()
 
 //int to string helper function
 string _intToString(int number){
-
+	 
 	//this function has a number input and string output
 	std::stringstream ss;
 	ss << number;
@@ -319,6 +319,37 @@ string _doubleToString(double number){
 	ss << number;
 	return ss.str();
 }
+
+//system status enum to string helper function
+string _sysStatToString(SYSTEM_STATUS val){
+
+	std::stringstream ss;
+	switch (val)
+	{
+	case INITIALIZING:
+		ss << "sys : INITIALIZING";
+		break;
+	case STANDBY:
+		ss << "sys : STANDBY";
+		break;
+	case FOUND_SOME_MOVEMENT:
+		ss << "sys : MOVEMENT";
+		break;
+	case TRACKING_GOOD_QUALITY_TARGET:
+		ss << "sys : TRACKING_GOOD";
+		break;
+	case TRACKING_LOW_QUALITY_TARGET:
+		ss << "sys : TRACKING_LOW";
+		break;
+	case TARGET_IS_LOST:
+		ss << "sys : LOST";
+		break;
+	default:
+		break;
+	}
+	return ss.str();
+}
+
 /////////////////////////////
 
 /*

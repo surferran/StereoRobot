@@ -10,16 +10,18 @@ using namespace std;
 
 
 class Tracker {
-
+private:
     vector<Point2f> trackedFeatures; 
-    Mat             prevGray;
+    Mat             prevGrayROI;
 
 public:
 
+	int				TrackPercent = 0;		// % of the feature points that has correspondance to the next/previous frame
     bool            freshStart;
     Mat_<float>     rigidTransform;
 	int				min_features				= 40;//200; 
 	int				num_of_maxCornersFeatures	= 300;//300;
+	float			mid_level_percent			= 1.25;		//	1/1.25=80%
 
 	int		alphaSlider = 0;
 	int		alphaSlider2 = 0;
@@ -32,32 +34,48 @@ public:
         rigidTransform = Mat::eye(3,3,CV_32FC1); //affine 2x3 in a 3x3 matrix
     }
 
-    void processImage(Mat& img) {
+	// both imgTarget, imgROI should be of the same size.
+    void processImage(Mat& imgTarget, Mat&imgROI , SYSTEM_STATUS external_state) 
+	{
 
 		RNG rng(12345);//RANDV
 
-        Mat gray; cvtColor(img,gray,CV_BGR2GRAY);
+		Mat grayTarget; cvtColor(imgTarget,grayTarget,CV_BGR2GRAY);
+		Mat grayROI   ; cvtColor(imgROI   ,grayROI   ,CV_BGR2GRAY);
         vector<Point2f> corners;  
 		/* find new features set, when current matches are lower then minimum */
-        if(trackedFeatures.size() < min_features) {
-            goodFeaturesToTrack(gray,corners,num_of_maxCornersFeatures,0.01,10);	//  int maxCorners, double qualityLevel, double minDistance,
-            cout << "(re-)found " << corners.size() << " features\n";
-			// set corners -> trackedFeatures 
-            for (int i = 0; i < corners.size(); ++i) {
-                trackedFeatures.push_back(corners[i]);
-            }
-        }
+		// ..meaning of aquiring new target..
+        if (trackedFeatures.size() < min_features * mid_level_percent ) 
+			if (FOUND_SOME_MOVEMENT == external_state)
+			{
+				goodFeaturesToTrack(grayTarget,corners,num_of_maxCornersFeatures,0.01,10);	//  int maxCorners, double qualityLevel, double minDistance,
+				cout << "(re-)found " << corners.size() << " features\n";
+				// set corners -> trackedFeatures 
+				for (int i = 0; i < corners.size(); ++i) {
+					trackedFeatures.push_back(corners[i]);
+				}
 
-        if(!prevGray.empty()) {
+				// if corners.size > minimum*1.3 set GOOD_TRACKING
+			}
+			else  // loss of features during tracking
+			{
+				// when near minimum limit - find more feature in ROI around those still alive
+				////set LOW_QUALITY_TRACKING
+
+				// if bellow minimum - anounce loss of tracking. and stop..
+				cout << "loss of tracking fetures....!"<<endl;
+			}
+
+        if(!prevGrayROI.empty()) {
             vector<uchar> status; vector<float> errors;
 			// new input is trackedFeatures ->
 			// new output is corners
 			// status of 1 means correspondence found. 0 otherwise.
-            calcOpticalFlowPyrLK(prevGray,gray,trackedFeatures,corners,status,errors,Size(10,10));	// corners are 'InOut' array
+            calcOpticalFlowPyrLK(prevGrayROI,grayROI,trackedFeatures,corners,status,errors,Size(10,10));	// corners are 'InOut' array
 
 			/////////////////////
 			Mat copy;
-			copy	= img.clone();
+			copy	= grayROI.clone();
 			int r	= 2;//3
 			for( int i = 0; i < corners.size(); i++ )
 			{ circle( copy, corners[i], r, 
@@ -67,7 +85,7 @@ public:
 				//y_cord[i] = corners[i].y;
 			}			
 			
-			imshow("original copy", copy);	
+			imshow("original copy ROI", copy);	
 
 			/////////////////////////////////
 			/*  just trial additional code 
@@ -95,59 +113,75 @@ public:
 			alphaSlider2 = countNonZero(status)/ status.size() * 100.0;
 			//////////////////////////////////
 
-            if(alphaSlider  < status.size() * 0.8) {
+            if(alphaSlider * mid_level_percent < status.size()) {
                 cout << "cataclysmic error \n";
                 rigidTransform	= Mat::eye(3,3,CV_32FC1);	//same as above specific function
                 trackedFeatures	.clear();
-                prevGray		.release();
+                prevGrayROI		.release();
                 freshStart		= true;
                 return;
             } else
                 freshStart = false;
 
             Mat_<float> newRigidTransform = estimateRigidTransform(trackedFeatures,corners,false);
-
-			float a = newRigidTransform.at<float>(0,0);
-			float b = newRigidTransform.at<float>(0,1);
-			float c = newRigidTransform.at<float>(1,0);
-			float d = newRigidTransform.at<float>(1,1);
+			if (!newRigidTransform.empty())
+			{
+				float a = newRigidTransform.at<float>(0,0);
+				float b = newRigidTransform.at<float>(0,1);
+				float c = newRigidTransform.at<float>(1,0);
+				float d = newRigidTransform.at<float>(1,1);
 			
-			float sX ;
-			float sign_a = a>=0? 1:(-1);
-			sX = sign_a * sqrtf(powf(a,2) + powf(b,2));
-			float sY;
-			float sign_d = d>=0? 1:(-1);
-			sY = sign_d * sqrt(powf(c,2) + powf(d,2));
+				float sX ;
+				float sign_a = a>=0? 1:(-1);
+				sX = sign_a * sqrtf(powf(a,2) + powf(b,2));
+				float sY;
+				float sign_d = d>=0? 1:(-1);
+				sY = sign_d * sqrt(powf(c,2) + powf(d,2));
 
-			// reduce the effect of scale.
-			float* tmp = NULL;
-			tmp =  newRigidTransform.ptr<float>(0);
-			tmp[0] = tmp[0]/sX;
-			tmp[1] = tmp[1]/sX;
-			tmp =  newRigidTransform.ptr<float>(1);
-			tmp[0] = tmp[0]/sY;
-			tmp[1] = tmp[1]/sY;
+				// reduce the effect of scale.
+				float* tmp = NULL;
+				tmp =  newRigidTransform.ptr<float>(0);
+				tmp[0] = tmp[0]/sX;
+				tmp[1] = tmp[1]/sX;
+				tmp =  newRigidTransform.ptr<float>(1);
+				tmp[0] = tmp[0]/sY;
+				tmp[1] = tmp[1]/sY;
+			
+				Mat_<float> nrt33 = Mat_<float>::eye(3,3);
+				newRigidTransform.copyTo(nrt33.rowRange(0,2));
+				rigidTransform *= nrt33;			
 
-            Mat_<float> nrt33 = Mat_<float>::eye(3,3);
-            newRigidTransform.copyTo(nrt33.rowRange(0,2));
-            rigidTransform *= nrt33;
+				trackedFeatures.clear();
+				for (int i = 0; i < status.size(); ++i) {
+					if(status[i]) {
+						trackedFeatures.push_back(corners[i]);
+					}
+				}
 
-            trackedFeatures.clear();
-            for (int i = 0; i < status.size(); ++i) {
-                if(status[i]) {
-                    trackedFeatures.push_back(corners[i]);
-                }
-            }
+				TrackPercent = alphaSlider2 ;
+			}
+			else
+			{
+				cout << "cataclysmic error 2! \n";
+				rigidTransform	= Mat::eye(3,3,CV_32FC1);	//same as above specific function
+				trackedFeatures	.clear();
+				prevGrayROI		.release();
+				freshStart		= true;
+				TrackPercent	= 0;
+				return;
+			}
         }
 
         for (int i = 0; i < trackedFeatures.size(); ++i) {
-            circle(img,trackedFeatures[i],3,Scalar(0,0,255),CV_FILLED);
+            circle(grayROI,trackedFeatures[i],3,Scalar(0,0,255),CV_FILLED);
         }
 
-        gray.copyTo(prevGray);
+		grayROI.copyTo(prevGrayROI);
     }
 };
 
+////////////////////////////////////////////////////////////////////////////
+// next function is used only as demonstration when running as stand-alone.
 
 int stabilizer_main( VideoCapture cap ) {
     
@@ -183,7 +217,7 @@ int stabilizer_main( VideoCapture cap ) {
 		////////////////////////////////////////////////
 		//			make tracking of the 'goodFeatures'
 		//			from previous frame to the new one		
-        tracker.processImage(orig (myROI) );   // myROI
+        tracker.processImage(orig (myROI),  orig (myROI) , TRACKING_GOOD_QUALITY_TARGET);   // myROI
 
 		////////////////////////////////////////////////
 		//	calculate translation from previous to current.
