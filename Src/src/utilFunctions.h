@@ -74,9 +74,9 @@ void do_stereo_disp_init(){
 	argc = 11; 
 
 	argv[3] = "-i";
-	argv[4] = "../data/intrinsics.yml";
+	argv[4] = "data/intrinsics.yml";
 	argv[5] = "-e";
-	argv[6] =			"extrinsics.yml"; 
+	argv[6] = "data/extrinsics.yml"; 
 	////outputs:
 	//argv[7] = "-o";	argv[8]  = "../data/disp_out.jpg";
 	//argv[9] = "-p";	argv[10] = "../data/points_out.yml";

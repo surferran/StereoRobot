@@ -285,8 +285,8 @@ int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
 	*/
 	//
 
-    sgbm->setPreFilterCap(63);
-	/*int sgbmWinSize = SADWindowSize > 0 ? SADWindowSize : 3;*////////////////
+	// sgbm is Semi Global Block Matching
+    sgbm->setPreFilterCap(63); 
 	int sgbmWinSize = SADWindowSize > 0 ? SADWindowSize : 3;
     sgbm->setBlockSize(sgbmWinSize);
 
@@ -360,7 +360,7 @@ int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
 	{
 		Mat xyz_again;
 		///http://stackoverflow.com/questions/27374970/q-matrix-for-the-reprojectimageto3d-function-in-opencv
-		Q.at<double>(3,2) = Q.at<double>(3,2)/10.0;
+		Q.at<double>(3,2) = Q.at<double>(3,2)       ;////10.0;
 		reprojectImageTo3D(disp, xyz_again, Q, true); 
 		Vec3f point_middle = xyz_again.at<Vec3f>(xyz_again.rows/2, xyz_again.cols/2);
 		printf("\n\n middle point relative coor. are: %f %f %f \n\n", point_middle.val[0],point_middle.val[1],point_middle.val[2]);

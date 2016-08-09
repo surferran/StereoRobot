@@ -6,7 +6,7 @@
 #include <stdio.h>
 
 //#include "opencv2/opencv.hpp"
-#include "GUI_functions.h"		// for using _intToString
+#include "GUIFunctions.h"		// for using _intToString
 
 using namespace cv;
 
@@ -16,10 +16,13 @@ public:
 
 	BackSubs(){};
 	int show_forgnd_and_bgnd_init(VideoCapture vidSource_LeftCam);
-	int show_forgnd(Mat frame);
-	Mat get_foreground_mat() { return foreground; } ;
+	//int find_forgnd(Mat frame);
 
-	SYSTEM_STATUS BackSubs_State = INITIALIZING ;
+	int find_forgnd(Mat frame, Point *movementMassCenter);
+
+	Mat get_foreground_mat() { return foreground.clone() ; } ;
+
+	//SYSTEM_STATUS BackSubs_State = INITIALIZING ;
 
 private:
 
@@ -73,16 +76,17 @@ static void drawShapesContours(Mat& image, const vector<vector<Point> >& ShapesC
 
 // TODO: return parameters of rCircle, boundRect, theta, frame_counter(of bkgSubs) (as part of class?)
 // calculate and print some parameters for the current frame foreground
-int doMYbsManipulation( Mat & mask)
+int doMYbsManipulation( Mat & mask , Point *movementMassCenter)
 { 
 	static int frame_counter=0;
 	int mask_status = 0;
 
 	Moments m = moments(mask, false);	// points moment 
-	Point p1(m.m10/m.m00, m.m01/m.m00); // mass_centers
+	Point p0(m.m10/m.m00, m.m01/m.m00); // mass_centers
+	*movementMassCenter = p0;
 
 	double rCircle = sqrt(m.m00/3.14)/13 ; //10~  // estimated rounding circle for the object area
-	circle(mask, p1, rCircle, Scalar(128,220,220), 3); 
+	circle(mask, p0, rCircle, Scalar(128,220,220), 3); 
 
 	Rect boundRect = boundingRect ( mask );
 	rectangle(mask,
@@ -91,22 +95,31 @@ int doMYbsManipulation( Mat & mask)
 
 	double theta = 0.5 * atan2(2*m.m11, m.m20-m.m02) * 57.3;
 	String StatusText = "theta=" + _doubleToString(theta);
-	putText(mask, StatusText, Point(15, 15), FONT_HERSHEY_COMPLEX, 0.4, (0, 0, 255), 1);
+	putText(mask, StatusText, Point(15, 15), FONT_HERSHEY_COMPLEX, 0.4, (210, 110, 220), 1);
 	       StatusText = "rCircle=" + _doubleToString(rCircle);
-	putText(mask, StatusText, Point(15, 25), FONT_HERSHEY_COMPLEX, 0.4, (0, 0, 255), 1);
+	putText(mask, StatusText, Point(15, 25), FONT_HERSHEY_COMPLEX, 0.4, (110, 210, 220), 1);
 
+	// show in Percent, the relation between bounding rectangle area , and area of the image
 	double tmp1 = 100. * boundRect.area() ;
 	double tmp2 = (mask.size()).area() ; 
 	mask_status = tmp1 / tmp2;
 	StatusText  = "status=" + _intToString(mask_status);
-	putText(mask, StatusText, Point(15, 35), FONT_HERSHEY_COMPLEX, 0.4, (0, 0, 255), 1);
-
-	//double lamda = ( m.m20 + m.m02)*0.5 +  
+	putText(mask, StatusText, Point(15, 35), FONT_HERSHEY_COMPLEX, 0.4, (210, 210, 220), 1);
+	 
 	frame_counter++;
 	//if (frame_counter % 5)
 	//	cout << frame_counter << " : " << theta << endl;//Mat(p1) << endl;
+
 	imshow("Foreground debug", mask);
 
+	//TODO: make this condition more clear to read and understand
+	int w =  mask.size().width;
+	int w_band = 40;
+	if ( //(boundRect.width < w) && 
+		(2.*rCircle < w) &&
+		(movementMassCenter->x > w/2 - w_band ) && (movementMassCenter->x < w/2 + w_band )
+		)
+		mask_status = 55;		// treated as GoodTarget
 
 	return mask_status;
 }
@@ -125,14 +138,15 @@ int BackSubs::show_forgnd_and_bgnd_init(VideoCapture vidSource_LeftCam)
 	else
 		loopWait=1000/fps; // 1000/30=33; 1000/15=67
 
-	namedWindow( "Foreground "		, CV_WINDOW_AUTOSIZE );
+	//namedWindow( "Foreground "		, CV_WINDOW_AUTOSIZE );
 	namedWindow( "Foreground debug"	, CV_WINDOW_AUTOSIZE );
 
 	return 0;
 }
 
-int BackSubs::show_forgnd(Mat frame)  // assuming input of vreified non-empty frame
+int BackSubs::find_forgnd(Mat frame, Point *movementMassCenter)  // assuming input of vreified non-empty frame
 {
+	// using code in the file:"C:\OpenCV\sources\modules\video\src/bgfg_gaussmix2.cpp"
 	/* apply background substraction and manipulate the resultant frame */
 	mog->apply(frame,foreground); 
 	imshow("BackSubs Foreground before manipulations",foreground); //debugging
@@ -146,13 +160,21 @@ int BackSubs::show_forgnd(Mat frame)  // assuming input of vreified non-empty fr
 
 	middle_tmp_frame = foreground.clone();
 	// ---now 'foreground' it is a workable image binary--- // 
-	int frame_status = doMYbsManipulation(middle_tmp_frame);
-	BackSubs_State = STANDBY ;
-	if (frame_status> 10)
-		BackSubs_State = FOUND_SOME_MOVEMENT ;
-	else
+	int frame_status = doMYbsManipulation(middle_tmp_frame, movementMassCenter);
+	
+	// i want this function to keep running in bckgnd but effect only of not tracking yet.
+	if ( system_state <= FOUND_SOME_MOVEMENT ) //|| (system_state == FOUND_SOME_MOVEMENT)STANDBY
+	{
+		system_state = STANDBY ;
 		if (frame_status> 95)
-			BackSubs_State = INITIALIZING ;
+			system_state = INITIALIZING ;
+		else
+		if (frame_status==55)					//TODO:check this condition
+			system_state = FOUND_GOOD_TARGET ;
+		else
+		if (frame_status> 10)
+			system_state = FOUND_SOME_MOVEMENT ;
+	}
 	/// thus far the main stuff of BackgroundSubs. from now on just extra manipulations
 	//show_more_details(foreground);
 	return frame_status;

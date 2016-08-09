@@ -36,7 +36,8 @@ const FRAME_SIZES	frame_size   = SMALL;
 const String STEREO_CALIBRATION_IMAGES_LIST = "fileList.txt";	// will include files names in left-right pairs order
 const String STEREO_CALIBRATION_VIDEO_PAIR  = "output_#.avi";  // '#' will be 1,2 , respectivley for cams 0,1
 
-const int frame_boundary		= 30;	  // for the tracking functions. to not consider the image boundaries.
+const int frame_boundary		= 10;	  // for the tracking functions. to not consider the image boundaries.
+const int frame_boundary_W_init	= 40;	  // for the movement detection functions. to not consider the image boundaries.
 
 	  /* constants */
 
@@ -100,9 +101,12 @@ enum SYSTEM_STATUS{
 	INITIALIZING	=	0 ,		// Should show GRAY cross	 
 	STANDBY			=	1 ,		// Should show ORANGE cross
 	FOUND_SOME_MOVEMENT	,
+	FOUND_GOOD_TARGET	,
 	TRACKING_GOOD_QUALITY_TARGET,		// Should show GREEN cross
 	TRACKING_LOW_QUALITY_TARGET,
 	TARGET_IS_LOST			// Should show RED cross	,	after 3 sec will turn to ORANGE (while stopping the robot)
 };
+
+SYSTEM_STATUS system_state = INITIALIZING ;
 
 #endif //WORKING_CONSTS_H

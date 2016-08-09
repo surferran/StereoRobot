@@ -8,7 +8,7 @@
 //	14/11/15 - performance issue..  -> 25/11/15 - smaller resultion to reduce bus trafic !
 //  14/02/16 - stereo calibration seems to work finally. smaller resultution captures are bad for calibration.
 
-#define RUN_ON_LAPTOP__MONO false   // true state is not working well. and actually not necessary.
+#define RUN_ON_LAPTOP__MONO true   // true state is not working well. and actually not necessary.
 
  /* my  constants and parameters */
 #define LEFT_CAMERA_INDEX		2		// depends on platform. 0 index is the default camera.
@@ -33,7 +33,7 @@
 
 #include "BackgroundSub.hpp"
 
-#include "GUI_functions.h"
+#include "GUIFunctions.h"
 
 // also : https://en.wikipedia.org/wiki/Image_moment#Examples_2
 #include "camshiftdemo.cpp"
@@ -43,6 +43,7 @@
 #include "stereo_calib.h" 
 
 #include "myTracker.cpp"
+
 
 ////when need to eliminate the consule that is opened in parallel 
 //#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
@@ -87,6 +88,9 @@ void specific_match()
 	destroyAllWindows();*/
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////					  main	   			  //////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv) 
 {
 	//	specific_match();  // testing for sending right parameters, and images order
@@ -101,6 +105,8 @@ int main(int argc, char** argv)
 	int		stream_frame_index	= 0;
 	char	rec_file_name[150]  = "C:/Users/Ran_the_User/Documents/Technion_Studies/IP_STUFF/video_4_testing/in/VID_3D_scenario/output_1.avi";
 	VideoCapture vid			= VideoCapture(rec_file_name);	
+	Mat		target_candidate_features;
+	Mat		tracked_target_image;
 
 	bool first_setup = true;
 
@@ -110,7 +116,7 @@ int main(int argc, char** argv)
 	int relative_counter =0;
 	VideoCapture vidR,vidL;
 
-	const int target_lost_timeout      = 100 ; // counter to simulate delay of about 2 sec. (depend on loop inner delay)
+	const int target_lost_timeout      = 500 ; // counter to simulate delay of about 2 sec. (depend on loop inner delay)
 	int		  target_lost_time_counter = 0 ;   // stopper to timeout
 
 	if( !vid.isOpened() )
@@ -128,9 +134,60 @@ int main(int argc, char** argv)
 	BackSubs	localBackSubs ;
 
 	Tracker		tracker;
+	Rect		BckgndSubROI;
 	Rect		TrackingROI;
 
-	do_stereo_disp_init();
+	////////////// 1st entrance only ///////////
+	if (first_setup) {
+		first_setup = false;
+		////check of sources already active
+		//vidR			= VideoCapture(1);	
+		//vidL			= VideoCapture(2);	
+		int w=320,	h=240 , waitSec = 5;
+		if (RUN_ON_LAPTOP__MONO)
+		{
+			vidL.open(0);	
+			vidL.set(CAP_PROP_FRAME_WIDTH, w);	vidL.set(CAP_PROP_FRAME_HEIGHT, h);
+		}
+		else
+		{
+			vidR.open(RIGHT_CAMERA_INDEX);	
+			vidL.open(LEFT_CAMERA_INDEX);
+
+			if(!vidR.isOpened()){ cout << "Cannot open right camera" << endl; return -1;}
+			if(!vidL.isOpened()){ cout << "Cannot open left camera" << endl;  return -1;}
+
+			vidR.set(CAP_PROP_FRAME_WIDTH, w);	vidR.set(CAP_PROP_FRAME_HEIGHT, h);
+			vidL.set(CAP_PROP_FRAME_WIDTH, w);	vidL.set(CAP_PROP_FRAME_HEIGHT, h);
+			cout <<" waiting "<<waitSec<<" sec to initialze cameras";
+			cvWaitKey(waitSec*1000); // initial delay for init
+			cout <<" .. continuing ";
+		}
+
+		localBackSubs.show_forgnd_and_bgnd_init(vidL); //with Left cam  
+
+
+														/* clear points that are out of my desired ROI (center of image) */
+														//TODO:make 20 h , 30 w /// sizes are for after resize
+														//CV_EXPORTS_W void rectangle(InputOutputArray img, Point pt1, Point pt2,
+														//	const Scalar& color, int thickness = 1,
+														//	int lineType = LINE_8, int shift = 0); 
+		Point	TopLeft(frame_boundary, frame_boundary); 
+		Point	LowRight(w - frame_boundary , h - frame_boundary);
+		TrackingROI = Rect(TopLeft, LowRight ); 
+
+		//	ROI for background substraction is narrower then the one for the tracker
+		TopLeft		 = Point(frame_boundary_W_init, frame_boundary); 
+		LowRight	 = Point(w - frame_boundary_W_init , h - frame_boundary);
+		BckgndSubROI = Rect(TopLeft, LowRight ); 
+	}
+	////////////// end of 1st entrance only ///////////
+
+
+
+	if (!RUN_ON_LAPTOP__MONO)
+		do_stereo_disp_init();
+
 
 	while (1)		// TODO: add delay for the loop. about 10mS
 	{
@@ -148,44 +205,6 @@ int main(int argc, char** argv)
 		{
 			relative_counter++;
 
-			////////////// 1st entrance only ///////////
-			if (first_setup) {
-				first_setup = false;
-				////check of sources already active
-				//vidR			= VideoCapture(1);	
-				//vidL			= VideoCapture(2);	
-				int w=320,	h=240 , waitSec = 5;
-				if (RUN_ON_LAPTOP__MONO)
-				{
-					vidL.open(0);	
-					vidL.set(CAP_PROP_FRAME_WIDTH, w);	vidL.set(CAP_PROP_FRAME_HEIGHT, h);
-				}
-				else
-				{
-					vidR.open(RIGHT_CAMERA_INDEX);	
-					vidL.open(LEFT_CAMERA_INDEX);
-				
-					vidR.set(CAP_PROP_FRAME_WIDTH, w);	vidR.set(CAP_PROP_FRAME_HEIGHT, h);
-					vidL.set(CAP_PROP_FRAME_WIDTH, w);	vidL.set(CAP_PROP_FRAME_HEIGHT, h);
-					cout <<" waiting "<<waitSec<<" sec to initialze cameras";
-					cvWaitKey(waitSec*1000); // initial delay for init
-					cout <<" .. continuing ";
-				}
-
-				localBackSubs.show_forgnd_and_bgnd_init(vidL); //with Left cam  
-
-				 
-				/* clear points that are out of my desired ROI (center of image) */
-				   //TODO:make 20 h , 30 w /// sizes are for after resize
-				//CV_EXPORTS_W void rectangle(InputOutputArray img, Point pt1, Point pt2,
-										//	const Scalar& color, int thickness = 1,
-										//	int lineType = LINE_8, int shift = 0); 
-				Point	TopLeft(frame_boundary, frame_boundary); 
-				Point	LowRight(w - frame_boundary , h - frame_boundary);
-						TrackingROI = Rect(TopLeft, LowRight ); 
-			}
-			////////////// end of 1st entrance only ///////////
-
 			////////////// capture images ///////////
 			if (RUN_ON_LAPTOP__MONO){
 				vidL >> plotImages[1];
@@ -198,30 +217,15 @@ int main(int argc, char** argv)
 			}
 			////////////// end of capture images ///////////
 			 
+			Mat left_cam = plotImages[1].clone();   
 
-			////////////// added graphics section ///////////
-			Mat left_cam;
-			left_cam	= plotImages[1].clone();   // for some additional display layer
-
-			if (op_flags.draw_middle_x)
-			{
-				//on the right image
-				add_Cross_to_Image(left_cam.size[1]/2, left_cam.size[0]/2, false, localBackSubs.BackSubs_State , left_cam); // 120h,160w , with no coor. label
-			}
-			String StatusText = _sysStatToString(localBackSubs.BackSubs_State );
-			putText(left_cam, StatusText, Point(15, 15), FONT_HERSHEY_COMPLEX, 0.4, (0, 0, 255), 1);
-
-			imshow(plotWindowsNames[0],	plotImages[0] );
-			imshow(plotWindowsNames[1],	left_cam);
-			////////////* end of graphics section *///////////////
-			
-			left_cam	= plotImages[1].clone();		// copy again, without the added UI graphics
-
+			Point movementMassCenter;
 			// condition by STANDBY, otherwise - only the tracker is in the loop 
-			if (localBackSubs.BackSubs_State <= STANDBY)
-				localBackSubs.show_forgnd( left_cam ) ; //// synthesize target by movement
+			if ( system_state < FOUND_GOOD_TARGET )
+			// will change system_state only when (system_state <= FOUND_SOME_MOVEMENT )
+				localBackSubs.find_forgnd( left_cam(BckgndSubROI) , &movementMassCenter ) ; //// synthesize target by movement
 
-			////////////* get DEPTH by stereo *///////////////
+			////////////* get DEPTH by Stereo *///////////////
 			if (!RUN_ON_LAPTOP__MONO){
 				// calc disparity every 2 frame
 				if (relative_counter>1) //10  
@@ -230,6 +234,9 @@ int main(int argc, char** argv)
 					cv::cvtColor(plotImages[0*1], plotImages[0*1], CV_BGR2GRAY);
 
 					do_stereo_disp(plotImages[0+1],plotImages[1*0], plotImages[2]);  // plotImages[2] is the disparity output
+					///disp relevant disperity values. 
+					// for image blobs or average areas. use superpixel segmentation??
+					// get disp average for the target feature poitns area.
 
 					//main_SBM(plotImages[0+1],plotImages[1*0], plotImages[2]); 
 					imshow(plotWindowsNames[2],  plotImages[2]);
@@ -241,51 +248,87 @@ int main(int argc, char** argv)
 
 			////////////////////////////////////////////////
 			//			tracking part (by 'goodFeatures')
+			if ( system_state == FOUND_GOOD_TARGET )
+			{	// want to init and lock the tracker
+				// get the feature points of the target from the BackgroundSubs ROI
+				Mat candidate_features;
+				target_candidate_features = localBackSubs.get_foreground_mat();//*left_cam ;	//element-wise multiplication
+				cvtColor( target_candidate_features , candidate_features , CV_GRAY2BGR);
+				//candidate_Features = candidate_Features.mul(left_cam(BckgndSubROI)  ) ; 
+				//candidate_Features = left_cam(BckgndSubROI)  . mul(candidate_Features);
+				left_cam(BckgndSubROI).copyTo(tracked_target_image, candidate_features);
+				imshow("tracked Target candidates", tracked_target_image) ; // show 4 debug  only
+			//	Mat candidate_Features2 = candidate_Features * left_cam(BckgndSubROI) ;	//element-wise multiplication
+			//	imshow("Target candidates2", candidate_Features2) ; // show 4 debug  only
+					// TODO: check minimum number of quality feature points of that target
+					//	otherwise it is low quality tracking	
+					//tracker.processImage(candidate_Features2,  left_cam (TrackingROI) , system_state);  
+				//find 
+			}
 
-			if (localBackSubs.BackSubs_State > STANDBY)
+			if (system_state >= FOUND_GOOD_TARGET)
 			{
 
 				if (target_lost_time_counter == 0)   // otherwise wait for ..lost.. (should be a time-window of recapture target)
-				//if ( localBackSubs.BackSubs_State == FOUND_SOME_MOVEMENT )
+				//if ( system_state == FOUND_SOME_MOVEMENT )
 				//{
 				//	// get the feature points of the target from the BackgroundSubs ROI
 				//	Mat candidate_Features = localBackSubs.get_foreground_mat();//*left_cam ;	//element-wise multiplication
 				//	imshow("Target candidates", candidate_Features) ; // show 4 debug  only
 				//	// TODO: check minimum number of quality feature points of that target
 				//	//	otherwise it is low quality tracking	
-				//	tracker.processImage(candidate_Features,  left_cam (TrackingROI) , localBackSubs.BackSubs_State);  
+				//	tracker.processImage(candidate_Features,  left_cam (TrackingROI) , system_state);  
 
 				//}
 				//else		  
 					////////////////////////////////////////////////
 					//			make tracking of the 'goodFeatures'
 					//			from previous frame to the new one		
-					tracker.processImage(left_cam (TrackingROI), left_cam (TrackingROI) ,localBackSubs.BackSubs_State);  
+					tracker.processImage(left_cam (TrackingROI), left_cam (TrackingROI) ,system_state);  
 					 
 				if (tracker.TrackPercent > 25)
-					localBackSubs.BackSubs_State = TRACKING_LOW_QUALITY_TARGET;
+					system_state = TRACKING_LOW_QUALITY_TARGET;
 				if (tracker.TrackPercent > 80)
-					localBackSubs.BackSubs_State = TRACKING_GOOD_QUALITY_TARGET;
+					system_state = TRACKING_GOOD_QUALITY_TARGET;
 				else 
 					if ( ( (tracker.TrackPercent > 95) && (target_lost_time_counter < target_lost_timeout) ) 
 						 || (target_lost_time_counter > 0) )
 					{	
-						localBackSubs.BackSubs_State = TARGET_IS_LOST;
+						system_state = TARGET_IS_LOST;
 						target_lost_time_counter ++;
 					}
 					else
 					{
-						localBackSubs.BackSubs_State	= INITIALIZING;
+						system_state	= INITIALIZING;
 						target_lost_time_counter		=	0;
 					}
 				//// check direction change from the previous tracked poits center. mark an arrow .
 				//////////////////////////////////////////////////
 				////	calculate translation from previous to current.
 				////	display modified current 
-				Mat invTrans = tracker.rigidTransform.inv(DECOMP_SVD);
-				Mat orig_warped;
-				warpAffine(left_cam,orig_warped,invTrans.rowRange(0,2),Size());
-				imshow("stabilized",orig_warped);
+		//		Mat invTrans = tracker.rigidTransform.inv(DECOMP_SVD);
+		//		Mat orig_warped;
+		//		warpAffine(left_cam,orig_warped,invTrans.rowRange(0,2),Size());
+		//		imshow("stabilized",orig_warped);
+
+
+				////////////// added graphics section ///////////
+				left_cam	= plotImages[1].clone();   // for some additional display layer
+
+				if (op_flags.draw_middle_x)
+				{
+					//on the right image
+					//add_Cross_to_Image(left_cam.size[1]/2, left_cam.size[0]/2, false, system_state , left_cam); // 120h,160w , with no coor. label
+					add_Cross_to_Image(movementMassCenter.x + BckgndSubROI.x,  movementMassCenter.y + BckgndSubROI.y , 
+											false, system_state , left_cam); // 120h,160w , with no coor. label
+					
+				}
+				String StatusText = _sysStatToString(system_state );
+				putText(left_cam, StatusText, Point(15, 15), FONT_HERSHEY_COMPLEX, 0.4, (0, 0, 255), 1);
+
+				imshow(plotWindowsNames[0],	plotImages[0] );
+				imshow(plotWindowsNames[1],	left_cam);
+				////////////* end of graphics section *///////////////
 			}
 			 
 		}

@@ -13,28 +13,28 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Source Files\general">
-      <UniqueIdentifier>{b4e687ac-988b-4b83-926a-41992074935f}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\hardware">
       <UniqueIdentifier>{68e2075e-0547-4f67-8585-4d68dd8e702d}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\hardware">
       <UniqueIdentifier>{977d994a-ff70-4a83-96b9-8afb1052da4c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\general">
+      <UniqueIdentifier>{b4e687ac-988b-4b83-926a-41992074935f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\frameFunctions.h">
-      <Filter>Source Files\general</Filter>
+      <Filter>Header Files\general</Filter>
     </ClInclude>
     <ClInclude Include="..\src\working_consts.h">
-      <Filter>Source Files\general</Filter>
+      <Filter>Header Files\general</Filter>
     </ClInclude>
     <ClInclude Include="..\src\OdroidC1_handlers\pwm.h">
       <Filter>Header Files\hardware</Filter>
     </ClInclude>
     <ClInclude Include="..\src\utilFunctions.h">
-      <Filter>Source Files\general</Filter>
+      <Filter>Header Files\general</Filter>
     </ClInclude>
     <ClInclude Include="..\src\stereo_calib.h">
       <Filter>Header Files</Filter>
@@ -42,11 +42,11 @@
     <ClInclude Include="..\src\BackgroundSub.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\GUI_functions.h">
-      <Filter>Source Files\general</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\stereo_functions.hpp">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\GUIFunctions.h">
+      <Filter>Header Files\general</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

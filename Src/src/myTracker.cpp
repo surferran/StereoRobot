@@ -8,6 +8,7 @@
 using namespace cv;
 using namespace std;
 
+#include "working_consts.h"
 
 class Tracker {
 private:
@@ -23,10 +24,10 @@ public:
 	int				num_of_maxCornersFeatures	= 300;//300;
 	float			mid_level_percent			= 1.25;		//	1/1.25=80%
 
-	int		alphaSlider = 0;
-	int		alphaSlider2 = 0;
-	char	TrackbarName[50]="StatusSum";
-	char	TrackbarName2[50]="StatusSumPercent";
+	int		alphaSlider       = 0;
+	int		alphaSlider2      = 0;
+	char	TrackbarName[50]  = "StatusSum";
+	char	TrackbarName2[50] = "StatusSumPercent";
 
 	int		alphaSlider_max=100;
 
@@ -35,7 +36,7 @@ public:
     }
 
 	// both imgTarget, imgROI should be of the same size.
-    void processImage(Mat& imgTarget, Mat&imgROI , SYSTEM_STATUS external_state) 
+    void processImage(Mat& imgTarget, Mat& imgROI , SYSTEM_STATUS external_state) 
 	{
 
 		RNG rng(12345);//RANDV
@@ -46,7 +47,8 @@ public:
 		/* find new features set, when current matches are lower then minimum */
 		// ..meaning of aquiring new target..
         if (trackedFeatures.size() < min_features * mid_level_percent ) 
-			if (FOUND_SOME_MOVEMENT == external_state)
+			//if (FOUND_SOME_MOVEMENT == external_state)
+			if (FOUND_GOOD_TARGET == system_state)
 			{
 				goodFeaturesToTrack(grayTarget,corners,num_of_maxCornersFeatures,0.01,10);	//  int maxCorners, double qualityLevel, double minDistance,
 				cout << "(re-)found " << corners.size() << " features\n";
@@ -64,6 +66,9 @@ public:
 
 				// if bellow minimum - anounce loss of tracking. and stop..
 				cout << "loss of tracking fetures....!"<<endl;
+
+				TrackPercent	= 0;
+				return;
 			}
 
         if(!prevGrayROI.empty()) {
@@ -100,13 +105,13 @@ public:
 			/// Create Trackbars
 			////cout << TrackbarName << "Alpha x %d" << alphaSlider_max ;
 
-			createTrackbar( TrackbarName, "original copy", 
+			createTrackbar( TrackbarName, "original copy ROI", 
 				&alphaSlider, num_of_maxCornersFeatures, /*on_trackbar*/NULL );
 			///*alphaSlider++;
 			/*if (alphaSlider>alphaSlider_max) alphaSlider=0;*/
 			alphaSlider = countNonZero(status);
 			////////////////
-			createTrackbar( TrackbarName2, "original copy", 
+			createTrackbar( TrackbarName2, "original copy ROI", 
 				&alphaSlider2, alphaSlider_max, /*on_trackbar*/NULL );
 			///*alphaSlider++;
 			/*if (alphaSlider>alphaSlider_max) alphaSlider=0;*/
