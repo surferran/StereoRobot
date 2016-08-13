@@ -10,8 +10,6 @@ using namespace std;
 
 #include "working_consts.h"
 
-void cvShowManyImages(char* title, int nArgs, ...) ;   //#include "showManyImages.cpp"
-
 class Tracker {
 private:
     vector<Point2f> trackedFeatures; 
@@ -22,7 +20,7 @@ public:
 	int				TrackPercent = 0;		// % of the feature points that has correspondance to the next/previous frame
     bool            freshStart;
     Mat_<float>     rigidTransform;
-	int				min_features				= 10;//40//200; 
+	int				min_features				= 40;//200; 
 	int				num_of_maxCornersFeatures	= 300;//300;
 	float			mid_level_percent			= 1.25;		//	1/1.25=80%
 
@@ -48,10 +46,8 @@ public:
         vector<Point2f> corners;  
 		/* find new features set, when current matches are lower then minimum */
 		// ..meaning of aquiring new target..
-        if (trackedFeatures.size() < min_features * mid_level_percent ) 
-			//if (FOUND_SOME_MOVEMENT == external_state)
-		
-			if (FOUND_GOOD_TARGET == system_state)
+    ///    if (trackedFeatures.size() < min_features * mid_level_percent )  
+	///		if (FOUND_GOOD_TARGET == system_state)
 			{
 				goodFeaturesToTrack(grayTarget,corners,num_of_maxCornersFeatures,0.01,10);	//  int maxCorners, double qualityLevel, double minDistance,
 				cout << "(re-)found " << corners.size() << " features\n";
@@ -62,84 +58,46 @@ public:
 
 				// if corners.size > minimum*1.3 set GOOD_TRACKING
 			}
-		
-		else  // loss of features during tracking
-		{
-			// when near minimum limit - find more feature in ROI around those still alive
-			////set LOW_QUALITY_TRACKING
+	///		else  // loss of features during tracking
+			{
+				// when near minimum limit - find more feature in ROI around those still alive
+				////set LOW_QUALITY_TRACKING
 
-			// if bellow minimum - anounce loss of tracking. and stop..
-			cout << "loss of tracking fetures....!"<<endl;
+				// if bellow minimum - anounce loss of tracking. and stop..
+				cout << "loss of tracking fetures....!"<<endl;
 
-			TrackPercent	= 0;
-			return;
-		}
+				TrackPercent	= 0;
+				return;
+			}
 
-        if(!prevGrayROI.empty()) 
-		{
+        if(!prevGrayROI.empty()) {
+
 			goodFeaturesToTrack(prevGrayROI,corners,num_of_maxCornersFeatures,0.01,10);	//  int maxCorners, double qualityLevel, double minDistance,
 			cout << "(re-)found " << corners.size() << " features\n";
 			// set corners -> trackedFeatures 
 			for (int i = 0; i < corners.size(); ++i) {
 				trackedFeatures.push_back(corners[i]);
 			}
-
-
+			
             vector<uchar> status; vector<float> errors;
 			// new input is trackedFeatures ->
 			// new output is corners
 			// status of 1 means correspondence found. 0 otherwise.
-          //  calcOpticalFlowPyrLK(prevGrayROI,grayROI,trackedFeatures,corners,status,errors,Size(10,10));	// corners are 'InOut' array
-         ///   calcOpticalFlowPyrLK(prevGrayROI,grayROI,trackedFeatures,corners,status,errors,Size(20,10));	// corners are 'InOut' array
+            calcOpticalFlowPyrLK(prevGrayROI,grayROI,trackedFeatures,corners,status,errors,Size(10,10));	// corners are 'InOut' array
 
-			calcOpticalFlowPyrLK(prevGrayROI,grayROI,trackedFeatures,corners,status,errors,Size(20,10), 3,
-				TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 0.01),0, 0.1);	// corners are 'InOut' array
-
-			/////////// display the found feature points from Prev to Current //////////
-			Mat copyPrev; 
-			///copyPrev	= prevGrayROI.clone();
-			cvtColor(prevGrayROI.clone(),copyPrev,CV_GRAY2BGR);
-			int r	= 2;	//3
-			for( int i = 0; i < trackedFeatures.size(); i++ )
-			{ 
-				circle( copyPrev, trackedFeatures[i], r, 
-					///Scalar(rng.uniform(0,255), rng.uniform(0,255), rng.uniform(0,255)), -1, 8, 0 ); 
-						Scalar(10, 100, 255), -1, 8, 0 ); 
-			}			
-			Mat copyCurrent;
-			cvtColor(grayROI.clone(),copyCurrent,CV_GRAY2BGR);
-			Mat copyCurrent2=copyCurrent.clone() ;
-			Mat copyCurrent3=copyCurrent.clone() ;
-			//int r	= 2;//3
+			/////////////////////
+			Mat copy;
+			copy	= grayROI.clone();
+			int r	= 2;//3
 			for( int i = 0; i < corners.size(); i++ )
-			{ 
-				if (status[i])
-					circle( copyCurrent, corners[i], r, 
-						///Scalar(rng.uniform(0,255), rng.uniform(0,255), rng.uniform(0,255)), -1, 8, 0 ); 
-						Scalar(0, 255, 0), -1, 8, 0 ); 
-				else
-					circle( copyCurrent3, corners[i], r+2,  
-						Scalar(0, 0, 255), -1, 8, 0 ); 
-				circle( copyCurrent2, corners[i], r, 
-					///Scalar(rng.uniform(0,255), rng.uniform(0,255), rng.uniform(0,255)), -1, 8, 0 ); 
-					Scalar(10, 100, 255), -1, 8, 0 ); 
-			}	
-
-			///imshow("original copy ROI", copy);	
-
-
-			IplImage	*im_mat1 = cvCloneImage(&(IplImage)copyPrev),
-						*im_mat2 = cvCloneImage(&(IplImage)copyCurrent),
-						*im_mat3 = cvCloneImage(&(IplImage)copyCurrent2),
-						*im_mat4 = cvCloneImage(&(IplImage)copyCurrent3);
-			//cvShowManyImages("images prev & current" , 4 , im_mat1, im_mat2, im_mat1, im_mat2 );
-			cvShowManyImages("images prev & current " , 4 , im_mat1, im_mat2 , im_mat3, im_mat4 );
-
-			cout  << "trackedFeatures size " << trackedFeatures.size() 
-				<< " corners size " << corners.size() << " status size " 
-				<< status.size() << " status non zeroes "<< countNonZero(status) <<"\n"; 
-
-			///cvWaitKey(); ///
+			{ circle( copy, corners[i], r, 
+				Scalar(rng.uniform(0,255), rng.uniform(0,255), rng.uniform(0,255)), 
+				-1, 8, 0 );
+				//x_cord[i] = corners[i].x;
+				//y_cord[i] = corners[i].y;
+			}			
+			
+			imshow("original copy ROI", copy);	
 
 			/////////////////////////////////
 			/*  just trial additional code 

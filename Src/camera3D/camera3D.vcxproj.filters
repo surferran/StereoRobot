@@ -54,6 +54,9 @@
     <ClCompile Include="..\src\OdroidC1_handlers\pwm.cpp">
       <Filter>Source Files\hardware</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\showManyImages.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="ClassDiagram.cd" />

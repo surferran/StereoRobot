@@ -15,22 +15,22 @@ class BackSubs
 public:
 
 	BackSubs(){};
-	int show_forgnd_and_bgnd_init(VideoCapture vidSource_LeftCam);
-	//int find_forgnd(Mat frame);
+	int show_forgnd_and_bgnd_init(VideoCapture vidSource_LeftCam); 
 
 	int find_forgnd(Mat frame, Point *movementMassCenter);
 
 	Mat get_foreground_mat() { return foreground.clone() ; } ;
-
-	//SYSTEM_STATUS BackSubs_State = INITIALIZING ;
-
+	 
 private:
 
 	int show_more_details(Mat frame) ;
+	int doMYbsManipulation( Mat & mask , Point *movementMassCenter);
 
 	VideoCapture			cap;
 	String					vidName		= ""; 
 	String					StatusText	= "NAN";
+
+	int						stable_bkgnd_phase = 2; 
 
 	int						fps;
 	Mat						frame, foreground, image;	// inner vars for class functions.
@@ -76,7 +76,7 @@ static void drawShapesContours(Mat& image, const vector<vector<Point> >& ShapesC
 
 // TODO: return parameters of rCircle, boundRect, theta, frame_counter(of bkgSubs) (as part of class?)
 // calculate and print some parameters for the current frame foreground
-int doMYbsManipulation( Mat & mask , Point *movementMassCenter)
+int BackSubs::doMYbsManipulation( Mat & mask , Point *movementMassCenter)
 { 
 	static int frame_counter=0;
 	int mask_status = 0;
@@ -112,12 +112,20 @@ int doMYbsManipulation( Mat & mask , Point *movementMassCenter)
 
 	imshow("Foreground debug", mask);
 
+	if ((frame_counter > 10)  // wait for at least 10 initial frames
+		&& (system_state <= STANDBY)
+		&& (rCircle < 5) )
+	{
+		stable_bkgnd_phase = 0;
+	}
+
 	//TODO: make this condition more clear to read and understand
 	int w =  mask.size().width;
 	int w_band = 40;
 	if ( //(boundRect.width < w) && 
 		(2.*rCircle < w) &&
 		(movementMassCenter->x > w/2 - w_band ) && (movementMassCenter->x < w/2 + w_band )
+		&& (stable_bkgnd_phase==0)
 		)
 		mask_status = 55;		// treated as GoodTarget
 

@@ -145,6 +145,7 @@
   <ItemGroup>
     <ClCompile Include="..\src\MainFile.cpp" />
     <ClCompile Include="..\src\OdroidC1_handlers\pwm.cpp" />
+    <ClCompile Include="..\src\showManyImages.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ClassDiagram.cd" />

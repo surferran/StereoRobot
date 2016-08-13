@@ -44,6 +44,8 @@
 
 #include "myTracker.cpp"
 
+//#include "showManyImages.cpp"
+void cvShowManyImages(char* title, int nArgs, ...) ;
 
 ////when need to eliminate the consule that is opened in parallel 
 //#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
@@ -56,6 +58,14 @@ void specific_match()
 	argv2[1] = "../run_inputs/stereo_calibration_images/shot_0_031.jpg";  // right image
 	Mat imgL = imread(argv2[1], -1);
 	Mat imgR = imread(argv2[0], -1);
+
+	IplImage	*im_mat1 = cvCloneImage(&(IplImage)imgL),
+				*im_mat2 = cvCloneImage(&(IplImage)imgR);
+	cvShowManyImages("image couple" , 4 , im_mat1, im_mat2, im_mat1, im_mat2 );
+	cvShowManyImages("image couple2" , 2 , im_mat1, im_mat2 );
+	waitKey(0);
+	return;
+
 	Mat outM;
 
 	///////////////////////////////
@@ -93,7 +103,9 @@ void specific_match()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv) 
 {
-	//	specific_match();  // testing for sending right parameters, and images order
+	///		specific_match();  // testing for sending right parameters, and images order
+
+	/* variables */
 
 	thisStereo.input_source = LIVE_CAM;
 		
@@ -136,6 +148,10 @@ int main(int argc, char** argv)
 	Tracker		tracker;
 	Rect		BckgndSubROI;
 	Rect		TrackingROI;
+
+	bool got_1st_stable_bkgnd = false;
+
+	/* end of variables */
 
 	////////////// 1st entrance only ///////////
 	if (first_setup) {
@@ -183,7 +199,10 @@ int main(int argc, char** argv)
 	}
 	////////////// end of 1st entrance only ///////////
 
-
+	// prepare display windows locations
+	
+	//drawMatches
+	
 
 	if (!RUN_ON_LAPTOP__MONO)
 		do_stereo_disp_init();
@@ -269,7 +288,7 @@ int main(int argc, char** argv)
 			if (system_state >= FOUND_GOOD_TARGET)
 			{
 
-				if (target_lost_time_counter == 0)   // otherwise wait for ..lost.. (should be a time-window of recapture target)
+		///		if (target_lost_time_counter == 0)   // otherwise wait for ..lost.. (should be a time-window of recapture target)
 				//if ( system_state == FOUND_SOME_MOVEMENT )
 				//{
 				//	// get the feature points of the target from the BackgroundSubs ROI
