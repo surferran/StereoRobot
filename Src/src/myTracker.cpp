@@ -43,7 +43,7 @@ public:
 
 		RNG rng(12345);//RANDV
 
-		Mat grayTarget; cvtColor(imgTarget,grayTarget,CV_BGR2GRAY);
+		Mat grayTarget; cvtColor(imgTarget,grayTarget,CV_BGR2GRAY);	// can be removed, because i work with same updated image , not given template
 		Mat grayROI   ; cvtColor(imgROI   ,grayROI   ,CV_BGR2GRAY);
         vector<Point2f> corners;  
 		/* find new features set, when current matches are lower then minimum */

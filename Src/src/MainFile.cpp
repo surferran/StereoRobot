@@ -101,7 +101,7 @@ void specific_match()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////					  main	   			  //////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
-int main(int argc, char** argv) 
+int main_later(int argc, char** argv) 
 {
 	///		specific_match();  // testing for sending right parameters, and images order
 
@@ -310,7 +310,7 @@ int main(int argc, char** argv)
 				if (tracker.TrackPercent > 80)
 					system_state = TRACKING_GOOD_QUALITY_TARGET;
 				else 
-					if ( ( (tracker.TrackPercent > 95) && (target_lost_time_counter < target_lost_timeout) ) 
+					if ( ( (tracker.TrackPercent > 65) && (target_lost_time_counter < target_lost_timeout) ) //95
 						 || (target_lost_time_counter > 0) )
 					{	
 						system_state = TARGET_IS_LOST;
@@ -338,6 +338,8 @@ int main(int argc, char** argv)
 				{
 					//on the right image
 					//add_Cross_to_Image(left_cam.size[1]/2, left_cam.size[0]/2, false, system_state , left_cam); // 120h,160w , with no coor. label
+
+					// TODO: test source of track errors, from BackgroundSubs, or Tracker
 					add_Cross_to_Image(movementMassCenter.x + BckgndSubROI.x,  movementMassCenter.y + BckgndSubROI.y , 
 											false, system_state , left_cam); // 120h,160w , with no coor. label
 					

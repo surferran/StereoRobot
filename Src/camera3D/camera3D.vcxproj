@@ -143,6 +143,7 @@
     <ClInclude Include="..\src\working_consts.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\core_example_Source1.cpp" />
     <ClCompile Include="..\src\MainFile.cpp" />
     <ClCompile Include="..\src\OdroidC1_handlers\pwm.cpp" />
     <ClCompile Include="..\src\showManyImages.cpp" />
