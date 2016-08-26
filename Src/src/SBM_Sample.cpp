@@ -69,16 +69,21 @@ int main_SBM( Mat imgLeft, Mat imgRight ,Mat &outM)
   printf("Min disp: %f Max value: %f \n", minVal, maxVal);
 
   //-- 4. Display it as a CV_8UC1 image
-  imgDisparity16S.convertTo( imgDisparity8U, CV_8UC1, 2550/(maxVal - minVal));
+  imgDisparity16S.convertTo( imgDisparity8U, CV_8UC1, 255/(maxVal - minVal));
 
   namedWindow( windowDisparity, WINDOW_NORMAL );
-  imshow( windowDisparity, imgDisparity8U );
+  imshow( windowDisparity, imgDisparity16S /* imgDisparity8U*/ );
 
   //-- 5. Save the image
   //imwrite("SBM_sample.png", imgDisparity16S);
 
  /* waitKey(0);*/
+  if (1==0)
+  {
+	  cv::Mat M = imgDisparity16S;// imgDisparity8U;
 
+	 cout << "M = "<< endl << " "  << M << endl << endl;
+  }
   outM = imgDisparity8U ; 
 
   return 0;

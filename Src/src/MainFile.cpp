@@ -11,8 +11,8 @@
 #define RUN_ON_LAPTOP__MONO true   // true state is not working well. and actually not necessary.
 
  /* my  constants and parameters */
-#define LEFT_CAMERA_INDEX		2		// depends on platform. 0 index is the default camera.
-#define RIGHT_CAMERA_INDEX		1
+///#define LEFT_CAMERA_INDEX		2		// depends on platform. 0 index is the default camera.
+///#define RIGHT_CAMERA_INDEX		1
 // bounds in percent from image size
 #define MIN_MOVED_AREA_in_image 33//33//.0//23
 #define MAX_MOVED_AREA_in_image 95.0
@@ -44,6 +44,8 @@
 
 #include "myTracker.cpp"
 
+#include "ImagesSourceHandler.h"
+
 //#include "showManyImages.cpp"
 void cvShowManyImages(char* title, int nArgs, ...) ;
 
@@ -64,7 +66,7 @@ void specific_match()
 	cvShowManyImages("image couple" , 4 , im_mat1, im_mat2, im_mat1, im_mat2 );
 	cvShowManyImages("image couple2" , 2 , im_mat1, im_mat2 );
 	waitKey(0);
-	return;
+	//return;
 
 	Mat outM;
 
@@ -101,7 +103,7 @@ void specific_match()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////					  main	   			  //////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
-int main_later(int argc, char** argv) 
+int main(int argc, char** argv) 
 {
 	///		specific_match();  // testing for sending right parameters, and images order
 
@@ -126,13 +128,16 @@ int main_later(int argc, char** argv)
 	char	user_pressing=0;	// just optional.
 
 	int relative_counter =0;
-	VideoCapture vidR,vidL;
+	///VideoCapture vidR,vidL;
+	/*       */
+	ImagesSourceHandler myStereoCams; // thread for images capturing
+	/*       */
 
 	const int target_lost_timeout      = 500 ; // counter to simulate delay of about 2 sec. (depend on loop inner delay)
 	int		  target_lost_time_counter = 0 ;   // stopper to timeout
 
-	if( !vid.isOpened() )
-		return -1;
+	///if( !vid.isOpened() )
+	///	return -1;
 
 	plotWindowsNames[0] = "win1 - right stereo image";
 	plotWindowsNames[1] = "win2 - left stereo image"; 
@@ -156,31 +161,33 @@ int main_later(int argc, char** argv)
 	////////////// 1st entrance only ///////////
 	if (first_setup) {
 		first_setup = false;
+		///myStereoCams.InitVideoCap();
+
 		////check of sources already active
 		//vidR			= VideoCapture(1);	
 		//vidL			= VideoCapture(2);	
 		int w=320,	h=240 , waitSec = 5;
-		if (RUN_ON_LAPTOP__MONO)
-		{
-			vidL.open(0);	
-			vidL.set(CAP_PROP_FRAME_WIDTH, w);	vidL.set(CAP_PROP_FRAME_HEIGHT, h);
-		}
-		else
-		{
-			vidR.open(RIGHT_CAMERA_INDEX);	
-			vidL.open(LEFT_CAMERA_INDEX);
+		//if (RUN_ON_LAPTOP__MONO)
+		//{
+		//	vidL.open(0);	
+		//	vidL.set(CAP_PROP_FRAME_WIDTH, w);	vidL.set(CAP_PROP_FRAME_HEIGHT, h);
+		//}
+		//else
+		//{
+		//	vidR.open(RIGHT_CAMERA_INDEX);	
+		//	vidL.open(LEFT_CAMERA_INDEX);
 
-			if(!vidR.isOpened()){ cout << "Cannot open right camera" << endl; return -1;}
-			if(!vidL.isOpened()){ cout << "Cannot open left camera" << endl;  return -1;}
+		//	if(!vidR.isOpened()){ cout << "Cannot open right camera" << endl; return -1;}
+		//	if(!vidL.isOpened()){ cout << "Cannot open left camera" << endl;  return -1;}
 
-			vidR.set(CAP_PROP_FRAME_WIDTH, w);	vidR.set(CAP_PROP_FRAME_HEIGHT, h);
-			vidL.set(CAP_PROP_FRAME_WIDTH, w);	vidL.set(CAP_PROP_FRAME_HEIGHT, h);
-			cout <<" waiting "<<waitSec<<" sec to initialze cameras";
-			cvWaitKey(waitSec*1000); // initial delay for init
-			cout <<" .. continuing ";
-		}
+		//	vidR.set(CAP_PROP_FRAME_WIDTH, w);	vidR.set(CAP_PROP_FRAME_HEIGHT, h);
+		//	vidL.set(CAP_PROP_FRAME_WIDTH, w);	vidL.set(CAP_PROP_FRAME_HEIGHT, h);
+		//	cout <<" waiting "<<waitSec<<" sec to initialze cameras";
+		//	cvWaitKey(waitSec*1000); // initial delay for init
+		//	cout <<" .. continuing ";
+		//}
 
-		localBackSubs.show_forgnd_and_bgnd_init(vidL); //with Left cam  
+		localBackSubs.show_forgnd_and_bgnd_init(30 ); //vidL//with Left cam  
 
 
 														/* clear points that are out of my desired ROI (center of image) */
@@ -222,18 +229,24 @@ int main_later(int argc, char** argv)
 
 		if(op_flags.show_stereo)
 		{
-			relative_counter++;
 
 			////////////// capture images ///////////
-			if (RUN_ON_LAPTOP__MONO){
-				vidL >> plotImages[1];
-				plotImages[0] = plotImages[1];  // questionable ..
-			}
-			else
-			{
-				vidR >> plotImages[0];
-				vidL >> plotImages[1];
-			}
+			myStereoCams.GetFrames(plotImages[0],plotImages[1]);
+			if ((plotImages[0].empty()) )
+				continue;
+			if ((plotImages[1].empty()) )
+				continue;
+
+			relative_counter++;
+			//if (RUN_ON_LAPTOP__MONO){
+			//	vidL >> plotImages[1];
+			//	plotImages[0] = plotImages[1];  // questionable ..
+			//}
+			//else
+			//{
+			//	vidR >> plotImages[0];
+			//	vidL >> plotImages[1];
+			//}
 			////////////// end of capture images ///////////
 			 
 			Mat left_cam = plotImages[1].clone();   

@@ -15,7 +15,7 @@ class BackSubs
 public:
 
 	BackSubs(){};
-	int show_forgnd_and_bgnd_init(VideoCapture vidSource_LeftCam); 
+	int show_forgnd_and_bgnd_init(int a); 
 
 	int find_forgnd(Mat frame, Point *movementMassCenter);
 
@@ -133,14 +133,15 @@ int BackSubs::doMYbsManipulation( Mat & mask , Point *movementMassCenter)
 }
 
 
-int BackSubs::show_forgnd_and_bgnd_init(VideoCapture vidSource_LeftCam)
+int BackSubs::show_forgnd_and_bgnd_init(int fpsIN)
+	//VideoCapture vidSource_LeftCam)
 {
 	vidName		= ""; 
 	StatusText	= "NAN"; 
 	mog			= createBackgroundSubtractorMOG2(BackSubs_History , BackSubs_Threshould , BackSubs_DetectShadows);
 
-	cap = vidSource_LeftCam;
-	fps = cap.get(CV_CAP_PROP_FPS);
+	//cap = vidSource_LeftCam;
+	fps = fpsIN;//cap.get(CV_CAP_PROP_FPS);
 	if(fps<=0)
 		loopWait=33;
 	else

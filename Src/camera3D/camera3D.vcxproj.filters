@@ -22,6 +22,9 @@
     <Filter Include="Header Files\general">
       <UniqueIdentifier>{b4e687ac-988b-4b83-926a-41992074935f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\testing_code">
+      <UniqueIdentifier>{0f269172-e031-4c06-a877-f9af6aeb78b8}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\frameFunctions.h">
@@ -48,6 +51,9 @@
     <ClInclude Include="..\src\GUIFunctions.h">
       <Filter>Header Files\general</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\ImagesSourceHandler.h">
+      <Filter>Header Files\hardware</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\MainFile.cpp" />
@@ -58,7 +64,10 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\core_example_Source1.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\testing_code</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ImagesSourceHandler.cpp">
+      <Filter>Source Files\hardware</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
