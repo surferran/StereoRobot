@@ -200,20 +200,17 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\src\BackgroundSub.hpp" />
+    <ClInclude Include="..\src\FeatureTracker.hpp" />
     <ClInclude Include="..\src\frameFunctions.h" />
     <ClInclude Include="..\src\GUIFunctions.h" />
     <ClInclude Include="..\src\OdroidC1_handlers\pwm.h" />
     <ClInclude Include="..\src\ImagesSourceHandler.h" />
     <ClInclude Include="..\src\stereo_calib.h" />
     <ClInclude Include="..\src\stereo_functions.hpp" />
-    <ClInclude Include="..\src\utilFunctions.h" />
     <ClInclude Include="..\src\working_consts.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\core_example_Source1.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ARM'">true</ExcludedFromBuild>
-    </ClCompile>
+    <ClCompile Include="..\src\FeatureTracker.cpp" />
     <ClCompile Include="..\src\MainFile.cpp" />
     <ClCompile Include="..\src\OdroidC1_handlers\pwm.cpp" />
     <ClCompile Include="..\src\showManyImages.cpp" />

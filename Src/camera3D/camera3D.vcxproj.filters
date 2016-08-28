@@ -22,9 +22,6 @@
     <Filter Include="Header Files\general">
       <UniqueIdentifier>{b4e687ac-988b-4b83-926a-41992074935f}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\testing_code">
-      <UniqueIdentifier>{0f269172-e031-4c06-a877-f9af6aeb78b8}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\frameFunctions.h">
@@ -35,9 +32,6 @@
     </ClInclude>
     <ClInclude Include="..\src\OdroidC1_handlers\pwm.h">
       <Filter>Header Files\hardware</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\utilFunctions.h">
-      <Filter>Header Files\general</Filter>
     </ClInclude>
     <ClInclude Include="..\src\stereo_calib.h">
       <Filter>Header Files</Filter>
@@ -54,6 +48,9 @@
     <ClInclude Include="..\src\ImagesSourceHandler.h">
       <Filter>Header Files\hardware</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\FeatureTracker.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\MainFile.cpp" />
@@ -63,11 +60,11 @@
     <ClCompile Include="..\src\showManyImages.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\core_example_Source1.cpp">
-      <Filter>Source Files\testing_code</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\ImagesSourceHandler.cpp">
       <Filter>Source Files\hardware</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\FeatureTracker.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

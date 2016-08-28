@@ -12,8 +12,7 @@ using namespace std;
 
 void show_vidSource_options_gui()
 ;
-
-#include "utilFunctions.h" 
+//#include "utilFunctions.h"
 
 //general app options
 enum USER_CHOISE  {
@@ -104,12 +103,12 @@ static void onMousePress2( int event, int x, int y, int, void* )
 
 // return user input , or 0(zero) if pressed ESC, -1 as default for no special input.
 // p - start/stop play video file. in window 1
-// s - set identification to/by current frame 
+// s - set identification to/by current frame
 // a - operate/turn-off the camshift algorithm on given frame
 // r - re-init video reading.
 //
 // mouse pressing result treatment. result of user pressing on button 1, or 2 (at the moment only 2 buttons).
-bool check_user_input(int* waiting_delay, char* c)   
+bool check_user_input(const int* waiting_delay, char* c)
 {
 	/*keyboard*/
 	*c = (char)waitKey(*waiting_delay);
@@ -134,7 +133,7 @@ bool check_user_input(int* waiting_delay, char* c)
 	/*mouse*/
 	switch (userMouseBtnSelection)
 	{
-	case 1: 
+	case 1:
 		op_flags.make_stereo_calibration = true;
 		userMouseBtnSelection=-1;
 		break;
@@ -146,26 +145,26 @@ bool check_user_input(int* waiting_delay, char* c)
 		break;
 	case 3:// choose vid source
 		op_flags.show_vid_source_selection = true;
-		show_vidSource_options_gui();		
+	///	show_vidSource_options_gui();
 		userMouseBtnSelection=-1;
 		break;
 	case 4:// show video panels
-		   //// start the displays and wait for tracking		
+		   //// start the displays and wait for tracking
 		op_flags.show_stereo = true;
 		userMouseBtnSelection=-1;
 		break;
 	case 31:
-		thisStereo.input_source = LIVE_CAM;		
+		thisStereo.input_source = LIVE_CAM;
 		cout << "change video source to LIVE " << thisStereo.input_source << '\n';
 		userMouseBtnSelection=-1;
 		break;
 	case 32:
-		thisStereo.input_source = RECORDED_VIDEO_FILE;		
+		thisStereo.input_source = RECORDED_VIDEO_FILE;
 		cout << "change video source to FILE " << thisStereo.input_source << '\n';
 		userMouseBtnSelection=-1;
 		break;
 	case 33:
-		thisStereo.input_source = IMAGES_LIST;		
+		thisStereo.input_source = IMAGES_LIST;
 		cout << "change video source to IMAGES_LIST " << thisStereo.input_source << '\n';
 		userMouseBtnSelection=-1;
 		break;
@@ -177,129 +176,6 @@ bool check_user_input(int* waiting_delay, char* c)
 	return true;
 }
 
-
-void show_buttons_gui()
-{
-	String WinName	= "User controls"; // buttons,status text
-	int num_of_displayed_btns = 4;
-	std::string text[buttons_num];
-	text[0]			= " stereo calibration procedure ";// for stereo. by pre-set images and xml file";
-		//" show stereo stream "; 
-	text[1]			= " calculate background substruction ";//maximum length string
-	text[2]			= " select video source ";
-				/// 4->num_of_displayed_btns
-	Mat all_btns_im	(10+30*1.5*4,  250*1.5 , CV_8UC3, Scalar(10 , 10 , 10 ));   // hight, width,type,.. //create_empty_image() 
-	Mat btn_im		( 20*1.5	,  240*1.5 , CV_8UC3, Scalar(30, 30, 30));  // hight, width,type,.. //create_empty_image() 
-	Mat clear_btn_im ;
-	btn_im.copyTo(clear_btn_im);
-	int originX	,	originY	;
-	int text_in_label_location_X	,	text_in_label_location_Y;
-	Rect roi;
-
-	namedWindow(WinName, CV_WINDOW_AUTOSIZE); //create a window 
-	moveWindow(WinName, 5,155);
-
-	// TODO: add text to show working directory. 
-	// and calibration files directory.
-	// and options possibilities (the enum)
-
-	setMouseCallback(WinName , onMousePress, 0 );
-
-	text_in_label_location_X	=	5;
-	text_in_label_location_Y	=	18;
-		//gives x,y as left lower // return is w,h + l,top	//. or set boundaries for buttons table	
-	setLabel(btn_im, text[0], cvPoint(text_in_label_location_X, text_in_label_location_Y));		
-	originX			= 10 ;
-	originY			= 10 ;
-	boundRect[0]	= Rect (originX - 3, originY - 5, originX + 310*1.5, originY + 10*1.5);	//x,y,w,h //boundRect[0]	= Rect (+ 7, + 5,320,20);
-	roi				= Rect ( Point( originX, originY ), btn_im.size() );
-	btn_im.copyTo( all_btns_im( roi ) );
-	clear_btn_im.copyTo(btn_im);
-
-	setLabel(btn_im, text[1], cvPoint(text_in_label_location_X, text_in_label_location_Y));	
-	originX			= 10 ;
-	originY			= 10+30*1.5 ;
-	boundRect[1]	= Rect (originX - 3, originY - 5, originX + 310*1.5, originY + 10*1.5);	//x,y,w,h
-	roi				= Rect( Point( originX, originY ), btn_im.size() );
-	btn_im.copyTo( all_btns_im( roi ) );
-	clear_btn_im.copyTo(btn_im);
-
-	setLabel(btn_im, text[2], cvPoint(text_in_label_location_X, text_in_label_location_Y));	
-	originX			= 10 ;
-	originY			= 10+30*1.5*2 ;
-	boundRect[2]	= Rect (originX - 3, originY - 5, originX + 310*1.5, originY + 10*1.5);	//x,y,w,h
-	roi				= Rect( Point( originX, originY ), btn_im.size() );
-	btn_im.copyTo( all_btns_im( roi ) );
-	clear_btn_im.copyTo(btn_im);
-
-	text[3]			= " start video panel ";
-	setLabel(btn_im, text[3], cvPoint(text_in_label_location_X, text_in_label_location_Y));	
-	originX			= 10 ;
-	originY			= 10+30*1.5*3 ;
-	boundRect[3]	= Rect (originX - 3, originY - 5, originX + 310*1.5, originY + 10*1.5);	//x,y,w,h
-	roi				= Rect( Point( originX, originY ), btn_im.size() );
-	btn_im.copyTo( all_btns_im( roi ) );
-	clear_btn_im.copyTo(btn_im);
-
-	imshow(WinName, all_btns_im);
-
-}
-
-
-void show_vidSource_options_gui()
-{
-	String WinName	= "video source"; // buttons,status text
-	std::string text[3];
-	text[0]			= " live stream "; 
-	text[1]			= " pre-captured file";
-	text[2]			= " images list - not feasable yet..";
-	Mat all_btns_im	(100*1.5,  250*1.5 , CV_8UC3, Scalar(10 , 10 , 10 ));   // hight, width,type,.. //create_empty_image() 
-	Mat btn_im		( 20*1.5,  240*1.5 , CV_8UC3, Scalar(30, 30, 30));  // hight, width,type,.. //create_empty_image() 
-	Mat clear_btn_im ;
-	btn_im.copyTo(clear_btn_im);
-	int originX	,	originY	;
-	int text_in_label_location_X	,	text_in_label_location_Y;
-	Rect roi;
-
-	namedWindow(WinName, CV_WINDOW_AUTOSIZE); 
-	moveWindow(WinName, 355,155);
-
-	// TODO: add text to show working directory. 
-	// and calibration files directory.
-	// and options possibilities (the enum)
-
-	setMouseCallback(WinName , onMousePress2, 0 );
-
-	text_in_label_location_X	=	5;
-	text_in_label_location_Y	=	18;
-	//gives x,y as left lower // return is w,h + l,top	//. or set boundaries for buttons table	
-	setLabel(btn_im, text[0], cvPoint(text_in_label_location_X, text_in_label_location_Y));		
-	originX			= 10 ;
-	originY			= 10 ;
-	boundRect[3]	= Rect (originX - 3, originY - 5, originX + 310*1.5, originY + 10*1.5);	//x,y,w,h //boundRect[0]	= Rect (+ 7, + 5,320,20);
-	roi				= Rect ( Point( originX, originY ), btn_im.size() );
-	btn_im.copyTo( all_btns_im( roi ) );
-	clear_btn_im.copyTo(btn_im);
-
-	setLabel(btn_im, text[1], cvPoint(text_in_label_location_X, text_in_label_location_Y));	
-	originX			= 10 ;
-	originY			= 10+30*1.5 ;
-	boundRect[4]	= Rect (originX - 3, originY - 5, originX + 310*1.5, originY + 10*1.5);	//x,y,w,h
-	roi				= Rect( Point( originX, originY ), btn_im.size() );
-	btn_im.copyTo( all_btns_im( roi ) );
-	clear_btn_im.copyTo(btn_im);
-
-	setLabel(btn_im, text[2], cvPoint(text_in_label_location_X, text_in_label_location_Y));	
-	originX			= 10 ;
-	originY			= 10+30*1.5*2 ;
-	boundRect[5]	= Rect (originX - 3, originY - 5, originX + 310*1.5, originY + 10*1.5);	//x,y,w,h
-	roi				= Rect( Point( originX, originY ), btn_im.size() );
-	btn_im.copyTo( all_btns_im( roi ) );
-	clear_btn_im.copyTo(btn_im);
-
-	imshow(WinName, all_btns_im);
-
-}
 
 /////////////////////////////
 

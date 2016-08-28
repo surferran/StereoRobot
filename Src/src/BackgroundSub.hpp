@@ -10,24 +10,27 @@
 
 using namespace cv;
 
+/*************************************************************************************/
+/******************************    Header section    *********************************/
+/*************************************************************************************/
 class BackSubs
 {
 public:
 
 	BackSubs(){};
-	int show_forgnd_and_bgnd_init(int a); 
+	int		show_forgnd_and_bgnd_init(int a); 
 
-	int find_forgnd(Mat frame, Point *movementMassCenter);
+	int		find_forgnd(Mat frame, Point *movementMassCenter);
 
-	Mat get_foreground_mat() { return foreground.clone() ; } ;
+	Mat		get_foreground_mat() { return foreground.clone() ; } ;
+	Rect	get_foreground_boundRect() { return boundRect ; } ;
+	Point	get_foreground_center() { return MassCenter ; } ;
 	 
 private:
 
 	int show_more_details(Mat frame) ;
 	int doMYbsManipulation( Mat & mask , Point *movementMassCenter);
-
-	VideoCapture			cap;
-	String					vidName		= ""; 
+	 
 	String					StatusText	= "NAN";
 
 	int						stable_bkgnd_phase = 2; 
@@ -35,21 +38,38 @@ private:
 	int						fps;
 	Mat						frame, foreground, image;	// inner vars for class functions.
 	Mat						middle_tmp_frame;			//	
+
+	/* for show_more_details() */
 	vector<vector<Point> >	contours;
 	vector<vector<Point> >	selected_shapes_contours;
 	int						area;
-	Rect					rect;
+	///Rect					rect;
     
 	cv::Ptr<BackgroundSubtractorMOG2> mog ;
 	Scalar					random_color;
 	int						loopWait = 0;
 	int						found_contours_num ;
+ 
+	/* foreground movement features */
+	Point	MassCenter ;
+	double	rCircle;			// estimated rounding circle for the object area
+	Rect	boundRect;
+	double	theta ;				// estimated oriantation of bounding box. though not well feature
 
+	/* initializing parameters for the Background_Subtractor algorithm */
 	const int				BackSubs_History		= 120;
 	const double			BackSubs_Threshould		= 16.0;	
 	const bool				BackSubs_DetectShadows	= false;   // only for better run-time performance
 
 };
+/*************************************************************************************/
+/******************************end of Header section *********************************/
+/*************************************************************************************/
+
+
+/*************************************************************************************/
+/******************************    local functions section    *********************************/
+/*************************************************************************************/
 
 	RNG						rng(12345);
 // the function draws all the squares in the image
@@ -74,37 +94,48 @@ static void drawShapesContours(Mat& image, const vector<vector<Point> >& ShapesC
 	imshow("Capture ", image);
 }
 
+
+/*************************************************************************************/
+/******************************    the class functions section    *********************************/
+/*************************************************************************************/
+
 // TODO: return parameters of rCircle, boundRect, theta, frame_counter(of bkgSubs) (as part of class?)
 // calculate and print some parameters for the current frame foreground
 int BackSubs::doMYbsManipulation( Mat & mask , Point *movementMassCenter)
 { 
-	static int frame_counter=0;
-	int mask_status = 0;
+	/* inner calculation vars */
+	static int	frame_counter=0;
+	int			mask_status = 0;
+	String		StatusText ="";
+	Moments		m;
+	double		boundAreaRatio;
 
-	Moments m = moments(mask, false);	// points moment 
-	Point p0(m.m10/m.m00, m.m01/m.m00); // mass_centers
-	*movementMassCenter = p0;
+	m			= moments(mask, false);				// points moment 
+	MassCenter	= Point(m.m10/m.m00, m.m01/m.m00);	// mass_centers
+	rCircle		= sqrt(m.m00/3.14)/13 ;				// estimated rounding circle for the object area
+	boundRect	= boundingRect ( mask );
+	theta		= 0.5 * atan2(2*m.m11, m.m20-m.m02) * 57.3;
+	// show in Percent, the relation between bounding rectangle area , and area of the image
+	double tmp1		= 100. * boundRect.area() ;
+	double tmp2		= (mask.size()).area() ; 
+	boundAreaRatio	= tmp1 / tmp2;
+	mask_status		= int(boundAreaRatio);
 
-	double rCircle = sqrt(m.m00/3.14)/13 ; //10~  // estimated rounding circle for the object area
-	circle(mask, p0, rCircle, Scalar(128,220,220), 3); 
+	circle(mask, MassCenter, rCircle, Scalar(128,220,220), 3); 
 
-	Rect boundRect = boundingRect ( mask );
 	rectangle(mask,
 		boundRect.tl(), boundRect.br(),
 		Scalar(128,220,220) ,	2, 8, 0);
 
-	double theta = 0.5 * atan2(2*m.m11, m.m20-m.m02) * 57.3;
-	String StatusText = "theta=" + _doubleToString(theta);
+	StatusText = "theta=" + _doubleToString(theta);
 	putText(mask, StatusText, Point(15, 15), FONT_HERSHEY_COMPLEX, 0.4, (210, 110, 220), 1);
-	       StatusText = "rCircle=" + _doubleToString(rCircle);
+	StatusText = "rCircle=" + _doubleToString(rCircle);
 	putText(mask, StatusText, Point(15, 25), FONT_HERSHEY_COMPLEX, 0.4, (110, 210, 220), 1);
 
-	// show in Percent, the relation between bounding rectangle area , and area of the image
-	double tmp1 = 100. * boundRect.area() ;
-	double tmp2 = (mask.size()).area() ; 
-	mask_status = tmp1 / tmp2;
-	StatusText  = "status=" + _intToString(mask_status);
+	StatusText  = "boundAR=" + _doubleToString(boundAreaRatio);
 	putText(mask, StatusText, Point(15, 35), FONT_HERSHEY_COMPLEX, 0.4, (210, 210, 220), 1);
+	StatusText  = "status=" + _intToString(mask_status);
+	putText(mask, StatusText, Point(15, 45), FONT_HERSHEY_COMPLEX, 0.4, (210, 210, 220), 1);
 	 
 	frame_counter++;
 	//if (frame_counter % 5)
@@ -112,7 +143,7 @@ int BackSubs::doMYbsManipulation( Mat & mask , Point *movementMassCenter)
 
 	imshow("Foreground debug", mask);
 
-	if ((frame_counter > 10)  // wait for at least 10 initial frames
+	if ((frame_counter > 20)  // wait for at least 10 initial frames
 		&& (system_state <= STANDBY)
 		&& (rCircle < 5) )
 	{
@@ -124,11 +155,13 @@ int BackSubs::doMYbsManipulation( Mat & mask , Point *movementMassCenter)
 	int w_band = 40;
 	if ( //(boundRect.width < w) && 
 		(2.*rCircle < w) &&
-		(movementMassCenter->x > w/2 - w_band ) && (movementMassCenter->x < w/2 + w_band )
+		(MassCenter.x > w/2 - w_band ) && (MassCenter.x < w/2 + w_band )
 		&& (stable_bkgnd_phase==0)
+		&& ( boundAreaRatio > 15 )
 		)
 		mask_status = 55;		// treated as GoodTarget
 
+	*movementMassCenter = MassCenter;
 	return mask_status;
 }
 
@@ -136,7 +169,7 @@ int BackSubs::doMYbsManipulation( Mat & mask , Point *movementMassCenter)
 int BackSubs::show_forgnd_and_bgnd_init(int fpsIN)
 	//VideoCapture vidSource_LeftCam)
 {
-	vidName		= ""; 
+	//vidName		= ""; 
 	StatusText	= "NAN"; 
 	mog			= createBackgroundSubtractorMOG2(BackSubs_History , BackSubs_Threshould , BackSubs_DetectShadows);
 
@@ -157,7 +190,7 @@ int BackSubs::find_forgnd(Mat frame, Point *movementMassCenter)  // assuming inp
 {
 	// using code in the file:"C:\OpenCV\sources\modules\video\src/bgfg_gaussmix2.cpp"
 	/* apply background substraction and manipulate the resultant frame */
-	mog->apply(frame,foreground); 
+	mog->apply(frame,foreground);	//learningRate~0.7?
 	imshow("BackSubs Foreground before manipulations",foreground); //debugging
 
     threshold	(foreground,	foreground,	128,	255,THRESH_BINARY);//28,128,198

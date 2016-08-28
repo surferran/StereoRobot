@@ -1,18 +1,12 @@
 //// 3D stero robot (RoboDog)
-
-// TODO : 
-//  26/11/15 -  set working_consts by UI, esspecialy choosing REC or PLAYBACK
-//				set correct recordings rate		
-//				do calibration !!
-// DONE :
-//	14/11/15 - performance issue..  -> 25/11/15 - smaller resultion to reduce bus trafic !
-//  14/02/16 - stereo calibration seems to work finally. smaller resultution captures are bad for calibration.
-
-#define RUN_ON_LAPTOP__MONO true   // true state is not working well. and actually not necessary.
+/*
+	history can be vied in the GitHub site repository.
+	written app : by Ran , year 2016
+*/
+#define RUN_ON_LAPTOP__MONO true    
 
  /* my  constants and parameters */
-///#define LEFT_CAMERA_INDEX		2		// depends on platform. 0 index is the default camera.
-///#define RIGHT_CAMERA_INDEX		1
+
 // bounds in percent from image size
 #define MIN_MOVED_AREA_in_image 33//33//.0//23
 #define MAX_MOVED_AREA_in_image 95.0
@@ -29,75 +23,91 @@
 
 #include "frameFunctions.h"		// general definitions and functions. that's why it is first to include.
 #include "working_consts.h"		// my added definitions, constants
-#include "utilFunctions.h"		// utility functions for the application.
+
+StereoCams		thisStereo;				// global 
+SYSTEM_STATUS	system_state = INITIALIZING ;
 
 #include "BackgroundSub.hpp"
 
 #include "GUIFunctions.h"
 
 // also : https://en.wikipedia.org/wiki/Image_moment#Examples_2
-#include "camshiftdemo.cpp"
+///#include "camshiftdemo.cpp"
 
-#include "./SBM_Sample.cpp"		// externals/
+///#include "./SBM_Sample.cpp"		// externals/
 
 #include "stereo_calib.h" 
 
-#include "myTracker.cpp"
+#include "FeatureTracker.hpp"
 
+#ifdef COMPILING_ON_ROBOT
+////#include "OdroidC1_handlers/RobotController.h"
+#include <unistd.h>
+
+#include <thread>
+#include <memory>
+#include "pwm.h"
+#endif
+
+///
 #include "ImagesSourceHandler.h"
 
 //#include "showManyImages.cpp"
 void cvShowManyImages(char* title, int nArgs, ...) ;
-
+///void processImage(Mat& imgTarget, Mat& imgROI , SYSTEM_STATUS external_state); //#include 'myTracker.cpp'
 ////when need to eliminate the consule that is opened in parallel 
 //#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
 
-void specific_match()
-{
-	char*	argv2[2];  //6
-	//// TODO: put in a loop to get those from cameras
-	argv2[0] = "../run_inputs/stereo_calibration_images/shot_1_031.jpg";  // left image
-	argv2[1] = "../run_inputs/stereo_calibration_images/shot_0_031.jpg";  // right image
-	Mat imgL = imread(argv2[1], -1);
-	Mat imgR = imread(argv2[0], -1);
+int findBiggestContour(vector<vector<Point> > contours){
+	int indexOfBiggestContour = -1;
+	int sizeOfBiggestContour = 0;
+	for (int i = 0; i < contours.size(); i++){
+		if(contours[i].size() > sizeOfBiggestContour){
+			sizeOfBiggestContour = contours[i].size();
+			indexOfBiggestContour = i;
+		}
+	}
+	return indexOfBiggestContour;
+}
+void makeContours(Mat aBw){
 
-	IplImage	*im_mat1 = cvCloneImage(&(IplImage)imgL),
-				*im_mat2 = cvCloneImage(&(IplImage)imgR);
-	cvShowManyImages("image couple" , 4 , im_mat1, im_mat2, im_mat1, im_mat2 );
-	cvShowManyImages("image couple2" , 2 , im_mat1, im_mat2 );
-	waitKey(0);
-	//return;
+	vector<vector<Point>>	contours;
+	vector<vector<int>>		hullI;
+	vector<vector<Point>>	hullP;
+	vector<vector<Vec4i>>	defects;	
+	int						cIdx;
+	Rect					bRect;
 
-	Mat outM;
+	findContours(aBw, contours,CV_RETR_EXTERNAL,CV_CHAIN_APPROX_NONE);
 
-	///////////////////////////////
+	hullI	=vector<vector<int> >	(contours.size());
+	hullP	=vector<vector<Point> >	(contours.size());
+	defects	=vector<vector<Vec4i> > (contours.size());
+	cIdx	=findBiggestContour( contours);
+	if( cIdx!=-1){ 
+		bRect=boundingRect(Mat( contours[ cIdx]));		
+		convexHull(Mat( contours[ cIdx]), hullP[ cIdx],false,true);
+		convexHull(Mat( contours[ cIdx]), hullI[ cIdx],false,false);
+		approxPolyDP( Mat( hullP[ cIdx]),  hullP[ cIdx], 18, true );
+		///if( contours[ cIdx].size()>3 )
+		{
+		///	convexityDefects( contours[ cIdx], hullI[ cIdx], defects[ cIdx]);
+			 ///eleminateDefects(m);
+		} 
+		Scalar color;
 
-	Mat imgLeft		= imread( argv2[0], IMREAD_GRAYSCALE );
-	Mat imgRight	= imread( argv2[1], IMREAD_GRAYSCALE );
-	 
-	main_SBM(imgLeft,imgRight, outM);
+		color = Scalar( rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255) );
+		drawContours(aBw, contours, cIdx , color );
 
-	imshow("right",imgR);
-	imshow("left" ,imgL);
-	imshow("disp out",outM);
-	
-	waitKey(0);
+		color = Scalar( rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255) );
+		drawContours(aBw, hullP   , cIdx , color );
 
-	destroyAllWindows();
+		rectangle(aBw,
+			bRect.tl(), bRect.br(),
+			Scalar(128,220,220) ,	2, 8, 0);
 
-	return;
-	///////////////////////////////
-/*
-	do_stereo_disp_init();
-	do_stereo_disp(imgR,imgL,outM);
-
-	imshow("right",imgR);
-	imshow("left",imgL);
-	imshow("disp out",outM);
-
-	waitKey(0);
-
-	destroyAllWindows();*/
+		imshow("hull results", aBw);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -105,39 +115,37 @@ void specific_match()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv) 
 {
-	///		specific_match();  // testing for sending right parameters, and images order
+ 
 
 	/* variables */
 
 	thisStereo.input_source = LIVE_CAM;
 		
-	//show_buttons_gui();  
+
 	op_flags.show_stereo=true;	// initialize and conduct stereo algo imidiatly when running.
 
-	string	base_out_file_path	= "C:/Users/Ran_the_User/Documents/Technion_Studies/IP_STUFF/video_4_testing/out";
+///	string	base_out_file_path	= "C:/Users/Ran_the_User/Documents/Technion_Studies/IP_STUFF/video_4_testing/out";
 	string	framesCounterStr	= ""	, base_file_name = "" , file_full_name="", file_suffix = ".*";	
 	int		stream_frame_index	= 0;
-	char	rec_file_name[150]  = "C:/Users/Ran_the_User/Documents/Technion_Studies/IP_STUFF/video_4_testing/in/VID_3D_scenario/output_1.avi";
-	VideoCapture vid			= VideoCapture(rec_file_name);	
+	/*char	rec_file_name[150]  = "C:/Users/Ran_the_User/Documents/Technion_Studies/IP_STUFF/video_4_testing/in/VID_3D_scenario/output_1.avi";
+	VideoCapture vid			= VideoCapture(rec_file_name);	*/
 	Mat		target_candidate_features;
-	Mat		tracked_target_image;
+	///Mat		tracked_target_image;
 
 	bool first_setup = true;
 
-	int		loop_delay = 33 ; //[ms]	// need to fit the file recording value
+	const int		loop_delay = 33 ; //[ms]	// need to fit the file recording value
 	char	user_pressing=0;	// just optional.
 
 	int relative_counter =0;
-	///VideoCapture vidR,vidL;
-	/*       */
+	
+	/*  initiating images capturing  */
 	ImagesSourceHandler myStereoCams; // thread for images capturing
-	/*       */
+	/*  ***************************  */
 
-	const int target_lost_timeout      = 500 ; // counter to simulate delay of about 2 sec. (depend on loop inner delay)
+	const int target_lost_timeout_counter  = 2* loop_delay ; // [~sec]//counter to simulate delay of about 2 sec. (depend on loop inner delay)
 	int		  target_lost_time_counter = 0 ;   // stopper to timeout
 
-	///if( !vid.isOpened() )
-	///	return -1;
 
 	plotWindowsNames[0] = "win1 - right stereo image";
 	plotWindowsNames[1] = "win2 - left stereo image"; 
@@ -148,7 +156,9 @@ int main(int argc, char** argv)
 	plotWindowsNames[3] = "win4 - background substruction output";
 	plotWindowsNames[4] = "win5 - tracked object";
 
+	/*  initiating createBackgroundSubtractorMOG2   */
 	BackSubs	localBackSubs ;
+	/*  *****************************************   */
 
 	Tracker		tracker;
 	Rect		BckgndSubROI;
@@ -161,33 +171,10 @@ int main(int argc, char** argv)
 	////////////// 1st entrance only ///////////
 	if (first_setup) {
 		first_setup = false;
-		///myStereoCams.InitVideoCap();
 
-		////check of sources already active
-		//vidR			= VideoCapture(1);	
-		//vidL			= VideoCapture(2);	
 		int w=320,	h=240 , waitSec = 5;
-		//if (RUN_ON_LAPTOP__MONO)
-		//{
-		//	vidL.open(0);	
-		//	vidL.set(CAP_PROP_FRAME_WIDTH, w);	vidL.set(CAP_PROP_FRAME_HEIGHT, h);
-		//}
-		//else
-		//{
-		//	vidR.open(RIGHT_CAMERA_INDEX);	
-		//	vidL.open(LEFT_CAMERA_INDEX);
 
-		//	if(!vidR.isOpened()){ cout << "Cannot open right camera" << endl; return -1;}
-		//	if(!vidL.isOpened()){ cout << "Cannot open left camera" << endl;  return -1;}
-
-		//	vidR.set(CAP_PROP_FRAME_WIDTH, w);	vidR.set(CAP_PROP_FRAME_HEIGHT, h);
-		//	vidL.set(CAP_PROP_FRAME_WIDTH, w);	vidL.set(CAP_PROP_FRAME_HEIGHT, h);
-		//	cout <<" waiting "<<waitSec<<" sec to initialze cameras";
-		//	cvWaitKey(waitSec*1000); // initial delay for init
-		//	cout <<" .. continuing ";
-		//}
-
-		localBackSubs.show_forgnd_and_bgnd_init(30 ); //vidL//with Left cam  
+		localBackSubs.show_forgnd_and_bgnd_init(30); //vidL//with Left cam  
 
 
 														/* clear points that are out of my desired ROI (center of image) */
@@ -200,8 +187,8 @@ int main(int argc, char** argv)
 		TrackingROI = Rect(TopLeft, LowRight ); 
 
 		//	ROI for background substraction is narrower then the one for the tracker
-		TopLeft		 = Point(frame_boundary_W_init, frame_boundary); 
-		LowRight	 = Point(w - frame_boundary_W_init , h - frame_boundary);
+		TopLeft		 = Point(frame_boundary_W_init		, frame_boundary	); 
+		LowRight	 = Point(w - frame_boundary_W_init	, h - frame_boundary);
 		BckgndSubROI = Rect(TopLeft, LowRight ); 
 	}
 	////////////// end of 1st entrance only ///////////
@@ -210,12 +197,17 @@ int main(int argc, char** argv)
 	
 	//drawMatches
 	
+	//TODO:  show initial target , and then current updated last target. if no target then show non or close win.
+	//   (default image shoult be zeroes(res.x, res.y) )
+	//		allow 1 or 2 frames to be with no featres. set a GapCounter.
+
+	// show normal status for tracker status.
 
 	if (!RUN_ON_LAPTOP__MONO)
 		do_stereo_disp_init();
 
 
-	while (1)		// TODO: add delay for the loop. about 10mS
+	while (1)		
 	{
 		if (op_flags.make_stereo_calibration)
 		{		
@@ -229,34 +221,30 @@ int main(int argc, char** argv)
 
 		if(op_flags.show_stereo)
 		{
-
 			////////////// capture images ///////////
 			myStereoCams.GetFrames(plotImages[0],plotImages[1]);
 			if ((plotImages[0].empty()) )
 				continue;
 			if ((plotImages[1].empty()) )
 				continue;
-
+			
 			relative_counter++;
-			//if (RUN_ON_LAPTOP__MONO){
-			//	vidL >> plotImages[1];
-			//	plotImages[0] = plotImages[1];  // questionable ..
-			//}
-			//else
-			//{
-			//	vidR >> plotImages[0];
-			//	vidL >> plotImages[1];
-			//}
+			if (relative_counter==1)
+				continue;			//just for getting debug point..
+			
 			////////////// end of capture images ///////////
 			 
 			Mat left_cam = plotImages[1].clone();   
 
-			Point movementMassCenter;
+			Point movementMassCenter, corected_MassCenter;
 			// condition by STANDBY, otherwise - only the tracker is in the loop 
 			if ( system_state < FOUND_GOOD_TARGET )
 			// will change system_state only when (system_state <= FOUND_SOME_MOVEMENT )
+			{
 				localBackSubs.find_forgnd( left_cam(BckgndSubROI) , &movementMassCenter ) ; //// synthesize target by movement
-
+				corected_MassCenter = Point(movementMassCenter.x + BckgndSubROI.x,  movementMassCenter.y + BckgndSubROI.y);
+				////actually not needed .. makeContours(localBackSubs.get_foreground_mat()); 
+			}
 			////////////* get DEPTH by Stereo *///////////////
 			if (!RUN_ON_LAPTOP__MONO){
 				// calc disparity every 2 frame
@@ -283,13 +271,27 @@ int main(int argc, char** argv)
 			if ( system_state == FOUND_GOOD_TARGET )
 			{	// want to init and lock the tracker
 				// get the feature points of the target from the BackgroundSubs ROI
-				Mat candidate_features;
-				target_candidate_features = localBackSubs.get_foreground_mat();//*left_cam ;	//element-wise multiplication
-				cvtColor( target_candidate_features , candidate_features , CV_GRAY2BGR);
+				///Mat candidate_features;
+				Mat tracked_target_image;
+				Rect corrected_ROI = Rect(	BckgndSubROI.x  + localBackSubs.get_foreground_boundRect().x ,
+											BckgndSubROI.y  + localBackSubs.get_foreground_boundRect().y ,
+											localBackSubs.get_foreground_boundRect().width ,
+											localBackSubs.get_foreground_boundRect().height ) ;
+
+				//target_candidate_features = left_cam.clone(); 
+				//target_candidate_features = Scalar(0,0,0);
+				//target_candidate_features(BckgndSubROI) = localBackSubs.get_foreground_mat();//*left_cam ;	//element-wise multiplication
+
+				//cvtColor( target_candidate_features , candidate_features , CV_GRAY2BGR);
+
 				//candidate_Features = candidate_Features.mul(left_cam(BckgndSubROI)  ) ; 
 				//candidate_Features = left_cam(BckgndSubROI)  . mul(candidate_Features);
-				left_cam(BckgndSubROI).copyTo(tracked_target_image, candidate_features);
-				imshow("tracked Target candidates", tracked_target_image) ; // show 4 debug  only
+				///left_cam(BckgndSubROI).copyTo(tracked_target_image, candidate_features);
+				left_cam(corrected_ROI).copyTo(tracked_target_image);
+				imshow("tracked Target start", tracked_target_image) ; // show 4 debug  only
+
+				tracker.setNewTarget(corrected_ROI, tracked_target_image, TrackingROI);
+
 			//	Mat candidate_Features2 = candidate_Features * left_cam(BckgndSubROI) ;	//element-wise multiplication
 			//	imshow("Target candidates2", candidate_Features2) ; // show 4 debug  only
 					// TODO: check minimum number of quality feature points of that target
@@ -316,15 +318,23 @@ int main(int argc, char** argv)
 					////////////////////////////////////////////////
 					//			make tracking of the 'goodFeatures'
 					//			from previous frame to the new one		
-					tracker.processImage(left_cam (TrackingROI), left_cam (TrackingROI) ,system_state);  
-					 
-				if (tracker.TrackPercent > 25)
+				tracker.processImage(left_cam.clone()  ,system_state);  
+
+				Point2f targetCenter ;
+
+				if ( system_state == FOUND_GOOD_TARGET )
+					targetCenter = localBackSubs.get_foreground_center() ;
+				else
+					targetCenter = Point(tracker.TrkErrX + left_cam.size().width/2 ,  left_cam.size().height/2  );
+
+				if (tracker.TrackPercent > 20)
 					system_state = TRACKING_LOW_QUALITY_TARGET;
-				if (tracker.TrackPercent > 80)
+				else
+				if (tracker.TrackPercent > 65)
 					system_state = TRACKING_GOOD_QUALITY_TARGET;
 				else 
-					if ( ( (tracker.TrackPercent > 65) && (target_lost_time_counter < target_lost_timeout) ) //95
-						 || (target_lost_time_counter > 0) )
+					if ( ( (tracker.TrackPercent > 5) && (target_lost_time_counter < target_lost_timeout_counter) ) //95
+						 && (target_lost_time_counter >= 0) )
 					{	
 						system_state = TARGET_IS_LOST;
 						target_lost_time_counter ++;
@@ -342,7 +352,8 @@ int main(int argc, char** argv)
 		//		Mat orig_warped;
 		//		warpAffine(left_cam,orig_warped,invTrans.rowRange(0,2),Size());
 		//		imshow("stabilized",orig_warped);
-
+				
+				
 
 				////////////// added graphics section ///////////
 				left_cam	= plotImages[1].clone();   // for some additional display layer
@@ -353,59 +364,24 @@ int main(int argc, char** argv)
 					//add_Cross_to_Image(left_cam.size[1]/2, left_cam.size[0]/2, false, system_state , left_cam); // 120h,160w , with no coor. label
 
 					// TODO: test source of track errors, from BackgroundSubs, or Tracker
-					add_Cross_to_Image(movementMassCenter.x + BckgndSubROI.x,  movementMassCenter.y + BckgndSubROI.y , 
+				///	add_Cross_to_Image(tracker.TrkErrX  ,  left_cam.size().height/2  , 
+					add_Cross_to_Image(targetCenter.x  ,  targetCenter.y  , 
 											false, system_state , left_cam); // 120h,160w , with no coor. label
 					
 				}
 				String StatusText = _sysStatToString(system_state );
 				putText(left_cam, StatusText, Point(15, 15), FONT_HERSHEY_COMPLEX, 0.4, (0, 0, 255), 1);
 
-				imshow(plotWindowsNames[0],	plotImages[0] );
-				imshow(plotWindowsNames[1],	left_cam);
+				
 				////////////* end of graphics section *///////////////
 			}
+			// move to broadcast from outside. // separate the graphic layer to only when track is on.
+			//									otherwise just draw raw images.
+			imshow(plotWindowsNames[0],	plotImages[0] );
+			imshow(plotWindowsNames[1],	left_cam);
 			 
 		}
 
-		if (op_flags.reset_vid_file_location) // TODO: verify source is file and not camera.
-		{
-			vid.set(CAP_PROP_POS_FRAMES,0);	// go back to first frame
-			op_flags.reset_identification	 = true;
-			op_flags.reset_vid_file_location = false;
-		}
-
-		if (op_flags.reset_identification){
-			reset_camshift_vars();			// a funciton to reset the camshift main variables. 
-			op_flags.reset_identification	= false;
-		}
-
-		if (op_flags.play_on){
-
-			vid >> plotImages[0];
-			if (plotImages[0].empty())
-				op_flags.play_on = false;
-			else
-			{					
-				imshow(plotWindowsNames[0], plotImages[0]); 
-				if (op_flags.make_camshift)
-					do_camshift_on_Single_current_frame(&plotImages[0]); 
-
-				if (op_flags.show_stereo) /// TODO!!
-				{
-					imshow(plotWindowsNames[1], plotImages[0]);
-					imshow(plotWindowsNames[2], plotImages[1]);
-					///plot_images[2] = calc_disparity();
-					/*imshow(plotWindowsNames[3], plotImages[2]);*/
-
-				}
-				if (op_flags.show_vid_source_selection)
-				{
-					
-				}
-			}
-
-
-		}
 		
 		if (!check_user_input(&loop_delay, &user_pressing))
 			break;

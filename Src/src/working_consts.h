@@ -93,7 +93,7 @@ struct StereoCams
 
 };
 
-StereoCams thisStereo;				// global 
+///StereoCams thisStereo;				// global 
 
 							
 // system status to include BackgroundSubstraction & Tracker.
@@ -107,6 +107,6 @@ enum SYSTEM_STATUS{
 	TARGET_IS_LOST			// Should show RED cross	,	after 3 sec will turn to ORANGE (while stopping the robot)
 };
 
-SYSTEM_STATUS system_state = INITIALIZING ;
+///SYSTEM_STATUS system_state = INITIALIZING ;
 
 #endif //WORKING_CONSTS_H

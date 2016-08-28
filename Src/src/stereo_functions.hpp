@@ -382,3 +382,37 @@ int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
 
     return 0;
 }
+
+
+myLocalDisparity localDisp;
+
+
+void do_stereo_disp_init(){
+
+	int		argc;
+	char*	argv[11];  //6
+
+	argc = 11;
+
+	argv[3] = "-i";
+	argv[4] = "/root/RAN/StereoRobot/src/data/intrinsics.yml";
+	argv[5] = "-e";
+	argv[6] = "/root/RAN/StereoRobot/src/data/extrinsics.yml";
+	////outputs:
+	//argv[7] = "-o";	argv[8]  = "../data/disp_out.jpg";
+	//argv[9] = "-p";	argv[10] = "../data/points_out.yml";
+	//outputs:
+	argv[7] = "--no-display";	argv[8]  = "";
+	argv[9] = "";	argv[10] = "";
+	localDisp.do_stereo_match_init (argc,argv);
+}
+
+void do_stereo_disp(Mat imgR, Mat imgL, Mat& outM){
+
+	//inputs:
+	Mat img1 = imgR.clone();
+	Mat img2 = imgL.clone();
+
+	localDisp.do_stereo_match( img1, img2, outM); // openCV demo as base code
+}
+
