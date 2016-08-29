@@ -325,14 +325,14 @@ int main(int argc, char** argv)
 				if ( system_state == FOUND_GOOD_TARGET )
 					targetCenter = localBackSubs.get_foreground_center() ;
 				else
-					targetCenter = Point(tracker.TrkErrX + left_cam.size().width/2 ,  left_cam.size().height/2  );
+					targetCenter = Point(tracker.TrkErrX_Avg + left_cam.size().width/2 ,  left_cam.size().height/2  );
 
-				if (tracker.TrackPercent > 20)
-					system_state = TRACKING_LOW_QUALITY_TARGET;
-				else
 				if (tracker.TrackPercent > 65)
 					system_state = TRACKING_GOOD_QUALITY_TARGET;
 				else 
+				if (tracker.TrackPercent > 20)
+					system_state = TRACKING_LOW_QUALITY_TARGET;
+				else
 					if ( ( (tracker.TrackPercent > 5) && (target_lost_time_counter < target_lost_timeout_counter) ) //95
 						 && (target_lost_time_counter >= 0) )
 					{	

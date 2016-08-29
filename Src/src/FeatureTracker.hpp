@@ -18,6 +18,8 @@ using namespace std;
 //
 void cvShowManyImages(char* title, int nArgs, ...) ;   //#include "showManyImages.cpp"
 
+const int		Nreads = 3;
+
 class Tracker {
 private:
     vector<Point2f> trackedFeatures; 
@@ -31,7 +33,10 @@ public:
 	Rect			OriginalTargetROI;
 	Mat				OriginalTarget;	
 	vector<Point2f> TargetFeatures; 
-	double			TrkErrX=0;
+	double			TrkErrX_Avg=0;  // average for 3 readings	
+	double			TrkErrX_Readings[Nreads];
+	int				TrkErrX_readIndex = 0;
+
 
 	int				TrackPercent = 0;		// % of the feature points that has correspondance to the next/previous frame
     bool            freshStart;
@@ -56,8 +61,6 @@ public:
 
 	// both imgTarget, imgROI should be of the same size.
     void processImage(Mat imgTarget,  SYSTEM_STATUS external_state);
-
-
 
 };
 

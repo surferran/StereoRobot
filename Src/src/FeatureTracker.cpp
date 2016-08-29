@@ -168,6 +168,7 @@ void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state)
 		//cvShowManyImages("images prev & current" , 4 , im_mat1, im_mat2, im_mat1, im_mat2 );
 		cvShowManyImages("images prev & current " , 4 , im_mat1, im_mat2 , im_mat3, im_mat4 );
 
+		if  (1==2)   // TODO: print only for 1st debugging
 		cout  << "trackedFeatures size " << trackedFeatures.size() 
 			<< " corners size " << corners.size() << " status size " 
 			<< status.size() << " status non zeroes "<< countNonZero(status) <<"\n"; 
@@ -187,24 +188,20 @@ void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state)
 		/// Create Trackbars
 		////cout << TrackbarName << "Alpha x %d" << alphaSlider_max ;
 
-		createTrackbar( TrackbarName, "original copy ROI", 
-			&alphaSlider, num_of_maxCornersFeatures, /*on_trackbar*/NULL );
-		///*alphaSlider++;
-		/*if (alphaSlider>alphaSlider_max) alphaSlider=0;*/
+		///createTrackbar( TrackbarName, "original copy ROI",	&alphaSlider, num_of_maxCornersFeatures, /*on_trackbar*/NULL );
+		///createTrackbar( TrackbarName2, "original copy ROI", &alphaSlider2, alphaSlider_max, /*on_trackbar*/NULL );
+
+
 		alphaSlider = countNonZero(status);
-		////////////////
-		createTrackbar( TrackbarName2, "original copy ROI", 
-			&alphaSlider2, alphaSlider_max, /*on_trackbar*/NULL );
-		///*alphaSlider++;
-		/*if (alphaSlider>alphaSlider_max) alphaSlider=0;*/
 		alphaSlider2 = ((double)countNonZero(status))/ ((double)status.size()) * 100.0;
 		//////////////////////////////////
 		if (alphaSlider2<5)
 			cout << "alphaSlider2 "<<alphaSlider2 <<"\n";
         /*if(alphaSlider * mid_level_percent < status.size()) */
+		freshStart = false;
 		if(alphaSlider  < min_features * mid_level_percent) 
 		{
-            cout << "cataclysmic error \n";
+            cout << "cataclysmic error . alphaSlider LOW \n";
             rigidTransform	= Mat::eye(3,3,CV_32FC1);	//same as above specific function
             trackedFeatures	.clear();
             prevGrayROI		.release();
@@ -213,8 +210,6 @@ void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state)
 			TrackPercent = 0;
             return;
         } 
-		else
-            freshStart = false;
 
 		// get last differential movement
         Mat_<float> newRigidTransform = estimateRigidTransform(trackedFeatures,corners,false); 
@@ -259,7 +254,19 @@ void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state)
 			m					= moments(trackedFeatures, false);				// points moment 
 			Point MassCenter	= Point(m.m10/m.m00, m.m01/m.m00);	// mass_centers
 			current_trackingROI	= boundingRect( trackedFeatures ); 	
-			TrkErrX				= MassCenter.x - prevGrayROI.size().width/2.0 ;
+			int addedSpace = 2;
+			current_trackingROI.x -= addedSpace; //TODO: change to *1.05 as 5% increase.. and check for staying in image limits
+			current_trackingROI.y -= addedSpace;
+			current_trackingROI.width  += addedSpace;
+			current_trackingROI.height += addedSpace;
+
+			TrkErrX_Readings[TrkErrX_readIndex] = MassCenter.x - prevGrayROI.size().width/2.0 ;
+			TrkErrX_Avg = 0;
+			for (int i=0; i< Nreads; i++)
+				TrkErrX_Avg += TrkErrX_Readings[i];
+			TrkErrX_Avg = TrkErrX_Avg / Nreads;
+			TrkErrX_readIndex++;
+			if (TrkErrX_readIndex>=Nreads) TrkErrX_readIndex = 0;
 			
 			TrackPercent = alphaSlider2 ;
 		}
