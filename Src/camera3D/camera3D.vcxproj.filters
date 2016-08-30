@@ -22,6 +22,12 @@
     <Filter Include="Header Files\general">
       <UniqueIdentifier>{b4e687ac-988b-4b83-926a-41992074935f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\algorithms">
+      <UniqueIdentifier>{77ad2929-be7a-401e-ad7c-2fa71dc900f6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\algorithms">
+      <UniqueIdentifier>{b6ce07c0-3172-46e7-b80c-62abe2d81e43}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\frameFunctions.h">
@@ -33,23 +39,23 @@
     <ClInclude Include="..\src\OdroidC1_handlers\pwm.h">
       <Filter>Header Files\hardware</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\stereo_calib.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\BackgroundSub.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\stereo_functions.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\GUIFunctions.h">
-      <Filter>Header Files\general</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\ImagesSourceHandler.h">
       <Filter>Header Files\hardware</Filter>
     </ClInclude>
     <ClInclude Include="..\src\FeatureTracker.hpp">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\algorithms</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\stereo_calib.h">
+      <Filter>Header Files\algorithms</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\stereo_functions.hpp">
+      <Filter>Header Files\algorithms</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\BackgroundSub.hpp">
+      <Filter>Header Files\algorithms</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\myGUI_handler.h">
+      <Filter>Header Files\hardware</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -57,14 +63,20 @@
     <ClCompile Include="..\src\OdroidC1_handlers\pwm.cpp">
       <Filter>Source Files\hardware</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\showManyImages.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\ImagesSourceHandler.cpp">
       <Filter>Source Files\hardware</Filter>
     </ClCompile>
     <ClCompile Include="..\src\FeatureTracker.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\algorithms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\showManyImages.cpp">
+      <Filter>Source Files\hardware</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\myGUI_handler.cpp">
+      <Filter>Source Files\hardware</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\GUIFunctions.cpp">
+      <Filter>Source Files\hardware</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

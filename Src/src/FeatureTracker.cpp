@@ -106,7 +106,7 @@ void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state)
 		
 		prevGrayROI(current_trackingROI).copyTo(tmpIm);
 		goodFeaturesToTrack(tmpIm, corners, num_of_maxCornersFeatures,0.01,10);	//  int maxCorners, double qualityLevel, double minDistance,
-		cout << "(re-)found " << corners.size() << " features\n";
+		//cout << "(re-)found " << corners.size() << " features\n";
 	 
 		// set corners -> trackedFeatures 
 		trackedFeatures.clear();
@@ -251,9 +251,9 @@ void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state)
 			///Rect newFeaturesRect = 
 			Moments		m; 
 
-			m					= moments(trackedFeatures, false);				// points moment 
+			m					= moments(trackedFeatures,false);				// points moment 
 			Point MassCenter	= Point(m.m10/m.m00, m.m01/m.m00);	// mass_centers
-			current_trackingROI	= boundingRect( trackedFeatures ); 	
+			current_trackingROI	= OriginalTargetROI;// boundingRect( trackedFeatures ); 	
 			int addedSpace = 2;
 			current_trackingROI.x -= addedSpace; //TODO: change to *1.05 as 5% increase.. and check for staying in image limits
 			current_trackingROI.y -= addedSpace;

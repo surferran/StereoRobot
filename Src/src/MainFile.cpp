@@ -26,10 +26,11 @@
 
 StereoCams		thisStereo;				// global 
 SYSTEM_STATUS	system_state = INITIALIZING ;
+Operation_flags	op_flags; //global
 
 #include "BackgroundSub.hpp"
 
-#include "GUIFunctions.h"
+//#include "GUIFunctions.h"
 
 // also : https://en.wikipedia.org/wiki/Image_moment#Examples_2
 ///#include "camshiftdemo.cpp"
@@ -51,6 +52,8 @@ SYSTEM_STATUS	system_state = INITIALIZING ;
 
 ///
 #include "ImagesSourceHandler.h"
+#include "myGUI_handler.h"
+
 
 //#include "showManyImages.cpp"
 void cvShowManyImages(char* title, int nArgs, ...) ;
@@ -142,19 +145,22 @@ int main(int argc, char** argv)
 	/*  initiating images capturing  */
 	ImagesSourceHandler myStereoCams; // thread for images capturing
 	/*  ***************************  */
+	/*  initiating GUI setup*/
+	myGUI_handler myGUI; // thread for images displaying
+	/*  ***************************  */
 
 	const int target_lost_timeout_counter  = 2* loop_delay ; // [~sec]//counter to simulate delay of about 2 sec. (depend on loop inner delay)
 	int		  target_lost_time_counter = 0 ;   // stopper to timeout
 
 
-	plotWindowsNames[0] = "win1 - right stereo image";
-	plotWindowsNames[1] = "win2 - left stereo image"; 
-		// TODO: added frame of copmosed stiched image ? can take relative very long process.
-			// anyway can add as ref. with other low-prio thred
-		//  it is actually part of the disparity process.
-	plotWindowsNames[2] = "win3 - calculated disparity";
-	plotWindowsNames[3] = "win4 - background substruction output";
-	plotWindowsNames[4] = "win5 - tracked object";
+	//plotWindowsNames[0] = "win1 - right stereo image";
+	//plotWindowsNames[1] = "win2 - left stereo image"; 
+	//	// TODO: added frame of copmosed stiched image ? can take relative very long process.
+	//		// anyway can add as ref. with other low-prio thred
+	//	//  it is actually part of the disparity process.
+	//plotWindowsNames[2] = "win3 - calculated disparity";
+	//plotWindowsNames[3] = "win4 - background substruction output";
+	//plotWindowsNames[4] = "win5 - tracked object";
 
 	/*  initiating createBackgroundSubtractorMOG2   */
 	BackSubs	localBackSubs ;
@@ -222,10 +228,10 @@ int main(int argc, char** argv)
 		if(op_flags.show_stereo)
 		{
 			////////////// capture images ///////////
-			myStereoCams.GetFrames(plotImages[0],plotImages[1]);
-			if ((plotImages[0].empty()) )
+			myStereoCams.GetFrames(myGUI.plotImages[0],myGUI.plotImages[1]);
+			if ((myGUI.plotImages[0].empty()) )
 				continue;
-			if ((plotImages[1].empty()) )
+			if ((myGUI.plotImages[1].empty()) )
 				continue;
 			
 			relative_counter++;
@@ -234,7 +240,7 @@ int main(int argc, char** argv)
 			
 			////////////// end of capture images ///////////
 			 
-			Mat left_cam = plotImages[1].clone();   
+			Mat left_cam = myGUI.plotImages[1].clone();   
 
 			Point movementMassCenter, corected_MassCenter;
 			// condition by STANDBY, otherwise - only the tracker is in the loop 
@@ -250,16 +256,16 @@ int main(int argc, char** argv)
 				// calc disparity every 2 frame
 				if (relative_counter>1) //10  
 				{
-					cv::cvtColor(plotImages[0+1], plotImages[0+1], CV_BGR2GRAY);
-					cv::cvtColor(plotImages[0*1], plotImages[0*1], CV_BGR2GRAY);
+					cv::cvtColor(myGUI.plotImages[0+1], myGUI.plotImages[0+1], CV_BGR2GRAY);
+					cv::cvtColor(myGUI.plotImages[0*1], myGUI.plotImages[0*1], CV_BGR2GRAY);
 
-					do_stereo_disp(plotImages[0+1],plotImages[1*0], plotImages[2]);  // plotImages[2] is the disparity output
+					do_stereo_disp(myGUI.plotImages[0+1],myGUI.plotImages[1*0], myGUI.plotImages[2]);  // plotImages[2] is the disparity output
 					///disp relevant disperity values. 
 					// for image blobs or average areas. use superpixel segmentation??
 					// get disp average for the target feature poitns area.
 
 					//main_SBM(plotImages[0+1],plotImages[1*0], plotImages[2]); 
-					imshow(plotWindowsNames[2],  plotImages[2]);
+					imshow(myGUI.plotWindowsNames[2],  myGUI.plotImages[2]);
 					relative_counter	=	0;
 				}
 			}
@@ -356,7 +362,7 @@ int main(int argc, char** argv)
 				
 
 				////////////// added graphics section ///////////
-				left_cam	= plotImages[1].clone();   // for some additional display layer
+				left_cam	= myGUI.plotImages[1].clone();   // for some additional display layer
 
 				if (op_flags.draw_middle_x)
 				{
@@ -365,26 +371,25 @@ int main(int argc, char** argv)
 
 					// TODO: test source of track errors, from BackgroundSubs, or Tracker
 				///	add_Cross_to_Image(tracker.TrkErrX  ,  left_cam.size().height/2  , 
-					add_Cross_to_Image(targetCenter.x  ,  targetCenter.y  , 
+					myGUI.add_Cross_to_Image(targetCenter.x  ,  targetCenter.y  , 
 											false, system_state , left_cam); // 120h,160w , with no coor. label
 					
 				}
-				String StatusText = _sysStatToString(system_state );
-				putText(left_cam, StatusText, Point(15, 15), FONT_HERSHEY_COMPLEX, 0.4, (0, 0, 255), 1);
-
 				
 				////////////* end of graphics section *///////////////
 			}
 			// move to broadcast from outside. // separate the graphic layer to only when track is on.
 			//									otherwise just draw raw images.
-			imshow(plotWindowsNames[0],	plotImages[0] );
-			imshow(plotWindowsNames[1],	left_cam);
+			imshow(myGUI.plotWindowsNames[0],	myGUI.plotImages[0] );
+			imshow(myGUI.plotWindowsNames[1],	left_cam);
 			 
 		}
 
-		
-		if (!check_user_input(&loop_delay, &user_pressing))
+		char c = (char)waitKey(loop_delay);
+		if (c==27)
 			break;
+		//if (!check_user_input(&loop_delay, &user_pressing))
+			//break;
 	}
 	
 	return 0;

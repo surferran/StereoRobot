@@ -202,7 +202,10 @@
     <ClInclude Include="..\src\BackgroundSub.hpp" />
     <ClInclude Include="..\src\FeatureTracker.hpp" />
     <ClInclude Include="..\src\frameFunctions.h" />
-    <ClInclude Include="..\src\GUIFunctions.h" />
+    <ClCompile Include="..\src\GUIFunctions.cpp">
+      <FileType>CppHeader</FileType>
+    </ClCompile>
+    <ClInclude Include="..\src\myGUI_handler.h" />
     <ClInclude Include="..\src\OdroidC1_handlers\pwm.h" />
     <ClInclude Include="..\src\ImagesSourceHandler.h" />
     <ClInclude Include="..\src\stereo_calib.h" />
@@ -212,6 +215,7 @@
   <ItemGroup>
     <ClCompile Include="..\src\FeatureTracker.cpp" />
     <ClCompile Include="..\src\MainFile.cpp" />
+    <ClCompile Include="..\src\myGUI_handler.cpp" />
     <ClCompile Include="..\src\OdroidC1_handlers\pwm.cpp" />
     <ClCompile Include="..\src\showManyImages.cpp" />
     <ClCompile Include="..\src\ImagesSourceHandler.cpp" />

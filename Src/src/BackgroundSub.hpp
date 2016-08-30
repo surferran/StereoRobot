@@ -6,7 +6,8 @@
 #include <stdio.h>
 
 //#include "opencv2/opencv.hpp"
-#include "GUIFunctions.h"		// for using _intToString
+//#include "GUIFunctions.h"		// for using _intToString
+#include "myGUI_handler.h"
 
 using namespace cv;
 
@@ -28,6 +29,8 @@ public:
 	 
 private:
 
+	myGUI_handler gui_handler;
+	
 	int show_more_details(Mat frame) ;
 	int doMYbsManipulation( Mat & mask , Point *movementMassCenter);
 	 
@@ -106,7 +109,6 @@ int BackSubs::doMYbsManipulation( Mat & mask , Point *movementMassCenter)
 	/* inner calculation vars */
 	static int	frame_counter=0;
 	int			mask_status = 0;
-	String		StatusText ="";
 	Moments		m;
 	double		boundAreaRatio;
 
@@ -121,27 +123,13 @@ int BackSubs::doMYbsManipulation( Mat & mask , Point *movementMassCenter)
 	boundAreaRatio	= tmp1 / tmp2;
 	mask_status		= int(boundAreaRatio);
 
-	circle(mask, MassCenter, rCircle, Scalar(128,220,220), 3); 
 
-	rectangle(mask,
-		boundRect.tl(), boundRect.br(),
-		Scalar(128,220,220) ,	2, 8, 0);
-
-	StatusText = "theta=" + _doubleToString(theta);
-	putText(mask, StatusText, Point(15, 15), FONT_HERSHEY_COMPLEX, 0.4, (210, 110, 220), 1);
-	StatusText = "rCircle=" + _doubleToString(rCircle);
-	putText(mask, StatusText, Point(15, 25), FONT_HERSHEY_COMPLEX, 0.4, (110, 210, 220), 1);
-
-	StatusText  = "boundAR=" + _doubleToString(boundAreaRatio);
-	putText(mask, StatusText, Point(15, 35), FONT_HERSHEY_COMPLEX, 0.4, (210, 210, 220), 1);
-	StatusText  = "status=" + _intToString(mask_status);
-	putText(mask, StatusText, Point(15, 45), FONT_HERSHEY_COMPLEX, 0.4, (210, 210, 220), 1);
-	 
 	frame_counter++;
 	//if (frame_counter % 5)
 	//	cout << frame_counter << " : " << theta << endl;//Mat(p1) << endl;
+	
+	gui_handler.show_graphics_with_image(mask, MassCenter, rCircle, boundRect, theta, boundAreaRatio, mask_status);
 
-	imshow("Foreground debug", mask);
 
 	if ((frame_counter > 20)  // wait for at least 10 initial frames
 		&& (system_state <= STANDBY)

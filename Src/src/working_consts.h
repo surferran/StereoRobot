@@ -93,6 +93,27 @@ struct StereoCams
 
 };
 
+
+struct Operation_flags{
+	bool make_stereo_calibration=	false;
+	bool calc_background_subs	=	false;
+	bool show_vid_source_selection =false;
+
+	bool show_stereo			=	false;
+	bool play_on				=	false;
+	bool save_disparity_img_to_file = false ; 
+
+	bool make_camshift			=	false;
+
+	bool reset_vid_file_location =	false;
+	bool reset_identification	=	false;
+
+	bool show_img_hist			=	false;
+	bool proces_img_frame		=	false;
+	bool draw_middle_x			=	true;
+};
+
+
 ///StereoCams thisStereo;				// global 
 
 							
