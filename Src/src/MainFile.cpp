@@ -54,6 +54,9 @@ Operation_flags	op_flags; //global
 #include "ImagesSourceHandler.h"
 #include "myGUI_handler.h"
 
+/*  initiating GUI setup*/
+myGUI_handler myGUI; // thread for images displaying
+/*  ***************************  */
 
 //#include "showManyImages.cpp"
 void cvShowManyImages(char* title, int nArgs, ...) ;
@@ -144,9 +147,6 @@ int main(int argc, char** argv)
 	
 	/*  initiating images capturing  */
 	ImagesSourceHandler myStereoCams; // thread for images capturing
-	/*  ***************************  */
-	/*  initiating GUI setup*/
-	myGUI_handler myGUI; // thread for images displaying
 	/*  ***************************  */
 
 	const int target_lost_timeout_counter  = 2* loop_delay ; // [~sec]//counter to simulate delay of about 2 sec. (depend on loop inner delay)

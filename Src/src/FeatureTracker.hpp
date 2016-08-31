@@ -16,9 +16,8 @@ using namespace std;
 //
 #include "working_consts.h"
 //
-void cvShowManyImages(char* title, int nArgs, ...) ;   //#include "showManyImages.cpp"
 
-const int		Nreads = 3;
+const int		Nreads = 10;
 
 class Tracker {
 private:

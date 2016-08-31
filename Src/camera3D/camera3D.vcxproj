@@ -202,9 +202,6 @@
     <ClInclude Include="..\src\BackgroundSub.hpp" />
     <ClInclude Include="..\src\FeatureTracker.hpp" />
     <ClInclude Include="..\src\frameFunctions.h" />
-    <ClCompile Include="..\src\GUIFunctions.cpp">
-      <FileType>CppHeader</FileType>
-    </ClCompile>
     <ClInclude Include="..\src\myGUI_handler.h" />
     <ClInclude Include="..\src\OdroidC1_handlers\pwm.h" />
     <ClInclude Include="..\src\ImagesSourceHandler.h" />

@@ -1,6 +1,8 @@
 #include "FeatureTracker.hpp"
+#include "myGUI_handler.h"
 
 extern SYSTEM_STATUS	system_state ;
+extern myGUI_handler	myGUI;
 
 Tracker::Tracker():freshStart(true) {
     rigidTransform = Mat::eye(3,3,CV_32FC1); //affine 2x3 in a 3x3 matrix
@@ -14,11 +16,11 @@ void Tracker::setNewTarget(
 {
 	newTargetSituation	= true;
 	//ThresholdTypes//	threshold(newTargetROI, OriginalTargetROI, 0, 9999, THRESH_TOZERO );
-	if (newTargetROI.x < 0) newTargetROI.x = 0;
-	if (newTargetROI.y < 0) newTargetROI.y = 0;
+	/*if (newTargetROI.x < 0) newTargetROI.x = 0;
+	if (newTargetROI.y < 0) newTargetROI.y = 0;*/
 	//if (newTargetROI.x + newTargetROI.width > imSource.W) newTargetROI.x = imSource.W;
 	
-	OriginalTargetROI	= newTargetROI;
+	OriginalTargetROI	= newTargetROI;		// arrives as result of BKgndSubs, therefore should be correct(in limits)
 	current_trackingROI	= OriginalTargetROI;
 	
 	OriginalTarget		= newTarget.clone();
@@ -26,9 +28,9 @@ void Tracker::setNewTarget(
 
 	Mat grayTarget; cvtColor(OriginalTarget, grayTarget, CV_BGR2GRAY);
 	goodFeaturesToTrack(grayTarget, TargetFeatures, num_of_maxCornersFeatures,0.01,10);	//  int maxCorners, double qualityLevel, double minDistance,
-	cout << "found on new target " << TargetFeatures.size() << " features\n";
+	cout << "found on new target " << TargetFeatures.size() << " features\n";		//TODO: set to operate through GUI object..
 
-	// set corners -> trackedFeatures 
+	// set corners to-> trackedFeatures 
 
 	trackedFeatures.clear();
 	for (int i = 0; i < TargetFeatures.size(); ++i) {
@@ -41,46 +43,26 @@ void Tracker::setNewTarget(
 	TrackPercent	= 100;
 }
 
-// both imgTarget, imgROI should be of the same size.
+// getting newIage variable, and saving it as Gray of previous or current frame.
+// trackedFeatures vector is usually the points from previous frame . 
+//		newly calculated or given as result of previous 'opticalFlow'.
 void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state) 
 {
-
-	//RNG rng(12345);//RANDV
 	Mat grayROI ;
 	if (newTargetSituation==true)
 	{
 		newTargetSituation = false;
-		   cvtColor(newImage.clone()   ,grayROI   ,CV_BGR2GRAY);
+		cvtColor(newImage.clone()   ,grayROI   ,CV_BGR2GRAY);
 		grayROI.copyTo(prevGrayROI);
 
 		return;
 	}
 
-	///Mat grayTarget; cvtColor(imgTarget,grayTarget,CV_BGR2GRAY);	// can be removed, because i work with same updated image , not given template
 	cvtColor(newImage   ,grayROI   ,CV_BGR2GRAY);
 
     vector<Point2f> corners;  
 
-	///* find new features set, when current matches are lower then minimum */
-	//// ..meaning of aquiring new target..
-  ///  if ( (trackedFeatures.size() < min_features * mid_level_percent ) )
-	//	//if (FOUND_SOME_MOVEMENT == external_state)
-	//	
-	//	if ( (FOUND_GOOD_TARGET == system_state) || (newTargetSituation == true) )
-	//	{
-	//		goodFeaturesToTrack(grayTarget,corners,num_of_maxCornersFeatures,0.01,10);	//  int maxCorners, double qualityLevel, double minDistance,
-	//		cout << "(re-)found " << corners.size() << " features\n";
-	//		// set corners -> trackedFeatures 
-	//		for (int i = 0; i < corners.size(); ++i) {
-	//			trackedFeatures.push_back(corners[i]);
-	//		}
-
-	//		TrackPercent	= 100;
-	//	}
-	//	
-	//else  // loss of features during tracking
-
-	if ( (trackedFeatures.size() < min_features * mid_level_percent ) )
+	if ( (trackedFeatures.size() < min_features /** mid_level_percent*/ ) )		//TODO: move this condition to the end?
 	{
 		// when near minimum limit - find more feature in ROI around those still alive
 		////set LOW_QUALITY_TRACKING
@@ -96,6 +78,7 @@ void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state)
 	{
 		Mat tmpIm;
 
+		// check given ROI boundaries.
 		if (current_trackingROI.x < 0) current_trackingROI.x = 0;
 		if (current_trackingROI.y < 0) current_trackingROI.y = 0;
 		if (current_trackingROI.x + current_trackingROI.width > prevGrayROI.size().width) 
@@ -103,11 +86,22 @@ void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state)
 		if (current_trackingROI.y + current_trackingROI.height > prevGrayROI.size().height) 
 			current_trackingROI.height -= 10;
 
+
+		if (current_trackingROI.x < 0) current_trackingROI.x = 0;
+		if (current_trackingROI.y < 0) current_trackingROI.y = 0;
+		if (current_trackingROI.x + current_trackingROI.width > prevGrayROI.size().width) 
+			current_trackingROI.width = prevGrayROI.size().width - current_trackingROI.x ;
+		if (current_trackingROI.y + current_trackingROI.height > prevGrayROI.size().height) 
+			current_trackingROI.height = prevGrayROI.size().height - current_trackingROI.y ;
+
 		
+		// take relevant ROI out of the previous whole image
+		// calculate newly feature points vector
 		prevGrayROI(current_trackingROI).copyTo(tmpIm);
 		goodFeaturesToTrack(tmpIm, corners, num_of_maxCornersFeatures,0.01,10);	//  int maxCorners, double qualityLevel, double minDistance,
 		//cout << "(re-)found " << corners.size() << " features\n";
-	 
+	 ///release(tmpIm);??
+
 		// set corners -> trackedFeatures 
 		trackedFeatures.clear();
 		for (int i = 0; i < corners.size(); ++i) {
@@ -117,82 +111,21 @@ void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state)
 			trackedFeatures.push_back(corners[i]);
 		}
 
-        vector<uchar> status; vector<float> errors;
+        vector<uchar> status; 
+		vector<float> errors;
 		// new input is trackedFeatures ->
 		// new output is corners
 		// status of 1 means correspondence found. 0 otherwise.
-        //  calcOpticalFlowPyrLK(prevGrayROI,grayROI,trackedFeatures,corners,status,errors,Size(10,10));	// corners are 'InOut' array
-        ///   calcOpticalFlowPyrLK(prevGrayROI,grayROI,trackedFeatures,corners,status,errors,Size(20,10));	// corners are 'InOut' array
-
-		calcOpticalFlowPyrLK(prevGrayROI,grayROI,trackedFeatures,corners,status,errors,Size(20,10), 3,
-			TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 0.01),0, 0.001);	//0.1 // corners are 'InOut' array
+		calcOpticalFlowPyrLK(prevGrayROI,grayROI,trackedFeatures,corners,status,errors,Size(21,11), 3,
+			TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 0.01),0, 0.001);	//0.1 is too much for low visibility 
 
 		/*////////// display the found feature points from	Prev (prevGrayROI, trackedFeatures)  to 
 															Current (grayROI, corners)				 /////////*/
-		Mat copyPrev; 
-		///copyPrev	= prevGrayROI.clone();
-		cvtColor(prevGrayROI.clone(),copyPrev,CV_GRAY2BGR);
-		int r	= 2;	//3
-		for( int i = 0; i < trackedFeatures.size(); i++ )
-		{ 
-			circle( copyPrev, trackedFeatures[i], r, 
-				///Scalar(rng.uniform(0,255), rng.uniform(0,255), rng.uniform(0,255)), -1, 8, 0 ); 
-					Scalar(10, 100, 255), -1, 8, 0 ); 
-		}			
-		Mat copyCurrent;
-		cvtColor(grayROI.clone(),copyCurrent,CV_GRAY2BGR);
-		Mat copyCurrent2=copyCurrent.clone() ;
-		Mat copyCurrent3=copyCurrent.clone() ;
-		//int r	= 2;//3
-		for( int i = 0; i < corners.size(); i++ )
-		{ 
-			if (status[i])
-				circle( copyCurrent, corners[i], r, 
-					///Scalar(rng.uniform(0,255), rng.uniform(0,255), rng.uniform(0,255)), -1, 8, 0 ); 
-					Scalar(0, 255, 0), -1, 8, 0 ); 
-			else
-				circle( copyCurrent3, corners[i], r+2,  
-					Scalar(0, 0, 255), -1, 8, 0 ); 
-			circle( copyCurrent2, corners[i], r, 
-				///Scalar(rng.uniform(0,255), rng.uniform(0,255), rng.uniform(0,255)), -1, 8, 0 ); 
-				Scalar(10, 100, 255), -1, 8, 0 ); 
-		}	
 
-		///imshow("original copy ROI", copy);	
+		////
+		myGUI.dispFlowChanges(prevGrayROI, trackedFeatures, grayROI, corners, status); // TODO: running away the memory!
 
-
-		IplImage	*im_mat1 = cvCloneImage(&(IplImage)copyPrev),
-					*im_mat2 = cvCloneImage(&(IplImage)copyCurrent),
-					*im_mat3 = cvCloneImage(&(IplImage)copyCurrent2),
-					*im_mat4 = cvCloneImage(&(IplImage)copyCurrent3);
-		//cvShowManyImages("images prev & current" , 4 , im_mat1, im_mat2, im_mat1, im_mat2 );
-		cvShowManyImages("images prev & current " , 4 , im_mat1, im_mat2 , im_mat3, im_mat4 );
-
-		if  (1==2)   // TODO: print only for 1st debugging
-		cout  << "trackedFeatures size " << trackedFeatures.size() 
-			<< " corners size " << corners.size() << " status size " 
-			<< status.size() << " status non zeroes "<< countNonZero(status) <<"\n"; 
-
-		///cvWaitKey(); ///
-
-		/////////////////////////////////
-		/*  just trial additional code 
-		// Holds the colormap version of the image:
-		Mat cm_img0;
-		// Apply the colormap:
-		applyColorMap(copy, cm_img0, COLORMAP_JET);
-		// Show the result:
-		imshow("cm_img0", cm_img0);*/
-		/////////////////////////////////
-
-		/// Create Trackbars
-		////cout << TrackbarName << "Alpha x %d" << alphaSlider_max ;
-
-		///createTrackbar( TrackbarName, "original copy ROI",	&alphaSlider, num_of_maxCornersFeatures, /*on_trackbar*/NULL );
-		///createTrackbar( TrackbarName2, "original copy ROI", &alphaSlider2, alphaSlider_max, /*on_trackbar*/NULL );
-
-
-		alphaSlider = countNonZero(status);
+		alphaSlider  = countNonZero(status);
 		alphaSlider2 = ((double)countNonZero(status))/ ((double)status.size()) * 100.0;
 		//////////////////////////////////
 		if (alphaSlider2<5)
@@ -240,6 +173,8 @@ void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state)
 			newRigidTransform.copyTo(nrt33.rowRange(0,2));
 			rigidTransform *= nrt33;			
 
+			////////////////////////////////
+
 				//TODO: consier put this before this 'if'
 			trackedFeatures.clear();
 			for (int i = 0; i < status.size(); ++i) {
@@ -252,13 +187,41 @@ void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state)
 			Moments		m; 
 
 			m					= moments(trackedFeatures,false);				// points moment 
+			Mat tmp2 = Mat::zeros(grayROI.size(), CV_8U);
+			for (int i = 0; i < trackedFeatures.size(); ++i) {
+				{
+					int xx = trackedFeatures[i].x;
+					int yy = trackedFeatures[i].y;
+					if ( (xx<tmp2.size().width) &&
+						 (yy<tmp2.size().height) &&
+						(xx>0 && yy>0) ){
+								auto ptr = tmp2.ptr<uchar>(yy) ;
+											ptr[xx] = 1;
+					}
+				}
+			}
+			m = moments(tmp2,true);
 			Point MassCenter	= Point(m.m10/m.m00, m.m01/m.m00);	// mass_centers
-			current_trackingROI	= OriginalTargetROI;// boundingRect( trackedFeatures ); 	
+			current_trackingROI	= boundingRect( trackedFeatures ); 			//trial: OriginalTargetROI;// 
+
 			int addedSpace = 2;
+
+			if (current_trackingROI.x < 0) current_trackingROI.x = 0;
+			if (current_trackingROI.y < 0) current_trackingROI.y = 0;
+			if (current_trackingROI.x + current_trackingROI.width > prevGrayROI.size().width) 
+				current_trackingROI.width = prevGrayROI.size().width - current_trackingROI.x -addedSpace;
+			if (current_trackingROI.y + current_trackingROI.height > prevGrayROI.size().height) 
+				current_trackingROI.height = prevGrayROI.size().height - current_trackingROI.y -addedSpace;
+
 			current_trackingROI.x -= addedSpace; //TODO: change to *1.05 as 5% increase.. and check for staying in image limits
 			current_trackingROI.y -= addedSpace;
 			current_trackingROI.width  += addedSpace;
 			current_trackingROI.height += addedSpace;
+
+
+			myGUI.show_graphics_with_image(prevGrayROI, MassCenter, 0, current_trackingROI,
+				0, 0, 0);
+
 
 			TrkErrX_Readings[TrkErrX_readIndex] = MassCenter.x - prevGrayROI.size().width/2.0 ;
 			TrkErrX_Avg = 0;

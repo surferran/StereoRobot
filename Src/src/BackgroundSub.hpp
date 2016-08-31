@@ -11,6 +11,8 @@
 
 using namespace cv;
 
+extern myGUI_handler myGUI;
+
 /*************************************************************************************/
 /******************************    Header section    *********************************/
 /*************************************************************************************/
@@ -29,7 +31,7 @@ public:
 	 
 private:
 
-	myGUI_handler gui_handler;
+	//myGUI_handler gui_handler;
 	
 	int show_more_details(Mat frame) ;
 	int doMYbsManipulation( Mat & mask , Point *movementMassCenter);
@@ -128,7 +130,7 @@ int BackSubs::doMYbsManipulation( Mat & mask , Point *movementMassCenter)
 	//if (frame_counter % 5)
 	//	cout << frame_counter << " : " << theta << endl;//Mat(p1) << endl;
 	
-	gui_handler.show_graphics_with_image(mask, MassCenter, rCircle, boundRect, theta, boundAreaRatio, mask_status);
+	myGUI.show_graphics_with_image(mask, MassCenter, rCircle, boundRect, theta, boundAreaRatio, mask_status);
 
 
 	if ((frame_counter > 20)  // wait for at least 10 initial frames

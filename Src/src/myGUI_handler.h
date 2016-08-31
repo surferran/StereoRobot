@@ -8,6 +8,8 @@
 using namespace cv;
 using namespace std;
 
+void cvShowManyImages(char* title, int nArgs, ...) ;   //#include "showManyImages.cpp"
+
 class myGUI_handler
 {
 public:
@@ -20,6 +22,10 @@ public:
 									double theta, double boundAreaRatio, int mask_status);
 
 	void add_Cross_to_Image(int x, int y, bool addLabel, SYSTEM_STATUS sys_stat, Mat &cameraFeed);
+
+
+	void dispFlowChanges(Mat & prevGrayROI, vector<Point2f> trackedFeatures, Mat& grayROI, vector<Point2f> corners,
+							vector<uchar> status);
 
 	///bool check_user_input(const int* waiting_delay, char* c);
 

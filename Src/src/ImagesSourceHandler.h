@@ -23,6 +23,7 @@ using namespace cv;
 class ImagesSourceHandler 
 {
 private: 
+	/* the image source and its properties */
 	VideoCapture	vidR,		// handles the Hardware right camera
 					vidL;		// handles the Hardware left camera
 
@@ -30,13 +31,18 @@ private:
 					h=240;
 	const int		capture_loop_dealy = 33 ; //[mS] , delay between capture cycles
 
+	bool			recordFlag;
+
+	/* the output images and properties */
 	//const int		N = 10;		// number of frames to keep history for
 	//int			frame_cyclic_counter = 0;
     //Mat left[N],
 	//	right[N];
 	
 	Mat left, right;
+	double captureTimeTag;
 
+	/* local variables to use */
 	std::mutex		mut;
 	std::thread		videoGrab_thrd;
 	//atomic<bool>
@@ -45,9 +51,10 @@ private:
 public:
 	ImagesSourceHandler();			// also opens a new thread for this 
 	~ImagesSourceHandler();			// also closes the thread for this
-	void CaptureFromCam();			// function for the thread
+	void CaptureFromCam();			// the overall-wrapping function for the thread
 	void InitVideoCap();
     void GetFrames(Mat& rightFrame,Mat& leftFrame);
+	//TODO: //void setRecordOption()
 };
 
 #endif /* IMAGESSOURCEHANDLER_H_ */

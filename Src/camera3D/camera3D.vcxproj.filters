@@ -75,9 +75,6 @@
     <ClCompile Include="..\src\myGUI_handler.cpp">
       <Filter>Source Files\hardware</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\GUIFunctions.cpp">
-      <Filter>Source Files\hardware</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="ClassDiagram.cd" />
