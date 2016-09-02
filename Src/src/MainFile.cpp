@@ -3,6 +3,9 @@
 	history can be vied in the GitHub site repository.
 	written app : by Ran , year 2016
 */
+
+
+
 #define RUN_ON_LAPTOP__MONO true    
 
  /* my  constants and parameters */
@@ -19,7 +22,11 @@
 #define SHOW_MOVING_BIG_RECTANGLES	false//true
 
 // below or above those limits it will be treated as noise. (or too close movement to camera)
-#include "stereo_functions.hpp"
+
+/*********  thread object  ********/
+#include "stereo_functions.hpp"		//set the disparity object (variables and functions)
+myLocalDisparity localDisp;
+/**********************************/
 
 #include "frameFunctions.h"		// general definitions and functions. that's why it is first to include.
 #include "working_consts.h"		// my added definitions, constants
@@ -45,10 +52,13 @@ Operation_flags	op_flags; //global
 ////#include "OdroidC1_handlers/RobotController.h"
 #include <unistd.h>
 
-#include <thread>
-#include <memory>
 #include "pwm.h"
 #endif
+
+#include <mutex>
+#include <atomic> 
+#include <memory>
+#include <thread>
 
 ///
 #include "ImagesSourceHandler.h"
@@ -121,12 +131,13 @@ void makeContours(Mat aBw){
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv) 
 {
- 
-
-	/* variables */
+ 	/* variables */
 
 	thisStereo.input_source = LIVE_CAM;
-		
+
+#ifdef COMPILING_ON_ROBOT
+	PWM::pwm_ptr PWM_pointeer = PWM::create();
+#endif
 
 	op_flags.show_stereo=true;	// initialize and conduct stereo algo imidiatly when running.
 
@@ -209,8 +220,8 @@ int main(int argc, char** argv)
 
 	// show normal status for tracker status.
 
-	if (!RUN_ON_LAPTOP__MONO)
-		do_stereo_disp_init();
+	//if (!RUN_ON_LAPTOP__MONO)
+	// /*localDisp.*/do_stereo_disp_init();
 
 
 	while (1)		
@@ -251,21 +262,35 @@ int main(int argc, char** argv)
 				corected_MassCenter = Point(movementMassCenter.x + BckgndSubROI.x,  movementMassCenter.y + BckgndSubROI.y);
 				////actually not needed .. makeContours(localBackSubs.get_foreground_mat()); 
 			}
-			////////////* get DEPTH by Stereo *///////////////
-			if (!RUN_ON_LAPTOP__MONO){
+			////////////* get DEPTH by Stereo */////////////// 
+		///	if (!RUN_ON_LAPTOP__MONO)
+			{
 				// calc disparity every 2 frame
 				if (relative_counter>1) //10  
 				{
 					cv::cvtColor(myGUI.plotImages[0+1], myGUI.plotImages[0+1], CV_BGR2GRAY);
 					cv::cvtColor(myGUI.plotImages[0*1], myGUI.plotImages[0*1], CV_BGR2GRAY);
 
-					do_stereo_disp(myGUI.plotImages[0+1],myGUI.plotImages[1*0], myGUI.plotImages[2]);  // plotImages[2] is the disparity output
+					///do_stereo_disp(myGUI.plotImages[0+1],myGUI.plotImages[1*0], myGUI.plotImages[2]);  // plotImages[2] is the disparity output
+					// delivers new input , if the process is waiting (not in calculation process)
+				
+					localDisp.set_disparity_input(myGUI.plotImages[0+1],myGUI.plotImages[1*0]);  
+
+					myLocalDisparity::rect_display_vars display_struct;
+
+					if ( localDisp.get_rectified_and_disparity(myGUI.plotImages[2], display_struct) )  
+					{
+
 					///disp relevant disperity values. 
 					// for image blobs or average areas. use superpixel segmentation??
-					// get disp average for the target feature poitns area.
+					// get disp average for the target feature points area.
 
 					//main_SBM(plotImages[0+1],plotImages[1*0], plotImages[2]); 
-					imshow(myGUI.plotWindowsNames[2],  myGUI.plotImages[2]);
+						///myGUI.display_rectified_pair( display_struct.imageSize , img1, img2, roi1, roi2);
+						myGUI.display_rectified_pair( display_struct.imageSize , display_struct.rectR , display_struct.rectL, 
+														display_struct.validROI1 , display_struct.validROI2 );
+						imshow(myGUI.plotWindowsNames[2],  myGUI.plotImages[2]);
+					}
 					relative_counter	=	0;
 				}
 			}

@@ -264,6 +264,8 @@ StereoCalib(const vector<string>& imagelist, Size boardSize, bool useCalibrated=
     initUndistortRectifyMap(cameraMatrix[0], distCoeffs[0], R1, P1, imageSize, CV_16SC2, rmap[0][0], rmap[0][1]);
     initUndistortRectifyMap(cameraMatrix[1], distCoeffs[1], R2, P2, imageSize, CV_16SC2, rmap[1][0], rmap[1][1]);
 
+	////////////////////////////////
+	// this section can be trimmed using myGUI.display_rectified_pair()
     Mat canvas;
     double sf;
     int w, h;
@@ -306,6 +308,8 @@ StereoCalib(const vector<string>& imagelist, Size boardSize, bool useCalibrated=
             for( j = 0; j < canvas.cols; j += 16 )
                 line(canvas, Point(j, 0), Point(j, canvas.rows), Scalar(0, 255, 0), 1, 8);
         imshow("rectified", canvas);
+		////////////////////////////////////
+
         char c = (char)waitKey();
         if( c == 27 || c == 'q' || c == 'Q' )
             break;

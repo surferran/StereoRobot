@@ -12,8 +12,8 @@ using namespace cv;
 
 #ifdef COMPILING_ON_ROBOT
 #define ACTIVE_CAMS_NUM			2
-#define LEFT_CAMERA_INDEX		2		// depends on platform. 0 index is the default camera.
-#define RIGHT_CAMERA_INDEX		1
+#define LEFT_CAMERA_INDEX		1		// depends on platform. 0 index is the default camera.
+#define RIGHT_CAMERA_INDEX		0
 #else
 #define ACTIVE_CAMS_NUM			1
 #define LEFT_CAMERA_INDEX		0		// depends on platform. 0 index is the default camera.
@@ -29,7 +29,6 @@ private:
 
 	const int		w=320,		// desired resolution for the images
 					h=240;
-	const int		capture_loop_dealy = 33 ; //[mS] , delay between capture cycles
 
 	bool			recordFlag;
 
@@ -43,6 +42,7 @@ private:
 	double captureTimeTag;
 
 	/* local variables to use */
+	const int		capture_loop_dealy = 33 ; //[mS] , delay between capture cycles
 	std::mutex		mut;
 	std::thread		videoGrab_thrd;
 	//atomic<bool>

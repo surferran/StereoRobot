@@ -27,6 +27,7 @@ public:
 	void dispFlowChanges(Mat & prevGrayROI, vector<Point2f> trackedFeatures, Mat& grayROI, vector<Point2f> corners,
 							vector<uchar> status);
 
+	void display_rectified_pair(Size imageSize , Mat Rimg, Mat Limg, Rect validROI1, Rect validROI2 );
 	///bool check_user_input(const int* waiting_delay, char* c);
 
 	static const int	thumb_num = 10;	

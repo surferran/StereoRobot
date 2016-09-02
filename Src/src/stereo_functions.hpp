@@ -17,6 +17,13 @@
 
 using namespace cv;
 
+#include <thread>
+#include <mutex>
+#include <atomic>
+
+#include "myGUI_handler.h"
+extern myGUI_handler myGUI; // thread for images displaying
+
 static void print_helpM()
 {
     printf("\nDemo stereo matching converting L and R images into disparity and point clouds\n");
@@ -44,11 +51,29 @@ static void saveXYZ(const char* filename, const Mat& mat)
 class myLocalDisparity
 {
 public:
+	struct rect_display_vars{
+			Mat rectR,rectL;
+			Size imageSize ;
+			Rect validROI1, validROI2 ;
+		};	
 
-	myLocalDisparity(){};
-	int do_stereo_match_init(int argc, char** argv);
-	int do_stereo_match( Mat imgR, Mat imgL , Mat& disp8 );
+	myLocalDisparity();
+	~myLocalDisparity();
+
+	void set_disparity_input(Mat inR, Mat inL);
+	bool get_rectified_and_disparity(Mat& disp_output, rect_display_vars& display_vars);
+
 private:
+	int do_stereo_match_init(int argc, char** argv);
+	int do_stereo_match( Mat imgR, Mat imgL , Mat& disp8 );	// ..and disparity calculation
+
+	/* in , out matrices */
+	Mat imR, imL, 
+		disp_out;
+
+	rect_display_vars rectified_display_vars;
+	
+	/* algorithm variables */
     const char* algorithm_opt = "--algorithm=";
     const char* maxdisp_opt   = "--max-disparity=";
     const char* blocksize_opt = "--blocksize=";
@@ -60,7 +85,11 @@ private:
     const char* disparity_filename		= 0;
     const char* point_cloud_filename	= 0;
 
-    enum { STEREO_BM=0, STEREO_SGBM=1, STEREO_HH=2, STEREO_VAR=3 };
+    enum {	STEREO_BM=0, 
+			STEREO_SGBM=1, 
+			STEREO_HH=2, 
+			STEREO_VAR=3 
+		 };
     int		alg				= STEREO_SGBM;
     int		SADWindowSize	= 0, numberOfDisparities = 0;
     bool	no_display		= false;
@@ -78,7 +107,86 @@ private:
 	Mat img2 ;
 	Rect roi1, roi2;
 	Mat Q;
+
+	/* variables for thread handling */
+	const int		disparity_loop_dealy = 33*1; // [mS] // do only every 3 cycles of images capturing
+	std::mutex		mut;
+	std::thread		stereoIm_thrd;
+	//atomic<bool>
+		bool exit; 
+	//atomic<bool>
+		bool calc_disparity_request,	//user requset flag
+			 calculating_disparity;		// busy flag sign
+	//atomic<bool>
+		bool ready_disparity_result; 
+
+	void myLocalDisparity::thread_loop_function();
 };
+/////////////////////////////////////////////////////////////////////////
+
+myLocalDisparity::myLocalDisparity():
+	/* initializing , and executing the thread */
+	stereoIm_thrd(&myLocalDisparity::thread_loop_function,this)  
+{}
+
+myLocalDisparity :: ~myLocalDisparity()
+{
+	exit = true;
+	stereoIm_thrd.join();
+}
+
+
+void myLocalDisparity::thread_loop_function() {
+
+	int		argc;
+	char*	argv[11];  //6
+
+	argc = 8;//11;
+
+	argv[3] = "-i";
+#ifdef COPMILING_ON_ROBOT
+	argv[4] = "/root/RAN/StereoRobot/src/data/intrinsics.yml";
+	argv[5] = "-e";
+	argv[6] = "/root/RAN/StereoRobot/src/data/extrinsics.yml";
+#else
+	argv[4] = "C:/Users/Ran_the_User/Documents/GitHub/StereoRobot/Src/src/data/intrinsics.yml";
+	argv[5] = "-e";
+	argv[6] = "C:/Users/Ran_the_User/Documents/GitHub/StereoRobot/Src/src/data/extrinsics.yml";
+#endif
+	////outputs:
+	//argv[7] = "-o";	argv[8]  = "../data/disp_out.jpg";
+	//argv[9] = "-p";	argv[10] = "../data/points_out.yml";
+	  argv[7] = "--no-display";	
+	//argv[8]  = "";	argv[9] = "";	argv[10] = "";
+	do_stereo_match_init (argc,argv); 
+
+	exit					= false;
+	calc_disparity_request	= false; 
+	calculating_disparity   = false;
+	ready_disparity_result	= false;
+
+	while (!exit) {
+		mut.lock();
+
+		if (calc_disparity_request)
+		{ 
+			/* calculates the disparity according to those inputs.
+				at the end of the function - sets :
+				ready_disparity_result  = true;
+				calc_disparity			= false;
+			*/
+			calc_disparity_request	= false;
+			calculating_disparity	= true;
+			do_stereo_match( imR, imL, disp_out); // openCV demo as base code
+			calculating_disparity	= false;
+		}
+		
+		//TODO: //calcTimeTag = ..  
+
+		mut.unlock();
+		std::this_thread::sleep_for(std::chrono::milliseconds(disparity_loop_dealy));
+	}
+}
 
 int myLocalDisparity::do_stereo_match_init(int argc, char** argv)
 {  
@@ -215,6 +323,8 @@ int myLocalDisparity::do_stereo_match_init(int argc, char** argv)
 
 int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
 {
+	ready_disparity_result  = false;	// runover current unused previous result. if any.
+
 	img1 = imgR.clone();
 	img2 = imgL.clone();
 
@@ -253,6 +363,16 @@ int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
 
         img1 = img1r;
         img2 = img2r;
+
+		rectified_display_vars.imageSize = img_size;
+		rectified_display_vars.rectL	=	img2;
+		rectified_display_vars.rectR	=	img1;
+		rectified_display_vars.validROI1=	roi1;
+		rectified_display_vars.validROI2=	roi2;
+
+		///void myGUI_handler::display_rectified_pair(Size imageSize , Mat Rimg, Mat Limg, Rect validROI1, Rect validROI2 )
+		///myGUI.display_rectified_pair( img_size, img1, img2, roi1, roi2);
+		
     }
 
     numberOfDisparities = numberOfDisparities > 0 ? numberOfDisparities : ((img_size.width/8) + 15) & -16;
@@ -345,8 +465,8 @@ int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
         disp.convertTo(disp8, CV_8U);
     if( !no_display )
     {
-        namedWindow("left", 1);        imshow("left", img1);
-        namedWindow("right", 1);       imshow("right", img2);
+       // namedWindow("left", 1);        imshow("left", img1);
+       // namedWindow("right", 1);       imshow("right", img2);
         namedWindow("disparity", 0);   imshow("disparity", disp8);
        // printf("press any key to continue...");
         fflush(stdout);
@@ -360,10 +480,15 @@ int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
 	{
 		Mat xyz_again;
 		///http://stackoverflow.com/questions/27374970/q-matrix-for-the-reprojectimageto3d-function-in-opencv
-		Q.at<double>(3,2) = Q.at<double>(3,2)       ;////10.0;
-		reprojectImageTo3D(disp, xyz_again, Q, true); 
-		Vec3f point_middle = xyz_again.at<Vec3f>(xyz_again.rows/2, xyz_again.cols/2);
-		printf("\n\n middle point relative coor. are: %f %f %f \n\n", point_middle.val[0],point_middle.val[1],point_middle.val[2]);
+#ifndef COMPILING_ON_ROBOT
+		if (1==2)		
+		{
+			Q.at<double>(3,2) = Q.at<double>(3,2)       ;////10.0;
+			reprojectImageTo3D(disp, xyz_again, Q, true); 
+			Vec3f point_middle = xyz_again.at<Vec3f>(xyz_again.rows/2, xyz_again.cols/2);
+			printf("\n\n middle point relative coor. are: %f %f %f \n\n", point_middle.val[0],point_middle.val[1],point_middle.val[2]);
+		}
+#endif
 	}
 
     if(point_cloud_filename)
@@ -380,39 +505,79 @@ int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
 		//TODO:
     }
 
+	ready_disparity_result  = true;
     return 0;
 }
 
 
-myLocalDisparity localDisp;
-
-
-void do_stereo_disp_init(){
-
-	int		argc;
-	char*	argv[11];  //6
-
-	argc = 11;
-
-	argv[3] = "-i";
-	argv[4] = "/root/RAN/StereoRobot/src/data/intrinsics.yml";
-	argv[5] = "-e";
-	argv[6] = "/root/RAN/StereoRobot/src/data/extrinsics.yml";
-	////outputs:
-	//argv[7] = "-o";	argv[8]  = "../data/disp_out.jpg";
-	//argv[9] = "-p";	argv[10] = "../data/points_out.yml";
-	//outputs:
-	argv[7] = "--no-display";	argv[8]  = "";
-	argv[9] = "";	argv[10] = "";
-	localDisp.do_stereo_match_init (argc,argv);
+void myLocalDisparity::set_disparity_input(Mat inR, Mat inL)
+{
+//	mut.lock();	//?
+	if ((!calculating_disparity) && (!ready_disparity_result))	//TODO : check also for used_result?
+	{
+		imR						= inR.clone();
+		imL						= inL.clone();
+		calc_disparity_request	= true;
+	}
+//	mut.unlock();//?
 }
 
-void do_stereo_disp(Mat imgR, Mat imgL, Mat& outM){
+bool myLocalDisparity::get_rectified_and_disparity(Mat& disp_output, rect_display_vars& display_vars)
+{
+///	mut.lock();	//?
+	if (ready_disparity_result)	// TODO: verify - not another match in process?
+	{
+		disp_output  = disp_out;
+		display_vars.imageSize =  rectified_display_vars.imageSize;
+		display_vars.rectL	=	rectified_display_vars.rectL;
+		display_vars.rectR	=	rectified_display_vars.rectR;
+		display_vars.validROI1=	rectified_display_vars.validROI1;
+		display_vars.validROI2=	rectified_display_vars.validROI2;
 
-	//inputs:
-	Mat img1 = imgR.clone();
-	Mat img2 = imgL.clone();
-
-	localDisp.do_stereo_match( img1, img2, outM); // openCV demo as base code
+		ready_disparity_result = false;
+		return true;
+	}
+	else
+		return false;
+///	mut.unlock();//?
 }
+
+
+///myLocalDisparity localDisp;
+
+
+//void do_stereo_disp_init(){
+//
+//	int		argc;
+//	char*	argv[11];  //6
+//
+//	argc = 8;//11;
+//
+//	argv[3] = "-i";
+//#ifdef COPMILING_ON_ROBOT
+//	argv[4] = "/root/RAN/StereoRobot/src/data/intrinsics.yml";
+//	argv[5] = "-e";
+//	argv[6] = "/root/RAN/StereoRobot/src/data/extrinsics.yml";
+//#else
+//	argv[4] = "C:/Users/Ran_the_User/Documents/GitHub/StereoRobot/Src/src/data/intrinsics.yml";
+//	argv[5] = "-e";
+//	argv[6] = "C:/Users/Ran_the_User/Documents/GitHub/StereoRobot/Src/src/data/extrinsics.yml";
+//#endif
+//	////outputs:
+//	//argv[7] = "-o";	argv[8]  = "../data/disp_out.jpg";
+//	//argv[9] = "-p";	argv[10] = "../data/points_out.yml";
+//	//outputs:
+//	argv[7] = "--no-display";	
+//	//argv[8]  = "";	argv[9] = "";	argv[10] = "";
+//	localDisp.do_stereo_match_init (argc,argv);
+//}
+
+//void do_stereo_disp(Mat imgR, Mat imgL, Mat& outM){
+//
+//	//inputs:
+//	Mat img1 = imgR.clone();
+//	Mat img2 = imgL.clone();
+//
+//	localDisp.do_stereo_match( img1, img2, outM); // openCV demo as base code
+//}
 

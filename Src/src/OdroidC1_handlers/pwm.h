@@ -8,8 +8,8 @@
  - set_freq()		: setting PWM Frequency in Hertz! (Maximum Frequency is 1Mhz)
 */
 #ifdef COMPILING_ON_ROBOT
-#ifndef pwm_H
-#define pwm_H
+#ifndef PWM_H
+#define PWM_H
 
 #include <memory>
 
@@ -25,12 +25,12 @@ public:
   static pwm_ptr create();
 };
 
-#endif // pwm_H
+#endif // PWM_H
 
 #else
 
-#ifndef pwm_H
-#define pwm_H
+#ifndef PWM_H
+#define PWM_H
 
 #include <memory>
 
@@ -43,10 +43,10 @@ public:
 	virtual void set_duty_cycle(int id, int value) {};
 
 	typedef std::shared_ptr<PWM> pwm_ptr;
-	static pwm_ptr create();
+	static pwm_ptr create(){};
 };
 
-#endif // pwm_H
+#endif // PWM_H
 
 #endif // COMPILING_ON_ROBOT
 

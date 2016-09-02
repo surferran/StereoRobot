@@ -159,6 +159,8 @@ void cvShowManyImages(char* title, int nArgs, ...) {
 
        // Reset the ROI in order to display the next image
        cvResetImageROI(DispImage);
+
+	   cvReleaseImage(&img);//RAN //for relesing the images copies memory. otherwise - leakage.
     }
 
     // Create a new window, and show the Single Big Image

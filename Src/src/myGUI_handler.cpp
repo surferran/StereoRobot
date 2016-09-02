@@ -12,6 +12,7 @@ myGUI_handler::myGUI_handler()
 }
 
 
+// shows the 4 images of previous and current images and their matching feature points flow.
 void myGUI_handler::dispFlowChanges(Mat & prevGrayROI, vector<Point2f> trackedFeatures, Mat& grayROI, vector<Point2f> corners,
 										vector<uchar> status)
 {
@@ -48,10 +49,15 @@ void myGUI_handler::dispFlowChanges(Mat & prevGrayROI, vector<Point2f> trackedFe
 	///imshow("original copy ROI", copy);	
 
 
-	IplImage	*im_mat1 = cvCloneImage(&(IplImage)copyPrev),
-	*im_mat2 = cvCloneImage(&(IplImage)copyCurrent),
-	*im_mat3 = cvCloneImage(&(IplImage)copyCurrent2),
-	*im_mat4 = cvCloneImage(&(IplImage)copyCurrent3);
+	IplImage	im_mat1_ = (IplImage)copyPrev,
+				im_mat2_ = (IplImage)copyCurrent,
+				im_mat3_ = (IplImage)copyCurrent2,
+				im_mat4_ = (IplImage)copyCurrent3;
+
+	IplImage	*im_mat1 = cvCloneImage(&im_mat1_),
+				*im_mat2 = cvCloneImage(&im_mat2_),
+				*im_mat3 = cvCloneImage(&im_mat3_),
+				*im_mat4 = cvCloneImage(&im_mat4_);
 	//cvShowManyImages("images prev & current" , 4 , im_mat1, im_mat2, im_mat1, im_mat2 );
 	cvShowManyImages("images prev & current " , 4 , im_mat1, im_mat2 , im_mat3, im_mat4 );
 
@@ -65,6 +71,7 @@ void myGUI_handler::dispFlowChanges(Mat & prevGrayROI, vector<Point2f> trackedFe
 }
 
 
+
 void myGUI_handler::draw_output_frames(String* WinNames, Mat* images)
 {
 	for (int i=0; i<thumb_num ; i++)
@@ -73,7 +80,7 @@ void myGUI_handler::draw_output_frames(String* WinNames, Mat* images)
 	}
 }
 
-
+// add graphic layer to the image - for showing circle and bounding box for the target tracking.
 void myGUI_handler::show_graphics_with_image(Mat & mask, Point MassCenter, double rCircle, Rect boundRect, 
 	double theta, double boundAreaRatio, int mask_status)
 {
@@ -192,4 +199,63 @@ void myGUI_handler::add_Cross_to_Image(int x, int y, bool addLabel, SYSTEM_STATU
 	putText(cameraFeed, StatusText, Point(15, 15), FONT_HERSHEY_COMPLEX, 0.4, (0, 0, 255), 1);
 
 
+}
+
+//
+void myGUI_handler::display_rectified_pair(Size imageSize , Mat Rimg, Mat Limg, Rect validROI1, Rect validROI2 )
+{
+	Mat		canvas;
+	double	sf;
+	int		w, h;
+	bool isHorizontalStereo = true;
+	 
+	if (isHorizontalStereo)
+	{
+		sf = 600./MAX(imageSize.width, imageSize.height);
+		sf=1;
+		w = cvRound(imageSize.width*sf);
+		h = cvRound(imageSize.height*sf);
+		canvas.create(h, w*2, CV_8UC3);
+	}
+	else
+	{
+		sf	= 300./MAX(imageSize.width , imageSize.height);
+		w	= cvRound(imageSize.width	*	sf);
+		h	= cvRound(imageSize.height	*	sf);
+		canvas.create(h*2, w, CV_8UC3);
+	}
+
+	//for( i = 0; i < nimages; i++ )
+	{
+		Rect validRoi[2] = {validROI1, validROI2};
+
+		for( int k = 0; k < 2; k++ )
+		{
+			Mat rimg, cimg; 
+			//Mat img = imread(goodImageList[i*2+k], 0), rimg, cimg;
+			if (k==1) cimg = Limg;
+			else
+				cimg = Rimg;
+			//remap(img, rimg, rmap[k][0], rmap[k][1], INTER_LINEAR);
+		///	cvtColor(rimg, cimg, COLOR_GRAY2BGR);
+			cvtColor(cimg, cimg, COLOR_GRAY2BGR);
+			Mat canvasPart = isHorizontalStereo ? canvas(Rect(w*k, 0, w, h)) : canvas(Rect(0, h*k, w, h)); 
+			resize(cimg, canvasPart, canvasPart.size(), 0, 0, INTER_AREA);
+			//if( useCalibrated )
+			{
+				Rect vroi(cvRound(validRoi[k].x*sf), cvRound(validRoi[k].y*sf),
+					cvRound(validRoi[k].width*sf), cvRound(validRoi[k].height*sf));
+				rectangle(canvasPart, vroi, Scalar(0,0,255), 3, 8);
+			}
+		}
+		 
+		if (isHorizontalStereo)
+			for( int j = 0; j < canvas.rows; j += 16 )
+				line(canvas, Point(0, j), Point(canvas.cols, j), Scalar(0, 255, 0), 1, 8);
+		else
+			for( int j = 0; j < canvas.cols; j += 16 )
+				line(canvas, Point(j, 0), Point(j, canvas.rows), Scalar(0, 255, 0), 1, 8);
+				
+		imshow("rectified", canvas);
+	}
 }

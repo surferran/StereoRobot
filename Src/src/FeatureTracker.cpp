@@ -78,15 +78,7 @@ void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state)
 	{
 		Mat tmpIm;
 
-		// check given ROI boundaries.
-		if (current_trackingROI.x < 0) current_trackingROI.x = 0;
-		if (current_trackingROI.y < 0) current_trackingROI.y = 0;
-		if (current_trackingROI.x + current_trackingROI.width > prevGrayROI.size().width) 
-			current_trackingROI.width -= 10;
-		if (current_trackingROI.y + current_trackingROI.height > prevGrayROI.size().height) 
-			current_trackingROI.height -= 10;
-
-
+		// check given ROI boundaries. 
 		if (current_trackingROI.x < 0) current_trackingROI.x = 0;
 		if (current_trackingROI.y < 0) current_trackingROI.y = 0;
 		if (current_trackingROI.x + current_trackingROI.width > prevGrayROI.size().width) 
@@ -200,7 +192,7 @@ void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state)
 					}
 				}
 			}
-			m = moments(tmp2,true);
+			m = moments(tmp2,true); 
 			Point MassCenter	= Point(m.m10/m.m00, m.m01/m.m00);	// mass_centers
 			current_trackingROI	= boundingRect( trackedFeatures ); 			//trial: OriginalTargetROI;// 
 
