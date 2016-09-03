@@ -5,8 +5,7 @@
 */
 
 
-
-#define RUN_ON_LAPTOP__MONO true    
+#define RUN_ON_LAPTOP__MONO false    
 
  /* my  constants and parameters */
 
@@ -36,6 +35,7 @@ SYSTEM_STATUS	system_state = INITIALIZING ;
 Operation_flags	op_flags; //global
 
 #include "BackgroundSub.hpp"
+#include "OdroidC1_handlers\RobotController.h"
 
 //#include "GUIFunctions.h"
 
@@ -136,7 +136,9 @@ int main(int argc, char** argv)
 	thisStereo.input_source = LIVE_CAM;
 
 #ifdef COMPILING_ON_ROBOT
-	PWM::pwm_ptr PWM_pointeer = PWM::create();
+	///PWM::pwm_ptr PWM_pointeer = PWM::create();
+	RobotController hardwareController ;
+
 #endif
 
 	op_flags.show_stereo=true;	// initialize and conduct stereo algo imidiatly when running.
@@ -246,8 +248,8 @@ int main(int argc, char** argv)
 				continue;
 			
 			relative_counter++;
-			if (relative_counter==1)
-				continue;			//just for getting debug point..
+			///if (relative_counter==1)
+			///	continue;			//just for getting debug point..
 			
 			////////////// end of capture images ///////////
 			 
@@ -263,33 +265,47 @@ int main(int argc, char** argv)
 				////actually not needed .. makeContours(localBackSubs.get_foreground_mat()); 
 			}
 			////////////* get DEPTH by Stereo */////////////// 
-		///	if (!RUN_ON_LAPTOP__MONO)
+			if (!RUN_ON_LAPTOP__MONO)
 			{
 				// calc disparity every 2 frame
 				if (relative_counter>1) //10  
 				{
-					cv::cvtColor(myGUI.plotImages[0+1], myGUI.plotImages[0+1], CV_BGR2GRAY);
-					cv::cvtColor(myGUI.plotImages[0*1], myGUI.plotImages[0*1], CV_BGR2GRAY);
+					Mat inR, inL;
+
+					cv::cvtColor(myGUI.plotImages[0+1], inR, CV_BGR2GRAY);
+					cv::cvtColor(myGUI.plotImages[0*1], inL, CV_BGR2GRAY);
 
 					///do_stereo_disp(myGUI.plotImages[0+1],myGUI.plotImages[1*0], myGUI.plotImages[2]);  // plotImages[2] is the disparity output
 					// delivers new input , if the process is waiting (not in calculation process)
 				
-					localDisp.set_disparity_input(myGUI.plotImages[0+1],myGUI.plotImages[1*0]);  
+					localDisp.set_disparity_input(inR,inL);  
 
 					myLocalDisparity::rect_display_vars display_struct;
 
-					if ( localDisp.get_rectified_and_disparity(myGUI.plotImages[2], display_struct) )  
+					Mat disp_temporary;
+					Mat calculated_depth;
+					if ( localDisp.get_rectified_and_disparity(disp_temporary, display_struct) )  
 					{
 
+						myGUI.plotImages[2]    = disp_temporary;
+						double camera_base     = 0.06 ; //[m]
+						double focal_len       = 375 ; //[pix]
+						double constant_offset = 0; //[m] 
+						double scale_factor    = 1./22.5 ;	// my guess..
+						threshold (disp_temporary , calculated_depth ,	50 ,	255,THRESH_TOZERO);/// THRESH_BINARY
+						Scalar avg_disperity_S = mean( calculated_depth((tracker.current_trackingROI)) ) ;
+						double avg_disperity = avg_disperity_S[0];
+						double avg_depth_of_ROI  = constant_offset + (1./avg_disperity) * camera_base * focal_len * scale_factor; /* bf/d */
+						cout   << " avg_disperity " << avg_disperity  << " avg_depth_of_ROI " << avg_depth_of_ROI << endl;
 					///disp relevant disperity values. 
 					// for image blobs or average areas. use superpixel segmentation??
-					// get disp average for the target feature points area.
+					// get disp average for the target feature points area. 
 
-					//main_SBM(plotImages[0+1],plotImages[1*0], plotImages[2]); 
-						///myGUI.display_rectified_pair( display_struct.imageSize , img1, img2, roi1, roi2);
 						myGUI.display_rectified_pair( display_struct.imageSize , display_struct.rectR , display_struct.rectL, 
 														display_struct.validROI1 , display_struct.validROI2 );
 						imshow(myGUI.plotWindowsNames[2],  myGUI.plotImages[2]);
+						myGUI.plotImages[5]		= calculated_depth;
+						imshow(myGUI.plotWindowsNames[5],  myGUI.plotImages[5]);
 					}
 					relative_counter	=	0;
 				}
@@ -356,8 +372,17 @@ int main(int argc, char** argv)
 				if ( system_state == FOUND_GOOD_TARGET )
 					targetCenter = localBackSubs.get_foreground_center() ;
 				else
+				{
 					targetCenter = Point(tracker.TrkErrX_Avg + left_cam.size().width/2 ,  left_cam.size().height/2  );
-
+#ifdef COMPILING_ON_ROBOT
+					double thrust_percent = depth(targetCenter) ;//, 
+					double pix_to_FOV = 1.0/ /*fx=*/ 375 ;
+					double angle	  = atan( tracker.TrkErrX_Avg * pix_to_FOV ); // max of 160 will give 160/375 ~ 0.42 // atand(0.42)=23.1deg~0.4rad
+					double turn_ratio = 0.9 ; // first angle, then forward. so target stays in FOV center
+					hardwareController.Forward(thrust_percent, angle, turn_ratio);
+					//Forward(double thrust_percent, double angle, double turn_ratio)  // TODO: add turn_rate_ratio option
+#endif
+				}
 				if (tracker.TrackPercent > 65)
 					system_state = TRACKING_GOOD_QUALITY_TARGET;
 				else 
@@ -409,10 +434,33 @@ int main(int argc, char** argv)
 			imshow(myGUI.plotWindowsNames[1],	left_cam);
 			 
 		}
-
-		char c = (char)waitKey(loop_delay);
+		//char c = (char)waitKey(loop_delay);
+		int c = waitKey(loop_delay);
+#ifdef COMPILING_ON_ROBOT
+		switch (c) {
+		case KEY_UP:
+			double thrust_percent = 50; //make static somwhere
+			double angle = 0;			
+			hardwareController.Forward(thrust_percent, angle, 0);
+			break;
+		case KEY_DOWN:
+			hardwareController.Stop();
+			break; 
+		case KEY_LEFT:
+			double thrust_percent = 50; //make static somwhere
+			double angle = -45 /57.3;		 //-45deg
+			hardwareController.Forward(thrust_percent, angle, 0.9);
+			break;
+		case KEY_RIGHT:
+			double thrust_percent = 50; //make static somwhere
+			double angle = 45 /57.3;		
+			hardwareController.Forward(thrust_percent, angle, 0.9);
+			break;
+		}
+#endif
 		if (c==27)
 			break;
+		/////cout << " c " << (int)c <<endl;
 		//if (!check_user_input(&loop_delay, &user_pressing))
 			//break;
 	}

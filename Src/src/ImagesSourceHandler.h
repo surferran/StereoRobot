@@ -15,9 +15,21 @@ using namespace cv;
 #define LEFT_CAMERA_INDEX		1		// depends on platform. 0 index is the default camera.
 #define RIGHT_CAMERA_INDEX		0
 #else
+
+#ifdef RUN_ON_LAPTOP__MONO 
+
 #define ACTIVE_CAMS_NUM			1
 #define LEFT_CAMERA_INDEX		0		// depends on platform. 0 index is the default camera.
 #define RIGHT_CAMERA_INDEX		1
+
+#else 
+
+#define ACTIVE_CAMS_NUM			2
+#define LEFT_CAMERA_INDEX		0		// depends on platform. 0 index is the default camera.
+#define RIGHT_CAMERA_INDEX		2
+
+#endif
+
 #endif
 
 class ImagesSourceHandler 

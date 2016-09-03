@@ -120,7 +120,7 @@ private:
 	//atomic<bool>
 		bool ready_disparity_result; 
 
-	void myLocalDisparity::thread_loop_function();
+	void thread_loop_function();
 };
 /////////////////////////////////////////////////////////////////////////
 
@@ -441,10 +441,10 @@ int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
 */
 
     Mat disp;//, disp8;
-    Mat img1p, img2p;//, dispp;
+  /*  Mat img1p, img2p;//, dispp;
     copyMakeBorder(img1, img1p, 0, 0, numberOfDisparities, 0, IPL_BORDER_REPLICATE);
     copyMakeBorder(img2, img2p, 0, 0, numberOfDisparities, 0, IPL_BORDER_REPLICATE);
-
+	*/
     int64 t = getTickCount();
 	//alg=STEREO_BM;//////RAN
     if( alg == STEREO_BM ){
@@ -468,27 +468,30 @@ int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
        // namedWindow("left", 1);        imshow("left", img1);
        // namedWindow("right", 1);       imshow("right", img2);
         namedWindow("disparity", 0);   imshow("disparity", disp8);
+		Mat tmpD ;
+			applyColorMap(disp8,tmpD, cv::COLORMAP_JET);
+			namedWindow("disparity Heat", 1);   imshow("disparity Heat", tmpD);
        // printf("press any key to continue...");
         fflush(stdout);
        // waitKey();
         printf("\n");
     }
-
+	
     if(disparity_filename)
         imwrite(disparity_filename, disp8);
 
 	{
 		Mat xyz_again;
 		///http://stackoverflow.com/questions/27374970/q-matrix-for-the-reprojectimageto3d-function-in-opencv
-#ifndef COMPILING_ON_ROBOT
-		if (1==2)		
+///#ifndef COMPILING_ON_ROBOT
+///		if (1==2)		
 		{
 			Q.at<double>(3,2) = Q.at<double>(3,2)       ;////10.0;
 			reprojectImageTo3D(disp, xyz_again, Q, true); 
 			Vec3f point_middle = xyz_again.at<Vec3f>(xyz_again.rows/2, xyz_again.cols/2);
 			printf("\n\n middle point relative coor. are: %f %f %f \n\n", point_middle.val[0],point_middle.val[1],point_middle.val[2]);
 		}
-#endif
+///#endif
 	}
 
     if(point_cloud_filename)
@@ -527,12 +530,12 @@ bool myLocalDisparity::get_rectified_and_disparity(Mat& disp_output, rect_displa
 ///	mut.lock();	//?
 	if (ready_disparity_result)	// TODO: verify - not another match in process?
 	{
-		disp_output  = disp_out;
-		display_vars.imageSize =  rectified_display_vars.imageSize;
-		display_vars.rectL	=	rectified_display_vars.rectL;
-		display_vars.rectR	=	rectified_display_vars.rectR;
-		display_vars.validROI1=	rectified_display_vars.validROI1;
-		display_vars.validROI2=	rectified_display_vars.validROI2;
+		disp_output				=	disp_out;
+		display_vars.imageSize	=	rectified_display_vars.imageSize;
+		display_vars.rectL		=	rectified_display_vars.rectL;
+		display_vars.rectR		=	rectified_display_vars.rectR;
+		display_vars.validROI1	=	rectified_display_vars.validROI1;
+		display_vars.validROI2	=	rectified_display_vars.validROI2;
 
 		ready_disparity_result = false;
 		return true;

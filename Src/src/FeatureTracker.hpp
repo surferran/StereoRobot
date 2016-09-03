@@ -24,22 +24,24 @@ private:
     vector<Point2f> trackedFeatures; 
     Mat             prevGrayROI;
 
-	Rect			current_trackingROI;
 
 public:
-	Rect			TrackerROI; 
+	Rect			current_trackingROI;
+	/* original target properties */
 	bool			newTargetSituation = false;
 	Rect			OriginalTargetROI;
-	Mat				OriginalTarget;	
-	vector<Point2f> TargetFeatures; 
+	Mat				OriginalTarget;
+	Mat				grayOriginalTarget;
+	vector<Point2f> OriginalTargetFeatures; 	
+	Rect			TrackerROI; 
 	double			TrkErrX_Avg=0;  // average for 3 readings	
 	double			TrkErrX_Readings[Nreads];
 	int				TrkErrX_readIndex = 0;
 
 
 	int				TrackPercent = 0;		// % of the feature points that has correspondance to the next/previous frame
-    bool            freshStart;
-    Mat_<float>     rigidTransform;
+    bool            freshStart = true;
+    Mat_<float>     rigidTransform = Mat::eye(3,3,CV_32FC1); //affine 2x3 in a 3x3 matrix;
 	int				min_features				= 5;// depend on light conditions 10;//40//200; 
 	int				num_of_maxCornersFeatures	= 300;//300;
 	float			mid_level_percent			= 1.25;		//	1/1.25=80%
@@ -51,7 +53,7 @@ public:
 
 	int		alphaSlider_max=100;
 
-    Tracker();
+    ///Tracker();
 
 	void setNewTarget(
 		Rect			OriginalTargetROI,

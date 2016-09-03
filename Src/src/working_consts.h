@@ -8,6 +8,11 @@ using namespace cv;
 enum WORKING_MODES	{ CALIBRATION=0, REGULAR  , REG_and_REC , PLAYBACK }; //  REGULAR(=no recording) 
 enum FRAME_SIZES	{ SMALL=0, MEDIUM , LARGE};
 
+#define KEY_UP 65362
+#define KEY_DOWN 65364
+#define KEY_LEFT 65361
+#define KEY_RIGHT 65363
+
 const int numOfActiveCams		= 1;// use the first # of the next indeces list :
 const int camIndexes[3]			= { 0,1 , 2 };       // default : { 0, 1 , 2 };
 

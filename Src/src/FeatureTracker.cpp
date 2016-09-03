@@ -1,12 +1,12 @@
 #include "FeatureTracker.hpp"
 #include "myGUI_handler.h"
 
+#include "MatchTemplate_Demo.cpp"
+
 extern SYSTEM_STATUS	system_state ;
 extern myGUI_handler	myGUI;
 
-Tracker::Tracker():freshStart(true) {
-    rigidTransform = Mat::eye(3,3,CV_32FC1); //affine 2x3 in a 3x3 matrix
-}
+///Tracker::Tracker() {}
 
 
 void Tracker::setNewTarget(
@@ -26,18 +26,17 @@ void Tracker::setNewTarget(
 	OriginalTarget		= newTarget.clone();
 	TrackerROI			= TrackingROI;
 
-	Mat grayTarget; cvtColor(OriginalTarget, grayTarget, CV_BGR2GRAY);
-	goodFeaturesToTrack(grayTarget, TargetFeatures, num_of_maxCornersFeatures,0.01,10);	//  int maxCorners, double qualityLevel, double minDistance,
-	cout << "found on new target " << TargetFeatures.size() << " features\n";		//TODO: set to operate through GUI object..
-
-	// set corners to-> trackedFeatures 
-
+	cvtColor(OriginalTarget, grayOriginalTarget, CV_BGR2GRAY);
+	goodFeaturesToTrack(grayOriginalTarget, OriginalTargetFeatures, num_of_maxCornersFeatures,0.01,10);	//  int maxCorners, double qualityLevel, double minDistance,
+	cout << "found on new target " << OriginalTargetFeatures.size() << " features\n";		//TODO: set to operate through GUI object..
+	 
+	/* OriginalTargetFeatures : store feature points in full image coordinates, rather then local image target ones */
+	/* trackedFeatures = OriginalTargetFeatures */
 	trackedFeatures.clear();
-	for (int i = 0; i < TargetFeatures.size(); ++i) {
-		/* store feature points in full image coordinates, rather then local image target ones */
-		TargetFeatures[i].x = TargetFeatures[i].x + OriginalTargetROI.x;
-		TargetFeatures[i].y = TargetFeatures[i].y + OriginalTargetROI.y;
-		trackedFeatures.push_back(TargetFeatures[i]);
+	for (int i = 0; i < OriginalTargetFeatures.size(); ++i) {
+		OriginalTargetFeatures[i].x = OriginalTargetFeatures[i].x + OriginalTargetROI.x;
+		OriginalTargetFeatures[i].y = OriginalTargetFeatures[i].y + OriginalTargetROI.y;
+		trackedFeatures.push_back(OriginalTargetFeatures[i]);
 	}
 
 	TrackPercent	= 100;
@@ -86,7 +85,9 @@ void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state)
 		if (current_trackingROI.y + current_trackingROI.height > prevGrayROI.size().height) 
 			current_trackingROI.height = prevGrayROI.size().height - current_trackingROI.y ;
 
-		
+#define COMPARE_TO_ORIGINAL_TARGET false
+		if (!COMPARE_TO_ORIGINAL_TARGET)
+		{
 		// take relevant ROI out of the previous whole image
 		// calculate newly feature points vector
 		prevGrayROI(current_trackingROI).copyTo(tmpIm);
@@ -102,14 +103,29 @@ void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state)
 			corners[i].y = corners[i].y + current_trackingROI.y;
 			trackedFeatures.push_back(corners[i]);
 		}
-
+		}
+		else
+		{
+			trackedFeatures = OriginalTargetFeatures;	//in image coordinates
+		}
         vector<uchar> status; 
 		vector<float> errors;
 		// new input is trackedFeatures ->
 		// new output is corners
 		// status of 1 means correspondence found. 0 otherwise.
-		calcOpticalFlowPyrLK(prevGrayROI,grayROI,trackedFeatures,corners,status,errors,Size(21,11), 3,
-			TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 0.01),0, 0.001);	//0.1 is too much for low visibility 
+		if (!COMPARE_TO_ORIGINAL_TARGET)
+			calcOpticalFlowPyrLK(prevGrayROI,grayROI,trackedFeatures,corners,status,errors,Size(21,11), 3,
+				TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 0.01),0, 0.001);	//0.1 is too much for low visibility 
+		else
+		{
+			Mat tmpOrig = Mat::zeros( grayROI.size(), grayROI.type() );
+			tmpOrig(OriginalTargetROI) = grayOriginalTarget ;
+
+			main_MatchTemplate(grayROI, grayOriginalTarget);
+
+			/*calcOpticalFlowPyrLK(tmpOrig ,grayROI,trackedFeatures,corners,status,errors,Size(33,33), 3,
+				TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 0.01),0, 0.001);*/	
+		}
 
 		/*////////// display the found feature points from	Prev (prevGrayROI, trackedFeatures)  to 
 															Current (grayROI, corners)				 /////////*/
@@ -198,22 +214,24 @@ void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state)
 
 			int addedSpace = 2;
 
-			if (current_trackingROI.x < 0) current_trackingROI.x = 0;
-			if (current_trackingROI.y < 0) current_trackingROI.y = 0;
-			if (current_trackingROI.x + current_trackingROI.width > prevGrayROI.size().width) 
-				current_trackingROI.width = prevGrayROI.size().width - current_trackingROI.x -addedSpace;
-			if (current_trackingROI.y + current_trackingROI.height > prevGrayROI.size().height) 
-				current_trackingROI.height = prevGrayROI.size().height - current_trackingROI.y -addedSpace;
-
+			// in order to increase next search area
 			current_trackingROI.x -= addedSpace; //TODO: change to *1.05 as 5% increase.. and check for staying in image limits
 			current_trackingROI.y -= addedSpace;
 			current_trackingROI.width  += addedSpace;
 			current_trackingROI.height += addedSpace;
 
+			if (current_trackingROI.x < 0) current_trackingROI.x = 0;
+			if (current_trackingROI.y < 0) current_trackingROI.y = 0;
+			if (current_trackingROI.x + current_trackingROI.width > prevGrayROI.size().width) 
+				current_trackingROI.width = prevGrayROI.size().width - current_trackingROI.x ;//-addedSpace;
+			if (current_trackingROI.y + current_trackingROI.height > prevGrayROI.size().height) 
+				current_trackingROI.height = prevGrayROI.size().height - current_trackingROI.y ;//-addedSpace;
+
+
 
 			myGUI.show_graphics_with_image(prevGrayROI, MassCenter, 0, current_trackingROI,
 				0, 0, 0);
-
+			 
 
 			TrkErrX_Readings[TrkErrX_readIndex] = MassCenter.x - prevGrayROI.size().width/2.0 ;
 			TrkErrX_Avg = 0;

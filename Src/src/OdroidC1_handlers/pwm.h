@@ -43,7 +43,7 @@ public:
 	virtual void set_duty_cycle(int id, int value) {};
 
 	typedef std::shared_ptr<PWM> pwm_ptr;
-	static pwm_ptr create(){};
+	static pwm_ptr create(){ return NULL; };
 };
 
 #endif // PWM_H

@@ -8,6 +8,7 @@ myGUI_handler::myGUI_handler()
 	plotWindowsNames[2] = "win3 - calculated disparity";
 	plotWindowsNames[3] = "win4 - background substruction output";
 	plotWindowsNames[4] = "win5 - tracked object";
+	plotWindowsNames[5] = "win6 - resultant depth";
 
 }
 
@@ -16,10 +17,17 @@ myGUI_handler::myGUI_handler()
 void myGUI_handler::dispFlowChanges(Mat & prevGrayROI, vector<Point2f> trackedFeatures, Mat& grayROI, vector<Point2f> corners,
 										vector<uchar> status)
 {
-/////////////////////////
+#define MAKE_RESIZE true
 	Mat copyPrev; 
-	///copyPrev	= prevGrayROI.clone();
-	cvtColor(prevGrayROI.clone(),copyPrev,CV_GRAY2BGR);
+	Mat copyCurrent;
+	cvtColor(prevGrayROI.clone(),copyPrev	,CV_GRAY2BGR);
+	cvtColor(grayROI.clone()	,copyCurrent,CV_GRAY2BGR);
+#ifdef MAKE_RESIZE
+	resize(copyPrev		, copyPrev		, Size(), 0.5, 0.5, CV_INTER_AREA);  //resize by half
+	resize(copyCurrent	, copyCurrent	, Size(), 0.5, 0.5, CV_INTER_AREA);  //resize by half
+#endif // MAKE_RESIZE
+
+///////////////////////// 
 	int r	= 2;	//3
 	for( int i = 0; i < trackedFeatures.size(); i++ )
 	{ 
@@ -27,27 +35,20 @@ void myGUI_handler::dispFlowChanges(Mat & prevGrayROI, vector<Point2f> trackedFe
 			///Scalar(rng.uniform(0,255), rng.uniform(0,255), rng.uniform(0,255)), -1, 8, 0 ); 
 			Scalar(10, 100, 255), -1, 8, 0 ); 
 	}			
-	Mat copyCurrent;
-	cvtColor(grayROI.clone(),copyCurrent,CV_GRAY2BGR);
 	Mat copyCurrent2=copyCurrent.clone() ;
 	Mat copyCurrent3=copyCurrent.clone() ;
 	//int r	= 2;//3
 	for( int i = 0; i < corners.size(); i++ )
 	{ 
 		if (status[i])
-			circle( copyCurrent, corners[i], r, 
-				///Scalar(rng.uniform(0,255), rng.uniform(0,255), rng.uniform(0,255)), -1, 8, 0 ); 
+			circle( copyCurrent, corners[i], r,  
 				Scalar(0, 255, 0), -1, 8, 0 ); 
 		else
 			circle( copyCurrent3, corners[i], r+2,  
 				Scalar(0, 0, 255), -1, 8, 0 ); 
-		circle( copyCurrent2, corners[i], r, 
-			///Scalar(rng.uniform(0,255), rng.uniform(0,255), rng.uniform(0,255)), -1, 8, 0 ); 
+		circle( copyCurrent2, corners[i], r,  
 			Scalar(10, 100, 255), -1, 8, 0 ); 
 	}	
-
-	///imshow("original copy ROI", copy);	
-
 
 	IplImage	im_mat1_ = (IplImage)copyPrev,
 				im_mat2_ = (IplImage)copyCurrent,
@@ -62,9 +63,9 @@ void myGUI_handler::dispFlowChanges(Mat & prevGrayROI, vector<Point2f> trackedFe
 	cvShowManyImages("images prev & current " , 4 , im_mat1, im_mat2 , im_mat3, im_mat4 );
 
 	if  (1==2)   // TODO: print only for 1st debugging
-	cout  << "trackedFeatures size " << trackedFeatures.size() 
-	<< " corners size " << corners.size() << " status size " 
-	<< status.size() << " status non zeroes "<< countNonZero(status) <<"\n"; 
+		cout  << "trackedFeatures size " << trackedFeatures.size() 
+			<< " corners size " << corners.size() << " status size " 
+			<< status.size() << " status non zeroes "<< countNonZero(status) <<"\n"; 
 
 /////////////////////////
 /////////////////////////
