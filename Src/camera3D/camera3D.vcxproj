@@ -205,6 +205,7 @@
     <ClInclude Include="..\src\myGUI_handler.h" />
     <ClInclude Include="..\src\OdroidC1_handlers\pwm.h" />
     <ClInclude Include="..\src\ImagesSourceHandler.h" />
+    <ClInclude Include="..\src\OdroidC1_handlers\RobotController.h" />
     <ClInclude Include="..\src\stereo_calib.h" />
     <ClInclude Include="..\src\stereo_functions.hpp" />
     <ClInclude Include="..\src\working_consts.h" />
@@ -214,6 +215,7 @@
     <ClCompile Include="..\src\MainFile.cpp" />
     <ClCompile Include="..\src\myGUI_handler.cpp" />
     <ClCompile Include="..\src\OdroidC1_handlers\pwm.cpp" />
+    <ClCompile Include="..\src\OdroidC1_handlers\RobotController.cpp" />
     <ClCompile Include="..\src\showManyImages.cpp" />
     <ClCompile Include="..\src\ImagesSourceHandler.cpp" />
   </ItemGroup>

@@ -1,7 +1,7 @@
 #include "FeatureTracker.hpp"
 #include "myGUI_handler.h"
 
-#include "MatchTemplate_Demo.cpp"
+#include "imporeted_raw_code_examples/MatchTemplate_Demo.cpp"
 
 extern SYSTEM_STATUS	system_state ;
 extern myGUI_handler	myGUI;
@@ -48,6 +48,10 @@ void Tracker::setNewTarget(
 void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state) 
 {
 	Mat grayROI ;
+
+	vector<uchar> flow_output_status; 
+	vector<float> flow_output_errors;
+
 	if (newTargetSituation==true)
 	{
 		newTargetSituation = false;
@@ -61,6 +65,7 @@ void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state)
 
     vector<Point2f> corners;  
 
+	/* check for lost of minimum feature points to track */
 	if ( (trackedFeatures.size() < min_features /** mid_level_percent*/ ) )		//TODO: move this condition to the end?
 	{
 		// when near minimum limit - find more feature in ROI around those still alive
@@ -86,42 +91,41 @@ void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state)
 			current_trackingROI.height = prevGrayROI.size().height - current_trackingROI.y ;
 
 #define COMPARE_TO_ORIGINAL_TARGET false
-		if (!COMPARE_TO_ORIGINAL_TARGET)
+		if ( ! COMPARE_TO_ORIGINAL_TARGET )
 		{
-		// take relevant ROI out of the previous whole image
-		// calculate newly feature points vector
-		prevGrayROI(current_trackingROI).copyTo(tmpIm);
-		goodFeaturesToTrack(tmpIm, corners, num_of_maxCornersFeatures,0.01,10);	//  int maxCorners, double qualityLevel, double minDistance,
-		//cout << "(re-)found " << corners.size() << " features\n";
-	 ///release(tmpIm);??
+			// take relevant ROI out of the previous whole image
+			// calculate newly feature points vector
+			prevGrayROI(current_trackingROI).copyTo(tmpIm);
+			goodFeaturesToTrack(tmpIm, corners, num_of_maxCornersFeatures,0.01,10);	//  int maxCorners, double qualityLevel, double minDistance,
+			//cout << "(re-)found " << corners.size() << " features\n";
+		 ///release(tmpIm);??
 
-		// set corners -> trackedFeatures 
-		trackedFeatures.clear();
-		for (int i = 0; i < corners.size(); ++i) {
-			/* store feature points in full image coordinates */
-			corners[i].x = corners[i].x + current_trackingROI.x;
-			corners[i].y = corners[i].y + current_trackingROI.y;
-			trackedFeatures.push_back(corners[i]);
-		}
+			// set corners -> trackedFeatures 
+			trackedFeatures.clear();
+			for (int i = 0; i < corners.size(); ++i) {
+				/* store feature points in full image coordinates */
+				corners[i].x = corners[i].x + current_trackingROI.x;
+				corners[i].y = corners[i].y + current_trackingROI.y;
+				trackedFeatures.push_back(corners[i]);
+			}
 		}
 		else
 		{
 			trackedFeatures = OriginalTargetFeatures;	//in image coordinates
 		}
-        vector<uchar> status; 
-		vector<float> errors;
+
 		// new input is trackedFeatures ->
 		// new output is corners
 		// status of 1 means correspondence found. 0 otherwise.
-		if (!COMPARE_TO_ORIGINAL_TARGET)
-			calcOpticalFlowPyrLK(prevGrayROI,grayROI,trackedFeatures,corners,status,errors,Size(21,11), 3,
+		if ( ! COMPARE_TO_ORIGINAL_TARGET )
+			calcOpticalFlowPyrLK(prevGrayROI,grayROI,trackedFeatures,corners,flow_output_status, flow_output_errors,Size(21,11), 3,
 				TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 0.01),0, 0.001);	//0.1 is too much for low visibility 
 		else
 		{
 			Mat tmpOrig = Mat::zeros( grayROI.size(), grayROI.type() );
 			tmpOrig(OriginalTargetROI) = grayOriginalTarget ;
 
-			main_MatchTemplate(grayROI, grayOriginalTarget);
+			main_MatchTemplate(grayROI, grayOriginalTarget);	//Match from example code
 
 			/*calcOpticalFlowPyrLK(tmpOrig ,grayROI,trackedFeatures,corners,status,errors,Size(33,33), 3,
 				TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 0.01),0, 0.001);*/	
@@ -131,10 +135,10 @@ void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state)
 															Current (grayROI, corners)				 /////////*/
 
 		////
-		myGUI.dispFlowChanges(prevGrayROI, trackedFeatures, grayROI, corners, status); // TODO: running away the memory!
+		myGUI.dispFlowChanges(prevGrayROI, trackedFeatures, grayROI, corners, flow_output_status); // TODO: running away the memory!
 
-		alphaSlider  = countNonZero(status);
-		alphaSlider2 = ((double)countNonZero(status))/ ((double)status.size()) * 100.0;
+		alphaSlider  = countNonZero(flow_output_status);
+		alphaSlider2 = ((double)countNonZero(flow_output_status))/ ((double)flow_output_status.size()) * 100.0;
 		//////////////////////////////////
 		if (alphaSlider2<5)
 			cout << "alphaSlider2 "<<alphaSlider2 <<"\n";
@@ -185,8 +189,8 @@ void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state)
 
 				//TODO: consier put this before this 'if'
 			trackedFeatures.clear();
-			for (int i = 0; i < status.size(); ++i) {
-				if(status[i]) {
+			for (int i = 0; i < flow_output_status.size(); ++i) {
+				if(flow_output_status[i]) {
 					trackedFeatures.push_back(corners[i]);
 				}
 			}
@@ -210,9 +214,9 @@ void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state)
 			}
 			m = moments(tmp2,true); 
 			Point MassCenter	= Point(m.m10/m.m00, m.m01/m.m00);	// mass_centers
-			current_trackingROI	= boundingRect( trackedFeatures ); 			//trial: OriginalTargetROI;// 
+			////RAN//TODO check: current_trackingROI	= boundingRect( trackedFeatures ); 	 //trial: OriginalTargetROI;// 
 
-			int addedSpace = 2;
+			int addedSpace = 0*  2;
 
 			// in order to increase next search area
 			current_trackingROI.x -= addedSpace; //TODO: change to *1.05 as 5% increase.. and check for staying in image limits

@@ -51,7 +51,7 @@ static void saveXYZ(const char* filename, const Mat& mat)
 class myLocalDisparity
 {
 public:
-	struct rect_display_vars{
+	struct rectification_outputs{
 			Mat rectR,rectL;
 			Size imageSize ;
 			Rect validROI1, validROI2 ;
@@ -61,17 +61,18 @@ public:
 	~myLocalDisparity();
 
 	void set_disparity_input(Mat inR, Mat inL);
-	bool get_rectified_and_disparity(Mat& disp_output, rect_display_vars& display_vars);
+	bool get_rectified_and_disparity(Mat& disp_output, rectification_outputs& rectification_vars);
+	void convert_disperity_value_to_depth(double in_disp, double & out_depth);
 
-private:
-	int do_stereo_match_init(int argc, char** argv);
+private: 
+	int stereo_match_and_disparity_init(int argc, char** argv,  Size img_size);
 	int do_stereo_match( Mat imgR, Mat imgL , Mat& disp8 );	// ..and disparity calculation
 
 	/* in , out matrices */
 	Mat imR, imL, 
 		disp_out;
 
-	rect_display_vars rectified_display_vars;
+	rectification_outputs rectification_output_vars;
 	
 	/* algorithm variables */
     const char* algorithm_opt = "--algorithm=";
@@ -98,15 +99,18 @@ private:
     Ptr<StereoBM>	bm		= StereoBM::create(16,9);
     Ptr<StereoSGBM> sgbm	= StereoSGBM::create(0,16,3);
 
+	/* calibration parameters */
 	Mat M1, D1, M2, D2;
 	Mat R, T, R1, P1, R2, P2;
+	Mat Q;
 
+	/* rectification parameters */
 	Mat map11, map12, map21, map22;
+	Rect roi1, roi2;
+
 	Mat img1r, img2r;
 	Mat img1 ;
 	Mat img2 ;
-	Rect roi1, roi2;
-	Mat Q;
 
 	/* variables for thread handling */
 	const int		disparity_loop_dealy = 33*1; // [mS] // do only every 3 cycles of images capturing
@@ -139,7 +143,10 @@ myLocalDisparity :: ~myLocalDisparity()
 void myLocalDisparity::thread_loop_function() {
 
 	int		argc;
-	char*	argv[11];  //6
+	char*	argv[11];  
+	
+	Size imgSize= Size(working_FRAME_WIDTH,	working_FRAME_HIGHT);	// desired resolution for the images, same as in ImageSourceHandler 
+
 
 	argc = 8;//11;
 
@@ -158,7 +165,7 @@ void myLocalDisparity::thread_loop_function() {
 	//argv[9] = "-p";	argv[10] = "../data/points_out.yml";
 	  argv[7] = "--no-display";	
 	//argv[8]  = "";	argv[9] = "";	argv[10] = "";
-	do_stereo_match_init (argc,argv); 
+	stereo_match_and_disparity_init(argc,argv, imgSize); 
 
 	exit					= false;
 	calc_disparity_request	= false; 
@@ -188,7 +195,7 @@ void myLocalDisparity::thread_loop_function() {
 	}
 }
 
-int myLocalDisparity::do_stereo_match_init(int argc, char** argv)
+int myLocalDisparity::stereo_match_and_disparity_init(int argc, char** argv,  Size img_size)
 {  
 	if(argc < 3)  
     {
@@ -200,7 +207,7 @@ int myLocalDisparity::do_stereo_match_init(int argc, char** argv)
 	//alg				= STEREO_BM;
 	SADWindowSize	= 0;
 	numberOfDisparities = 0;
-	  no_display		= false;
+	no_display		= false;
 	scale			= 1.f;
 
     for( int i = 1+2; i < argc; i++ )
@@ -316,6 +323,17 @@ int myLocalDisparity::do_stereo_match_init(int argc, char** argv)
 
 		fs2.release();
 
+		/* initialize rectification mapping */
+		/* 
+			when calibrated and saving matrices - i calibrated 
+				Left camera as img1 , 
+				Right camera as img2
+		*/
+		stereoRectify( M1, D1, M2, D2, img_size, R, T, R1, R2, P1, P2, Q, CALIB_ZERO_DISPARITY, -1, img_size, &roi1, &roi2 );
+
+		initUndistortRectifyMap(M1, D1, R1, P1, img_size, CV_16SC2, map11, map12);
+		initUndistortRectifyMap(M2, D2, R2, P2, img_size, CV_16SC2, map21, map22);
+
 	}
 
 	return 0;
@@ -324,20 +342,27 @@ int myLocalDisparity::do_stereo_match_init(int argc, char** argv)
 int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
 {
 	ready_disparity_result  = false;	// runover current unused previous result. if any.
+	/* 
+		when calibrated and saving matrices - i calibrated 
+			Left camera as img1 , 
+			Right camera as img2
+	*/
+	img1 = imgL.clone();
+	img2 = imgR.clone();
+	//img1 = imgR.clone();
+	//img2 = imgL.clone();
 
-	img1 = imgR.clone();
-	img2 = imgL.clone();
-
-    if (img1.empty())
-    {
-        printf("Command-line parameter error: could not load the first input image file\n");
-        return -1;
-    }
-    if (img2.empty())
-    {
-        printf("Command-line parameter error: could not load the second input image file\n");
-        return -1;
-    }
+	// already checked before input..
+    //if (img1.empty())
+    //{
+    //    printf("Command-line parameter error: could not load the first (Left) input image file\n");
+    //    return -1;
+    //}
+    //if (img2.empty())
+    //{
+    //    printf("Command-line parameter error: could not load the second (Right) input image file\n");
+    //    return -1;
+    //}
 
  /*   if (scale != 1.f)
     {
@@ -353,10 +378,11 @@ int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
 
     if( intrinsic_filename )
     {
+		/* passed to init function
         stereoRectify( M1, D1, M2, D2, img_size, R, T, R1, R2, P1, P2, Q, CALIB_ZERO_DISPARITY, -1, img_size, &roi1, &roi2 );
 
         initUndistortRectifyMap(M1, D1, R1, P1, img_size, CV_16SC2, map11, map12);
-        initUndistortRectifyMap(M2, D2, R2, P2, img_size, CV_16SC2, map21, map22);
+        initUndistortRectifyMap(M2, D2, R2, P2, img_size, CV_16SC2, map21, map22);*/
 
         remap(img1, img1r, map11, map12, INTER_LINEAR);
         remap(img2, img2r, map21, map22, INTER_LINEAR);
@@ -364,15 +390,12 @@ int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
         img1 = img1r;
         img2 = img2r;
 
-		rectified_display_vars.imageSize = img_size;
-		rectified_display_vars.rectL	=	img2;
-		rectified_display_vars.rectR	=	img1;
-		rectified_display_vars.validROI1=	roi1;
-		rectified_display_vars.validROI2=	roi2;
-
-		///void myGUI_handler::display_rectified_pair(Size imageSize , Mat Rimg, Mat Limg, Rect validROI1, Rect validROI2 )
-		///myGUI.display_rectified_pair( img_size, img1, img2, roi1, roi2);
-		
+		rectification_output_vars.imageSize = img_size;
+		rectification_output_vars.rectR		=	img2;
+		rectification_output_vars.rectL		=	img1;
+		rectification_output_vars.validROI1	=	roi1;
+		rectification_output_vars.validROI2	=	roi2;
+				
     }
 
     numberOfDisparities = numberOfDisparities > 0 ? numberOfDisparities : ((img_size.width/8) + 15) & -16;
@@ -440,13 +463,10 @@ int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
 	sgbm.fullDP = false;
 */
 
-    Mat disp;//, disp8;
-  /*  Mat img1p, img2p;//, dispp;
-    copyMakeBorder(img1, img1p, 0, 0, numberOfDisparities, 0, IPL_BORDER_REPLICATE);
-    copyMakeBorder(img2, img2p, 0, 0, numberOfDisparities, 0, IPL_BORDER_REPLICATE);
-	*/
-    int64 t = getTickCount();
-	//alg=STEREO_BM;//////RAN
+    Mat		disp;
+
+    int64	t = getTickCount(); 
+
     if( alg == STEREO_BM ){
 		img1.convertTo(img1, CV_8UC1+CV_BGR2GRAY);
 		img2.convertTo(img2, CV_8UC1+CV_BGR2GRAY);
@@ -455,25 +475,23 @@ int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
 		}
     else if( alg == STEREO_SGBM || alg == STEREO_HH )
         sgbm->compute(img1, img2, disp);
+
     t = getTickCount() - t;
-    printf("Time elapsed: %fms\n", t*1000/getTickFrequency());
+  ////  printf("STEREO_BM/STEREO_SGBM Time elapsed: %fms\n\n", t*1000/getTickFrequency());
 
     //	disp = disp.colRange(numberOfDisparities, img1p.cols);
     if( alg != STEREO_VAR )
         disp.convertTo(disp8, CV_8U, 255/(numberOfDisparities*16.));
     else
         disp.convertTo(disp8, CV_8U);
+
     if( !no_display )
     {
-       // namedWindow("left", 1);        imshow("left", img1);
-       // namedWindow("right", 1);       imshow("right", img2);
         namedWindow("disparity", 0);   imshow("disparity", disp8);
 		Mat tmpD ;
 			applyColorMap(disp8,tmpD, cv::COLORMAP_JET);
-			namedWindow("disparity Heat", 1);   imshow("disparity Heat", tmpD);
-       // printf("press any key to continue...");
-        fflush(stdout);
-       // waitKey();
+			namedWindow("disparity Heat", 1);   imshow("disparity Heat", tmpD); 
+       /// fflush(stdout); 
         printf("\n");
     }
 	
@@ -484,9 +502,9 @@ int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
 		Mat xyz_again;
 		///http://stackoverflow.com/questions/27374970/q-matrix-for-the-reprojectimageto3d-function-in-opencv
 ///#ifndef COMPILING_ON_ROBOT
-///		if (1==2)		
+		if (1==2)		
 		{
-			Q.at<double>(3,2) = Q.at<double>(3,2)       ;////10.0;
+			///Q.at<double>(3,2) = Q.at<double>(3,2)       ;////10.0;
 			reprojectImageTo3D(disp, xyz_again, Q, true); 
 			Vec3f point_middle = xyz_again.at<Vec3f>(xyz_again.rows/2, xyz_again.cols/2);
 			printf("\n\n middle point relative coor. are: %f %f %f \n\n", point_middle.val[0],point_middle.val[1],point_middle.val[2]);
@@ -494,21 +512,8 @@ int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
 ///#endif
 	}
 
-    if(point_cloud_filename)
-    {
-		// save to file with low priority. or frequencty.  need to estimate self position
-        printf("storing the point cloud...");
-        fflush(stdout);
-        Mat xyz;
-        reprojectImageTo3D(disp, xyz, Q, true);
-        saveXYZ(point_cloud_filename, xyz);
-        printf("\n");
-
-		// print/display distance to center point or area of the image(left one)
-		//TODO:
-    }
-
 	ready_disparity_result  = true;
+
     return 0;
 }
 
@@ -525,17 +530,17 @@ void myLocalDisparity::set_disparity_input(Mat inR, Mat inL)
 //	mut.unlock();//?
 }
 
-bool myLocalDisparity::get_rectified_and_disparity(Mat& disp_output, rect_display_vars& display_vars)
+bool myLocalDisparity::get_rectified_and_disparity(Mat& disp_output, rectification_outputs& rectified_vars)
 {
 ///	mut.lock();	//?
 	if (ready_disparity_result)	// TODO: verify - not another match in process?
 	{
-		disp_output				=	disp_out;
-		display_vars.imageSize	=	rectified_display_vars.imageSize;
-		display_vars.rectL		=	rectified_display_vars.rectL;
-		display_vars.rectR		=	rectified_display_vars.rectR;
-		display_vars.validROI1	=	rectified_display_vars.validROI1;
-		display_vars.validROI2	=	rectified_display_vars.validROI2;
+		disp_output					=	disp_out.clone();
+		rectified_vars.imageSize	=	rectification_output_vars.imageSize;
+		rectified_vars.rectL		=	rectification_output_vars.rectL;
+		rectified_vars.rectR		=	rectification_output_vars.rectR;
+		rectified_vars.validROI1	=	rectification_output_vars.validROI1;
+		rectified_vars.validROI2	=	rectification_output_vars.validROI2;
 
 		ready_disparity_result = false;
 		return true;
@@ -546,41 +551,21 @@ bool myLocalDisparity::get_rectified_and_disparity(Mat& disp_output, rect_displa
 }
 
 
-///myLocalDisparity localDisp;
+void myLocalDisparity::convert_disperity_value_to_depth(double in_disp, double & out_depth)
+{
 
+	// manual settings
+	double camera_Base     = 0.06 ; //[m]
+	double Focal_lenght    = 375 ;	//[pix]
+	double constant_offset = 0;		//[m] 
+	double scale_factor    = 67.852222393615605;/// as 1/W 	// homogenic depth (Z/w) to real depth (Z) by *1/w
 
-//void do_stereo_disp_init(){
-//
-//	int		argc;
-//	char*	argv[11];  //6
-//
-//	argc = 8;//11;
-//
-//	argv[3] = "-i";
-//#ifdef COPMILING_ON_ROBOT
-//	argv[4] = "/root/RAN/StereoRobot/src/data/intrinsics.yml";
-//	argv[5] = "-e";
-//	argv[6] = "/root/RAN/StereoRobot/src/data/extrinsics.yml";
-//#else
-//	argv[4] = "C:/Users/Ran_the_User/Documents/GitHub/StereoRobot/Src/src/data/intrinsics.yml";
-//	argv[5] = "-e";
-//	argv[6] = "C:/Users/Ran_the_User/Documents/GitHub/StereoRobot/Src/src/data/extrinsics.yml";
-//#endif
-//	////outputs:
-//	//argv[7] = "-o";	argv[8]  = "../data/disp_out.jpg";
-//	//argv[9] = "-p";	argv[10] = "../data/points_out.yml";
-//	//outputs:
-//	argv[7] = "--no-display";	
-//	//argv[8]  = "";	argv[9] = "";	argv[10] = "";
-//	localDisp.do_stereo_match_init (argc,argv);
-//}
+	//perspectiveTransform?
 
-//void do_stereo_disp(Mat imgR, Mat imgL, Mat& outM){
-//
-//	//inputs:
-//	Mat img1 = imgR.clone();
-//	Mat img2 = imgL.clone();
-//
-//	localDisp.do_stereo_match( img1, img2, outM); // openCV demo as base code
-//}
+	/* bf/d */
+	if (in_disp > 0)
+		out_depth  = constant_offset + (1./in_disp) * camera_Base * Focal_lenght * scale_factor; //[cm] because of the calibration factor
+	else
+		out_depth = 9990;
 
+}

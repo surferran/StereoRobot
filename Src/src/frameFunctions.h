@@ -63,3 +63,103 @@ possible examples to check :
  C:\OpenCV_Source\samples\cpp\tutorial_code\objectDetection
 
 */
+
+class myWaterShed
+{
+private:
+	Mat originalInput;
+	Mat markerMask, 
+		imgGray ;
+
+	Mat		img__;
+	Point	prevPt;
+
+	bool userVisited = false;
+
+public:
+	myWaterShed() 
+	{
+		prevPt = Point(-1, -1) ; 
+
+		///setMouseCallback( myGUI.plotWindowsNames[1] , &(myGUI.onMouseWSHED), 0 );
+	};
+
+	~myWaterShed() {};
+	
+	void init_mask_by_input(Mat in)
+	{
+		originalInput	= in;
+
+		cvtColor(in			, markerMask	, COLOR_BGR2GRAY);
+		cvtColor(markerMask	, imgGray		, COLOR_GRAY2BGR);	// imgGray - gray duplicated in 3 channels - for display
+		markerMask		= Scalar::all(0);
+
+		myGUI.markerMask_WSHED	= markerMask;
+		myGUI.img_WSHED			= imgGray;
+		myGUI.prevPt_WSHED		= Point(-1, -1);
+
+	};
+	
+	void calculate_the_watershed(Mat newMask)
+	{
+		double tt = (double)getTickCount(); 
+
+		int i, j, compCount = 0;
+		vector<vector<Point> > contours;
+		vector<Vec4i> hierarchy;
+
+		markerMask = newMask;
+		findContours(markerMask, contours, hierarchy, RETR_CCOMP, CHAIN_APPROX_SIMPLE);
+
+		if( contours.empty() )
+			return;
+		Mat markers(markerMask.size(), CV_32S);
+		markers = Scalar::all(0);
+		int idx = 0;
+		for( ; idx >= 0; idx = hierarchy[idx][0], compCount++ )
+			drawContours(markers, contours, idx, Scalar::all(compCount+1), -1, 8, hierarchy, INT_MAX);
+
+		if( compCount == 0 )
+			return;
+
+		vector<Vec3b> colorTab;
+		for( i = 0; i < compCount; i++ )
+		{
+			int b = theRNG().uniform(0, 255);
+			int g = theRNG().uniform(0, 255);
+			int r = theRNG().uniform(0, 255);
+
+			colorTab.push_back(Vec3b((uchar)b, (uchar)g, (uchar)r));
+		}
+
+		double t = (double)getTickCount();
+		watershed( originalInput, markers );
+		t = (double)getTickCount() - t;
+		printf( "execution time = %gms\n", t*1000./getTickFrequency() );
+
+		Mat wshed(markers.size(), CV_8UC3);
+
+		// paint the watershed image
+		for( i = 0; i < markers.rows; i++ )
+			for( j = 0; j < markers.cols; j++ )
+			{
+				int index = markers.at<int>(i,j);
+				if( index == -1 )
+					wshed.at<Vec3b>(i,j) = Vec3b(255,255,255);
+				else if( index <= 0 || index > compCount )
+					wshed.at<Vec3b>(i,j) = Vec3b(0,0,0);
+				else
+					wshed.at<Vec3b>(i,j) = colorTab[index - 1];
+			}
+		Mat wshed2 = wshed*1.;
+		imshow( "watershed segmentation", wshed2 );
+
+		wshed = wshed*0.5 + imgGray*0.5;
+		imshow( "watershed transform", wshed );
+
+
+		tt = (double)getTickCount() - tt;
+		printf( "execution time = %gms\n", tt*1000./getTickFrequency() );
+
+	};
+};

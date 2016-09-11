@@ -29,16 +29,20 @@ public:
 
 	void display_rectified_pair(Size imageSize , Mat Rimg, Mat Limg, Rect validROI1, Rect validROI2 );
 	///bool check_user_input(const int* waiting_delay, char* c);
+	void onMouseWSHED( int event, int x, int y, int flags, void* );
 
 	static const int	thumb_num = 10;	
 	String				plotWindowsNames[thumb_num];
+	Mat					plotImages[thumb_num]; 
 
 	static const int	buttons_num = 15;
-	Mat					plotImages[thumb_num]; 
 	Point				LastMousePressPos;
 	int					userMouseBtnSelection = -1; // 1..buttons_num
 	Rect				boundRect[buttons_num];
 
+	/* for WaterShed use */
+	Mat		markerMask_WSHED, img_WSHED;
+	Point	prevPt_WSHED;//(-1, -1);
 private:
 	string _intToString(int number);
 	string _doubleToString(double number);

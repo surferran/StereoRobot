@@ -5,16 +5,17 @@
 */
 
 
-#define RUN_ON_LAPTOP__MONO false    
+#define MANUAL_TESTINGS		false // true - to allow manual overides to steering (by arrow-keys), and selecting target (by mouse)
 
  /* my  constants and parameters */
 
 // bounds in percent from image size
 #define MIN_MOVED_AREA_in_image 33//33//.0//23
-#define MAX_MOVED_AREA_in_image 95.0
-#define NUM_OF_PIXELS_IN_FRAME	(640.0*480.0)
-#define MIN_CURVE_AREA			MIN_MOVED_AREA_in_image/100*NUM_OF_PIXELS_IN_FRAME
-#define MAX_CURVE_AREA			MAX_MOVED_AREA_in_image/100*NUM_OF_PIXELS_IN_FRAME
+#define MAX_MOVED_AREA_in_image 90.0  //95
+ //#define NUM_OF_PIXELS_IN_FRAME	(640.0*480.0)
+#define NUM_OF_PIXELS_IN_FRAME	(working_FRAME_WIDTH * working_FRAME_HIGHT)
+#define MIN_CURVE_AREA			MIN_MOVED_AREA_in_image/100.0*NUM_OF_PIXELS_IN_FRAME
+#define MAX_CURVE_AREA			MAX_MOVED_AREA_in_image/100.0*NUM_OF_PIXELS_IN_FRAME
 #define SHOW_MOVING_CONTOURS		true//true
 #define SHOW_MOVING_RECTANGLES		false//true
 #define SHOW_MOVING_BIG_CONTOURS	true
@@ -37,15 +38,7 @@ Operation_flags	op_flags; //global
 #include "BackgroundSub.hpp"
 #include "OdroidC1_handlers\RobotController.h"
 
-//#include "GUIFunctions.h"
-
-// also : https://en.wikipedia.org/wiki/Image_moment#Examples_2
-///#include "camshiftdemo.cpp"
-
-///#include "./SBM_Sample.cpp"		// externals/
-
 #include "stereo_calib.h" 
-
 #include "FeatureTracker.hpp"
 
 #ifdef COMPILING_ON_ROBOT
@@ -60,7 +53,6 @@ Operation_flags	op_flags; //global
 #include <memory>
 #include <thread>
 
-///
 #include "ImagesSourceHandler.h"
 #include "myGUI_handler.h"
 
@@ -68,75 +60,29 @@ Operation_flags	op_flags; //global
 myGUI_handler myGUI; // thread for images displaying
 /*  ***************************  */
 
-//#include "showManyImages.cpp"
-void cvShowManyImages(char* title, int nArgs, ...) ;
-///void processImage(Mat& imgTarget, Mat& imgROI , SYSTEM_STATUS external_state); //#include 'myTracker.cpp'
+//#include "showManyImages.cpp"   ///void cvShowManyImages(char* title, int nArgs, ...) ;
+
 ////when need to eliminate the consule that is opened in parallel 
 //#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
 
-int findBiggestContour(vector<vector<Point> > contours){
-	int indexOfBiggestContour = -1;
-	int sizeOfBiggestContour = 0;
-	for (int i = 0; i < contours.size(); i++){
-		if(contours[i].size() > sizeOfBiggestContour){
-			sizeOfBiggestContour = contours[i].size();
-			indexOfBiggestContour = i;
-		}
-	}
-	return indexOfBiggestContour;
-}
-void makeContours(Mat aBw){
+//#include "grabcut_from_OpencvSamples.cpp"
 
-	vector<vector<Point>>	contours;
-	vector<vector<int>>		hullI;
-	vector<vector<Point>>	hullP;
-	vector<vector<Vec4i>>	defects;	
-	int						cIdx;
-	Rect					bRect;
-
-	findContours(aBw, contours,CV_RETR_EXTERNAL,CV_CHAIN_APPROX_NONE);
-
-	hullI	=vector<vector<int> >	(contours.size());
-	hullP	=vector<vector<Point> >	(contours.size());
-	defects	=vector<vector<Vec4i> > (contours.size());
-	cIdx	=findBiggestContour( contours);
-	if( cIdx!=-1){ 
-		bRect=boundingRect(Mat( contours[ cIdx]));		
-		convexHull(Mat( contours[ cIdx]), hullP[ cIdx],false,true);
-		convexHull(Mat( contours[ cIdx]), hullI[ cIdx],false,false);
-		approxPolyDP( Mat( hullP[ cIdx]),  hullP[ cIdx], 18, true );
-		///if( contours[ cIdx].size()>3 )
-		{
-		///	convexityDefects( contours[ cIdx], hullI[ cIdx], defects[ cIdx]);
-			 ///eleminateDefects(m);
-		} 
-		Scalar color;
-
-		color = Scalar( rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255) );
-		drawContours(aBw, contours, cIdx , color );
-
-		color = Scalar( rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255) );
-		drawContours(aBw, hullP   , cIdx , color );
-
-		rectangle(aBw,
-			bRect.tl(), bRect.br(),
-			Scalar(128,220,220) ,	2, 8, 0);
-
-		imshow("hull results", aBw);
-	}
-}
-
+#include "imporeted_raw_code_examples/watershed_from_OpencvSamples.cpp"
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////					  main	   			  //////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////// 
+
 int main(int argc, char** argv) 
 {
  	/* variables */
+	Mat left_im_color ,
+		right_im_color;
+	Mat left_im_gray ,
+		right_im_gray;
 
 	thisStereo.input_source = LIVE_CAM;
 
 #ifdef COMPILING_ON_ROBOT
-	///PWM::pwm_ptr PWM_pointeer = PWM::create();
 	RobotController hardwareController ;
 
 #endif
@@ -151,7 +97,7 @@ int main(int argc, char** argv)
 	Mat		target_candidate_features;
 	///Mat		tracked_target_image;
 
-	bool first_setup = true;
+	bool request_water_shed = false;
 
 	const int		loop_delay = 33 ; //[ms]	// need to fit the file recording value
 	char	user_pressing=0;	// just optional.
@@ -166,15 +112,6 @@ int main(int argc, char** argv)
 	int		  target_lost_time_counter = 0 ;   // stopper to timeout
 
 
-	//plotWindowsNames[0] = "win1 - right stereo image";
-	//plotWindowsNames[1] = "win2 - left stereo image"; 
-	//	// TODO: added frame of copmosed stiched image ? can take relative very long process.
-	//		// anyway can add as ref. with other low-prio thred
-	//	//  it is actually part of the disparity process.
-	//plotWindowsNames[2] = "win3 - calculated disparity";
-	//plotWindowsNames[3] = "win4 - background substruction output";
-	//plotWindowsNames[4] = "win5 - tracked object";
-
 	/*  initiating createBackgroundSubtractorMOG2   */
 	BackSubs	localBackSubs ;
 	/*  *****************************************   */
@@ -183,51 +120,45 @@ int main(int argc, char** argv)
 	Rect		BckgndSubROI;
 	Rect		TrackingROI;
 
+	Mat			lastDepthImg,
+				depthAvg;
+	int			depthAvgNdx = 0;
+
 	bool got_1st_stable_bkgnd = false;
 
 	/* end of variables */
-
-	////////////// 1st entrance only ///////////
-	if (first_setup) {
-		first_setup = false;
-
-		int w=320,	h=240 , waitSec = 5;
-
-		localBackSubs.show_forgnd_and_bgnd_init(30); //vidL//with Left cam  
-
-
-														/* clear points that are out of my desired ROI (center of image) */
-														//TODO:make 20 h , 30 w /// sizes are for after resize
-														//CV_EXPORTS_W void rectangle(InputOutputArray img, Point pt1, Point pt2,
-														//	const Scalar& color, int thickness = 1,
-														//	int lineType = LINE_8, int shift = 0); 
-		Point	TopLeft(frame_boundary, frame_boundary); 
-		Point	LowRight(w - frame_boundary , h - frame_boundary);
-		TrackingROI = Rect(TopLeft, LowRight ); 
-
-		//	ROI for background substraction is narrower then the one for the tracker
-		TopLeft		 = Point(frame_boundary_W_init		, frame_boundary	); 
-		LowRight	 = Point(w - frame_boundary_W_init	, h - frame_boundary);
-		BckgndSubROI = Rect(TopLeft, LowRight ); 
-	}
-	////////////// end of 1st entrance only ///////////
-
-	// prepare display windows locations
 	
-	//drawMatches
+	////////////// initializations ///////////
 	
-	//TODO:  show initial target , and then current updated last target. if no target then show non or close win.
-	//   (default image shoult be zeroes(res.x, res.y) )
+	int w		= myStereoCams.GetRes().width,	
+		h		= myStereoCams.GetRes().height, 
+		waitSec = 5;
+
+	localBackSubs.show_forgnd_and_bgnd_init(30); //vidL//with Left cam  
+
+		/* clear points that are out of my desired ROI (center of image) */
+		//TODO:make 20 h , 30 w /// sizes are for after resize
+		//CV_EXPORTS_W void rectangle(InputOutputArray img__, Point pt1, Point pt2,
+		//						const Scalar& color, int thickness = 1,
+		//						int lineType = LINE_8, int shift = 0); 
+	Point	TopLeft(frame_boundary, frame_boundary); 
+	Point	LowRight(w - frame_boundary , h - frame_boundary);
+	TrackingROI = Rect(TopLeft, LowRight ); 
+
+	//	ROI for background substraction is narrower then the one for the tracker
+	TopLeft		 = Point(frame_boundary_W_init		, frame_boundary	); 
+	LowRight	 = Point(w - frame_boundary_W_init	, h - frame_boundary);
+	BckgndSubROI = Rect(TopLeft, LowRight ); 
+
+	////////////// end of initializations ///////////
+	
+	//TODO:  (default image target shoult be zeroes(res.x, res.y) )
 	//		allow 1 or 2 frames to be with no featres. set a GapCounter.
-
-	// show normal status for tracker status.
-
-	//if (!RUN_ON_LAPTOP__MONO)
-	// /*localDisp.*/do_stereo_disp_init();
-
 
 	while (1)		
 	{
+
+#ifndef COMPILING_ON_ROBOT
 		if (op_flags.make_stereo_calibration)
 		{		
 			argc = 6;
@@ -237,8 +168,11 @@ int main(int argc, char** argv)
 			do_stereo_calib(argc, argv);
 			op_flags.make_stereo_calibration	=	false;
 		}
+#endif
 
+#ifndef COMPILING_ON_ROBOT
 		if(op_flags.show_stereo)
+#endif
 		{
 			////////////// capture images ///////////
 			myStereoCams.GetFrames(myGUI.plotImages[0],myGUI.plotImages[1]);
@@ -248,132 +182,187 @@ int main(int argc, char** argv)
 				continue;
 			
 			relative_counter++;
-			///if (relative_counter==1)
-			///	continue;			//just for getting debug point..
-			
+			right_im_color  = myGUI.plotImages[0].clone();   
+			left_im_color   = myGUI.plotImages[1].clone();   
 			////////////// end of capture images ///////////
-			 
-			Mat left_cam = myGUI.plotImages[1].clone();   
+			
+			//// example code
+			//mainGC(left_im_color);
+			////mainWSH(left_im_color);	//NICE one for fast segmenting
+			myWaterShed WSH;
+			WSH.init_mask_by_input (left_im_color);
+			
+			//return 0;
+			/////
+
+			myLocalDisparity::rectification_outputs disperity_struct;
+			Mat		disp_temporary;
+			Mat		modified_disperity_mat;
+			Scalar	avg_disperity_S;
+			double	avg_disperity;
+			double	avg_depth_of_ROI ;
+
+			////////////* get Disperity & DEPTH by Stereo */////////////// 
+			if (!RUN_ON_LAPTOP__MONO)
+			{
+				// calc disparity every 1, 2 frame
+				if (relative_counter>0) //10  
+				{ 
+					/*myLocalDisparity::rectification_outputs disperity_struct;
+					Mat		disp_temporary;
+					Mat		modified_disperity_mat;
+					Scalar	avg_disperity_S;
+					double	avg_disperity;
+					double	avg_depth_of_ROI ;*/
+
+					/* sends gray images */
+					cv::cvtColor(left_im_color , left_im_gray  , CV_BGR2GRAY);
+					cv::cvtColor(right_im_color, right_im_gray , CV_BGR2GRAY);
+
+					// delivers new input , when the process is waiting (not in calculation process)
+					localDisp.set_disparity_input(right_im_gray,left_im_gray);  
+					
+					/* if output is ready from disparity calculation , it returns true */
+					if ( localDisp.get_rectified_and_disparity(disp_temporary, disperity_struct) )  
+					{
+						myGUI.plotImages[2]    = disp_temporary;	// keep for display
+
+						/////////////
+						/* calculate average depth for the ROI of the target */
+						threshold (disp_temporary , modified_disperity_mat ,	50 ,	255,THRESH_TOZERO);/// THRESH_BINARY
+
+						avg_disperity_S = mean( modified_disperity_mat((tracker.current_trackingROI)) ) ;
+						avg_disperity	= avg_disperity_S[0];
+
+						localDisp.convert_disperity_value_to_depth(avg_disperity , avg_depth_of_ROI);
+						///cout   << " avg_disperity " << avg_disperity  << " avg_depth_of_ROI " << avg_depth_of_ROI << endl;
+						////////////
+
+						/* displays */
+						myGUI.display_rectified_pair( disperity_struct.imageSize , disperity_struct.rectR , disperity_struct.rectL, 
+														disperity_struct.validROI1 , disperity_struct.validROI2 );
+						imshow(myGUI.plotWindowsNames[2],  myGUI.plotImages[2]);
+
+						lastDepthImg		= modified_disperity_mat.clone();
+
+						int an=3;	//an=1->kernel of 3
+						Mat element = getStructuringElement(MORPH_RECT, Size(an*2+1, an*2+1), Point(an, an) );
+						medianBlur	(lastDepthImg,	lastDepthImg,	9);//9//3
+						erode		(lastDepthImg , lastDepthImg, element);									
+						dilate		(lastDepthImg,	lastDepthImg, element);
+						Mat depthMask = lastDepthImg.clone();
+
+						imshow ( "lastDepthImg", lastDepthImg);
+						///cvtColor(depthMask	, depthMask , COLOR_BGR2GRAY);
+
+/*
+						vector<int> hull; 
+						convexHull(depthMask, hull, true);*/
+
+						///int hullcount = (int)hull.size();
+						/*Point pt0 = points[hull[hullcount-1]];
+
+						for( i = 0; i < hullcount; i++ )
+						{
+							Point pt = points[hull[i]];
+							line(img, pt0, pt, Scalar(0, 255, 0), 1,LINE_AA);
+							pt0 = pt;
+						}
+*/
+						////imshow("hull", img);
+
+
+
+						request_water_shed	= true;
+						 
+					}
+					relative_counter	=	0;
+				}
+			}
+			////////////* get Disperity & DEPTH by stereo *///////////////
+
+
 
 			Point movementMassCenter, corected_MassCenter;
 			// condition by STANDBY, otherwise - only the tracker is in the loop 
 			if ( system_state < FOUND_GOOD_TARGET )
 			// will change system_state only when (system_state <= FOUND_SOME_MOVEMENT )
 			{
-				localBackSubs.find_forgnd( left_cam(BckgndSubROI) , &movementMassCenter ) ; //// synthesize target by movement
+				localBackSubs.find_forgnd( left_im_color(BckgndSubROI) , &movementMassCenter ) ; //// synthesize target by movement
 				corected_MassCenter = Point(movementMassCenter.x + BckgndSubROI.x,  movementMassCenter.y + BckgndSubROI.y);
 				////actually not needed .. makeContours(localBackSubs.get_foreground_mat()); 
+
+				Mat bgnd = localBackSubs.get_the_background_average();  // display is with ..find fgnd
+				imshow("BackSubs background average",bgnd); //debugging
 			}
-			////////////* get DEPTH by Stereo */////////////// 
-			if (!RUN_ON_LAPTOP__MONO)
-			{
-				// calc disparity every 2 frame
-				if (relative_counter>1) //10  
-				{
-					Mat inR, inL;
-
-					cv::cvtColor(myGUI.plotImages[0+1], inR, CV_BGR2GRAY);
-					cv::cvtColor(myGUI.plotImages[0*1], inL, CV_BGR2GRAY);
-
-					///do_stereo_disp(myGUI.plotImages[0+1],myGUI.plotImages[1*0], myGUI.plotImages[2]);  // plotImages[2] is the disparity output
-					// delivers new input , if the process is waiting (not in calculation process)
-				
-					localDisp.set_disparity_input(inR,inL);  
-
-					myLocalDisparity::rect_display_vars display_struct;
-
-					Mat disp_temporary;
-					Mat calculated_depth;
-					if ( localDisp.get_rectified_and_disparity(disp_temporary, display_struct) )  
-					{
-
-						myGUI.plotImages[2]    = disp_temporary;
-						double camera_base     = 0.06 ; //[m]
-						double focal_len       = 375 ; //[pix]
-						double constant_offset = 0; //[m] 
-						double scale_factor    = 1./22.5 ;	// my guess..
-						threshold (disp_temporary , calculated_depth ,	50 ,	255,THRESH_TOZERO);/// THRESH_BINARY
-						Scalar avg_disperity_S = mean( calculated_depth((tracker.current_trackingROI)) ) ;
-						double avg_disperity = avg_disperity_S[0];
-						double avg_depth_of_ROI  = constant_offset + (1./avg_disperity) * camera_base * focal_len * scale_factor; /* bf/d */
-						cout   << " avg_disperity " << avg_disperity  << " avg_depth_of_ROI " << avg_depth_of_ROI << endl;
-					///disp relevant disperity values. 
-					// for image blobs or average areas. use superpixel segmentation??
-					// get disp average for the target feature points area. 
-
-						myGUI.display_rectified_pair( display_struct.imageSize , display_struct.rectR , display_struct.rectL, 
-														display_struct.validROI1 , display_struct.validROI2 );
-						imshow(myGUI.plotWindowsNames[2],  myGUI.plotImages[2]);
-						myGUI.plotImages[5]		= calculated_depth;
-						imshow(myGUI.plotWindowsNames[5],  myGUI.plotImages[5]);
-					}
-					relative_counter	=	0;
-				}
-			}
-			////////////* get DEPTH by stereo *///////////////
 
 
 			////////////////////////////////////////////////
 			//			tracking part (by 'goodFeatures')
 			if ( system_state == FOUND_GOOD_TARGET )
-			{	// want to init and lock the tracker
+			{
+				Mat mat1 = localBackSubs.get_the_background_average() ;
+				Mat mat2 = localBackSubs.get_foreground_mat() ;
+				Mat bgndDiff ;
+				//bgndDiff = mat1  -  mat2 ;
+				//imshow("BackSubs bg-fg diff",bgndDiff); //debugging
+
+				bgndDiff = mat1  -  left_im_color ;
+				imshow("BackSubs bg-current diff",bgndDiff); //debugging
+
+				//if ( request_water_shed )
+				//{
+				//	WSH.calculate_the_watershed(lastDepthImg);//    localBackSubs.get_foreground_mat());
+				//	request_water_shed = false;
+				//}
+				////consider GrabCut because input is spreaded points , and not curves
+
+				// want to init and lock the tracker
 				// get the feature points of the target from the BackgroundSubs ROI
-				///Mat candidate_features;
 				Mat tracked_target_image;
 				Rect corrected_ROI = Rect(	BckgndSubROI.x  + localBackSubs.get_foreground_boundRect().x ,
 											BckgndSubROI.y  + localBackSubs.get_foreground_boundRect().y ,
 											localBackSubs.get_foreground_boundRect().width ,
 											localBackSubs.get_foreground_boundRect().height ) ;
 
-				//target_candidate_features = left_cam.clone(); 
-				//target_candidate_features = Scalar(0,0,0);
-				//target_candidate_features(BckgndSubROI) = localBackSubs.get_foreground_mat();//*left_cam ;	//element-wise multiplication
+				/* keep also original target depth image */
+				if (!RUN_ON_LAPTOP__MONO)
+				{
+					myGUI.plotImages[5] = myGUI.plotImages[2]  ;	//last depth
 
-				//cvtColor( target_candidate_features , candidate_features , CV_GRAY2BGR);
-
-				//candidate_Features = candidate_Features.mul(left_cam(BckgndSubROI)  ) ; 
-				//candidate_Features = left_cam(BckgndSubROI)  . mul(candidate_Features);
-				///left_cam(BckgndSubROI).copyTo(tracked_target_image, candidate_features);
-				left_cam(corrected_ROI).copyTo(tracked_target_image);
+					myGUI.plotImages[5](BckgndSubROI).copyTo(myGUI.plotImages[6], localBackSubs.get_foreground_mat() );
+					imshow(myGUI.plotWindowsNames[5],  myGUI.plotImages[5]);
+					imshow(myGUI.plotWindowsNames[6],  myGUI.plotImages[6]);
+				}
+				left_im_color(corrected_ROI).copyTo(tracked_target_image);
 				imshow("tracked Target start", tracked_target_image) ; // show 4 debug  only
 
 				tracker.setNewTarget(corrected_ROI, tracked_target_image, TrackingROI);
 
-			//	Mat candidate_Features2 = candidate_Features * left_cam(BckgndSubROI) ;	//element-wise multiplication
-			//	imshow("Target candidates2", candidate_Features2) ; // show 4 debug  only
-					// TODO: check minimum number of quality feature points of that target
-					//	otherwise it is low quality tracking	
-					//tracker.processImage(candidate_Features2,  left_cam (TrackingROI) , system_state);  
-				//find 
+				// get smooth disparity and 
+				//TODO: clean the far points - disperity + watershed
+
+				if ( request_water_shed )
+				{
+					WSH.calculate_the_watershed(lastDepthImg);//    localBackSubs.get_foreground_mat());
+					request_water_shed = false;
+				}
 			}
 
 			if (system_state >= FOUND_GOOD_TARGET)
-			{
-
-		///		if (target_lost_time_counter == 0)   // otherwise wait for ..lost.. (should be a time-window of recapture target)
-				//if ( system_state == FOUND_SOME_MOVEMENT )
-				//{
-				//	// get the feature points of the target from the BackgroundSubs ROI
-				//	Mat candidate_Features = localBackSubs.get_foreground_mat();//*left_cam ;	//element-wise multiplication
-				//	imshow("Target candidates", candidate_Features) ; // show 4 debug  only
-				//	// TODO: check minimum number of quality feature points of that target
-				//	//	otherwise it is low quality tracking	
-				//	tracker.processImage(candidate_Features,  left_cam (TrackingROI) , system_state);  
-
-				//}
-				//else		  
-					////////////////////////////////////////////////
-					//			make tracking of the 'goodFeatures'
-					//			from previous frame to the new one		
-				tracker.processImage(left_cam.clone()  ,system_state);  
+			{ 
+				////////////////////////////////////////////////
+				//			make tracking of the 'goodFeatures'
+				//			from previous frame to the new one		
+				tracker.processImage(left_im_color.clone()  ,system_state);  
 
 				Point2f targetCenter ;
-
+				
 				if ( system_state == FOUND_GOOD_TARGET )
 					targetCenter = localBackSubs.get_foreground_center() ;
 				else
 				{
-					targetCenter = Point(tracker.TrkErrX_Avg + left_cam.size().width/2 ,  left_cam.size().height/2  );
+					targetCenter = Point(tracker.TrkErrX_Avg + left_im_color.size().width/2 ,  left_im_color.size().height/2  );
 #ifdef COMPILING_ON_ROBOT
 					double thrust_percent = depth(targetCenter) ;//, 
 					double pix_to_FOV = 1.0/ /*fx=*/ 375 ;
@@ -406,23 +395,23 @@ int main(int argc, char** argv)
 				////	display modified current 
 		//		Mat invTrans = tracker.rigidTransform.inv(DECOMP_SVD);
 		//		Mat orig_warped;
-		//		warpAffine(left_cam,orig_warped,invTrans.rowRange(0,2),Size());
+		//		warpAffine(left_im_color,orig_warped,invTrans.rowRange(0,2),Size());
 		//		imshow("stabilized",orig_warped);
 				
 				
 
 				////////////// added graphics section ///////////
-				left_cam	= myGUI.plotImages[1].clone();   // for some additional display layer
+				left_im_color	= myGUI.plotImages[1].clone();   // for some additional display layer
 
 				if (op_flags.draw_middle_x)
 				{
 					//on the right image
-					//add_Cross_to_Image(left_cam.size[1]/2, left_cam.size[0]/2, false, system_state , left_cam); // 120h,160w , with no coor. label
+					//add_Cross_to_Image(left_im_color.size[1]/2, left_im_color.size[0]/2, false, system_state , left_im_color); // 120h,160w , with no coor. label
 
 					// TODO: test source of track errors, from BackgroundSubs, or Tracker
-				///	add_Cross_to_Image(tracker.TrkErrX  ,  left_cam.size().height/2  , 
+				///	add_Cross_to_Image(tracker.TrkErrX  ,  left_im_color.size().height/2  , 
 					myGUI.add_Cross_to_Image(targetCenter.x  ,  targetCenter.y  , 
-											false, system_state , left_cam); // 120h,160w , with no coor. label
+											false, system_state , left_im_color); // 120h,160w , with no coor. label
 					
 				}
 				
@@ -431,11 +420,14 @@ int main(int argc, char** argv)
 			// move to broadcast from outside. // separate the graphic layer to only when track is on.
 			//									otherwise just draw raw images.
 			imshow(myGUI.plotWindowsNames[0],	myGUI.plotImages[0] );
-			imshow(myGUI.plotWindowsNames[1],	left_cam);
+			imshow(myGUI.plotWindowsNames[1],	left_im_color);
 			 
 		}
 		//char c = (char)waitKey(loop_delay);
 		int c = waitKey(loop_delay);
+		if (c==(int)'w')
+			request_water_shed = true;
+
 #ifdef COMPILING_ON_ROBOT
 		switch (c) {
 		case KEY_UP:

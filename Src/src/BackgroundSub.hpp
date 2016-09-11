@@ -25,9 +25,10 @@ public:
 
 	int		find_forgnd(Mat frame, Point *movementMassCenter);
 
-	Mat		get_foreground_mat() { return foreground.clone() ; } ;
-	Rect	get_foreground_boundRect() { return boundRect ; } ;
-	Point	get_foreground_center() { return MassCenter ; } ;
+	Mat		get_foreground_mat()		{ return foreground.clone() ; } ;
+	Rect	get_foreground_boundRect()	{ return boundRect			; } ;
+	Point	get_foreground_center()		{ return MassCenter			; } ;
+	Mat		get_the_background_average(){ mog->getBackgroundImage(backgroundAvg) ; return backgroundAvg; } ;
 	 
 private:
 
@@ -43,6 +44,7 @@ private:
 	int						fps;
 	Mat						frame, foreground, image;	// inner vars for class functions.
 	Mat						middle_tmp_frame;			//	
+	Mat						backgroundAvg ;
 
 	/* for show_more_details() */
 	vector<vector<Point> >	contours;
@@ -62,7 +64,7 @@ private:
 	double	theta ;				// estimated oriantation of bounding box. though not well feature
 
 	/* initializing parameters for the Background_Subtractor algorithm */
-	const int				BackSubs_History		= 120;
+	const int				BackSubs_History		= 60;//120;
 	const double			BackSubs_Threshould		= 16.0;	
 	const bool				BackSubs_DetectShadows	= false;   // only for better run-time performance
 
@@ -180,8 +182,10 @@ int BackSubs::find_forgnd(Mat frame, Point *movementMassCenter)  // assuming inp
 {
 	// using code in the file:"C:\OpenCV\sources\modules\video\src/bgfg_gaussmix2.cpp"
 	/* apply background substraction and manipulate the resultant frame */
-	mog->apply(frame,foreground);	//learningRate~0.7?
+	mog->apply(frame,foreground, 0.5);	//learningRate~0.7? -1
+	///mog->getBackgroundImage(backgroundAvg);
 	imshow("BackSubs Foreground before manipulations",foreground); //debugging
+	///imshow("BackSubs background average",backgroundAvg); //debugging
 
     threshold	(foreground,	foreground,	128,	255,THRESH_BINARY);//28,128,198
     medianBlur	(foreground,	foreground,	3);//9

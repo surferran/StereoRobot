@@ -3,17 +3,21 @@
 myGUI_handler::myGUI_handler()
 {
 
-	plotWindowsNames[0] = "win1 - right stereo image";
-	plotWindowsNames[1] = "win2 - left stereo image"; 
-	plotWindowsNames[2] = "win3 - calculated disparity";
+	plotWindowsNames[0] = "win1 - original Right image";
+	plotWindowsNames[1] = "win2 - original Left image"; 
+	plotWindowsNames[2] = "win3 - raw calculated disparity";
+
 	plotWindowsNames[3] = "win4 - background substruction output";
 	plotWindowsNames[4] = "win5 - tracked object";
-	plotWindowsNames[5] = "win6 - resultant depth";
+
+	plotWindowsNames[5] = "win6 - target aquired Depth";
+	plotWindowsNames[6] = "win7 - target aquired Depth Masked";
 
 }
 
 
-// shows the 4 images of previous and current images and their matching feature points flow.
+// shows the 4 images of previous and current images and 
+//						their matching feature points flow.
 void myGUI_handler::dispFlowChanges(Mat & prevGrayROI, vector<Point2f> trackedFeatures, Mat& grayROI, vector<Point2f> corners,
 										vector<uchar> status)
 {
@@ -59,7 +63,7 @@ void myGUI_handler::dispFlowChanges(Mat & prevGrayROI, vector<Point2f> trackedFe
 				*im_mat2 = cvCloneImage(&im_mat2_),
 				*im_mat3 = cvCloneImage(&im_mat3_),
 				*im_mat4 = cvCloneImage(&im_mat4_);
-	//cvShowManyImages("images prev & current" , 4 , im_mat1, im_mat2, im_mat1, im_mat2 );
+
 	cvShowManyImages("images prev & current " , 4 , im_mat1, im_mat2 , im_mat3, im_mat4 );
 
 	if  (1==2)   // TODO: print only for 1st debugging
@@ -226,37 +230,114 @@ void myGUI_handler::display_rectified_pair(Size imageSize , Mat Rimg, Mat Limg, 
 		canvas.create(h*2, w, CV_8UC3);
 	}
 
-	//for( i = 0; i < nimages; i++ )
-	{
-		Rect validRoi[2] = {validROI1, validROI2};
+	Rect validRoi[2] = {validROI1, validROI2};
 
 		for( int k = 0; k < 2; k++ )
-		{
-			Mat rimg, cimg; 
-			//Mat img = imread(goodImageList[i*2+k], 0), rimg, cimg;
-			if (k==1) cimg = Limg;
-			else
-				cimg = Rimg;
-			//remap(img, rimg, rmap[k][0], rmap[k][1], INTER_LINEAR);
-		///	cvtColor(rimg, cimg, COLOR_GRAY2BGR);
-			cvtColor(cimg, cimg, COLOR_GRAY2BGR);
-			Mat canvasPart = isHorizontalStereo ? canvas(Rect(w*k, 0, w, h)) : canvas(Rect(0, h*k, w, h)); 
-			resize(cimg, canvasPart, canvasPart.size(), 0, 0, INTER_AREA);
-			//if( useCalibrated )
-			{
-				Rect vroi(cvRound(validRoi[k].x*sf), cvRound(validRoi[k].y*sf),
-					cvRound(validRoi[k].width*sf), cvRound(validRoi[k].height*sf));
-				rectangle(canvasPart, vroi, Scalar(0,0,255), 3, 8);
-			}
-		}
-		 
-		if (isHorizontalStereo)
-			for( int j = 0; j < canvas.rows; j += 16 )
-				line(canvas, Point(0, j), Point(canvas.cols, j), Scalar(0, 255, 0), 1, 8);
+	{
+		Mat rimg, cimg;  
+		if (k==1) cimg = Limg;
 		else
-			for( int j = 0; j < canvas.cols; j += 16 )
-				line(canvas, Point(j, 0), Point(j, canvas.rows), Scalar(0, 255, 0), 1, 8);
+			cimg = Rimg; 
+		cvtColor(cimg, cimg, COLOR_GRAY2BGR);
+		Mat canvasPart = isHorizontalStereo ? canvas(Rect(w*k, 0, w, h)) : canvas(Rect(0, h*k, w, h)); 
+		resize(cimg, canvasPart, canvasPart.size(), 0, 0, INTER_AREA); 
+		Rect vroi(cvRound(validRoi[k].x*sf), cvRound(validRoi[k].y*sf),
+			cvRound(validRoi[k].width*sf), cvRound(validRoi[k].height*sf));
+		rectangle(canvasPart, vroi, Scalar(0,0,255), 3, 8);
+	}
+		 
+	if (isHorizontalStereo)
+		for( int j = 0; j < canvas.rows; j += 16 )
+			line(canvas, Point(0, j), Point(canvas.cols, j), Scalar(0, 255, 0), 1, 8);
+	else
+		for( int j = 0; j < canvas.cols; j += 16 )
+			line(canvas, Point(j, 0), Point(j, canvas.rows), Scalar(0, 255, 0), 1, 8);
 				
-		imshow("rectified", canvas);
+	imshow("rectified", canvas);	
+}
+
+
+//////////// functions from watershed example ////////////////////
+
+
+///static 
+void myGUI_handler::onMouseWSHED( int event, int x, int y, int flags, void* )
+{
+	// using
+	//Mat markerMask, img__;
+	//Point prevPt(-1, -1);
+
+	if( x < 0 || x >= img_WSHED.cols || y < 0 || y >= img_WSHED.rows )
+		return;
+	if( event == EVENT_LBUTTONUP || !(flags & EVENT_FLAG_LBUTTON) )
+		prevPt_WSHED = Point(-1,-1);
+	else if( event == EVENT_LBUTTONDOWN )
+		prevPt_WSHED = Point(x,y);
+	else if( event == EVENT_MOUSEMOVE && (flags & EVENT_FLAG_LBUTTON) )
+	{
+		Point pt(x, y);
+		if( prevPt_WSHED.x < 0 )
+			prevPt_WSHED = pt;
+		line( markerMask_WSHED,	prevPt_WSHED, pt, Scalar::all(255), 5, 8, 0 );
+		line( img_WSHED,		prevPt_WSHED, pt, Scalar::all(255), 5, 8, 0 );
+		prevPt_WSHED = pt;
+		imshow("image", img_WSHED);
 	}
 }
+
+////////////backup functions////////////////////
+
+int findBiggestContour(vector<vector<Point> > contours){
+	int indexOfBiggestContour = -1;
+	int sizeOfBiggestContour = 0;
+	for (int i = 0; i < contours.size(); i++){
+		if(contours[i].size() > sizeOfBiggestContour){
+			sizeOfBiggestContour = contours[i].size();
+			indexOfBiggestContour = i;
+		}
+	}
+	return indexOfBiggestContour;
+}
+void makeContours(Mat aBw){
+
+	vector<vector<Point>>	contours;
+	vector<vector<int>>		hullI;
+	vector<vector<Point>>	hullP;
+	vector<vector<Vec4i>>	defects;	
+	int						cIdx;
+	Rect					bRect;
+
+	findContours(aBw, contours,CV_RETR_EXTERNAL,CV_CHAIN_APPROX_NONE);
+
+	hullI	=vector<vector<int> >	(contours.size());
+	hullP	=vector<vector<Point> >	(contours.size());
+	defects	=vector<vector<Vec4i> > (contours.size());
+	cIdx	=findBiggestContour( contours);
+	if( cIdx!=-1){ 
+		bRect=boundingRect(Mat( contours[ cIdx]));		
+		convexHull(Mat( contours[ cIdx]), hullP[ cIdx],false,true);
+		convexHull(Mat( contours[ cIdx]), hullI[ cIdx],false,false);
+		approxPolyDP( Mat( hullP[ cIdx]),  hullP[ cIdx], 18, true );
+		///if( contours[ cIdx].size()>3 )
+		{
+			///	convexityDefects( contours[ cIdx], hullI[ cIdx], defects[ cIdx]);
+			///eleminateDefects(m);
+		} 
+		Scalar color;
+
+		//color = Scalar( rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255) );
+		color = Scalar (2,2,2);
+		drawContours(aBw, contours, cIdx , color );
+
+		color = Scalar (2,2,2);
+		//color = Scalar( rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255) );
+		drawContours(aBw, hullP   , cIdx , color );
+
+		rectangle(aBw,
+			bRect.tl(), bRect.br(),
+			Scalar(128,220,220) ,	2, 8, 0);
+
+		imshow("hull results", aBw);
+	}
+}
+////////////////////////////

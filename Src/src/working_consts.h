@@ -5,13 +5,52 @@ file that contains all working parameters and constants.
 */
 using namespace cv;
 
-enum WORKING_MODES	{ CALIBRATION=0, REGULAR  , REG_and_REC , PLAYBACK }; //  REGULAR(=no recording) 
-enum FRAME_SIZES	{ SMALL=0, MEDIUM , LARGE};
+/* unix key 'int' definitions */
+#define KEY_UP		65362
+#define KEY_DOWN	65364
+#define KEY_LEFT	65361
+#define KEY_RIGHT	65363
 
-#define KEY_UP 65362
-#define KEY_DOWN 65364
-#define KEY_LEFT 65361
-#define KEY_RIGHT 65363
+const int working_FRAME_WIDTH	= 320 /1 ;// 640;// 160;
+const int working_FRAME_HIGHT	= 240 /1 ;// 480;// 120;
+
+// system status to include BackgroundSubstraction & Tracker.
+enum SYSTEM_STATUS{
+	INITIALIZING	=	0 ,		// Should show GRAY cross	 
+	STANDBY			=	1 ,		// Should show ORANGE cross
+	FOUND_SOME_MOVEMENT	,
+	FOUND_GOOD_TARGET	,
+	TRACKING_GOOD_QUALITY_TARGET,		// Should show GREEN cross
+	TRACKING_LOW_QUALITY_TARGET,
+	TARGET_IS_LOST			// Should show RED cross	,	after 3 sec will turn to ORANGE (while stopping the robot)
+};
+
+///////////////////////////////
+///////////////////////////////
+
+struct Operation_flags{
+	bool make_stereo_calibration=	false;
+	bool calc_background_subs	=	false;
+	bool show_vid_source_selection =false;
+
+	bool show_stereo			=	false;
+	bool play_on				=	false;
+	bool save_disparity_img_to_file = false ; 
+
+	bool make_camshift			=	false;
+
+	bool reset_vid_file_location =	false;
+	bool reset_identification	=	false;
+
+	bool show_img_hist			=	false;
+	bool proces_img_frame		=	false;
+	bool draw_middle_x			=	true;
+};
+
+///////////////////////////////
+
+//enum WORKING_MODES	{ CALIBRATION=0, REGULAR  , REG_and_REC , PLAYBACK }; //  REGULAR(=no recording) 
+//enum FRAME_SIZES	{ SMALL=0, MEDIUM , LARGE};
 
 const int numOfActiveCams		= 1;// use the first # of the next indeces list :
 const int camIndexes[3]			= { 0,1 , 2 };       // default : { 0, 1 , 2 };
@@ -19,8 +58,6 @@ const int camIndexes[3]			= { 0,1 , 2 };       // default : { 0, 1 , 2 };
 //const int numOfActiveCams		= 2;// 2;// use the first # of the next indeces list :
 //const int camIndexes[3]			= { 1 , 2,0 };       // default : { 0, 1 , 2 };
 
-const int working_FRAME_WIDTH	= 320;// 640;// 160;
-const int working_FRAME_HIGHT	= 240;// 480;// 120;
 
 const int REC_FPS				= 15;// 30;	// 10 - will not record
 const int REC_CODEC				= CV_FOURCC('D', 'I', 'V', 'X') ; //CV_FOURCC('P', 'I', 'M', '1') ;
@@ -35,14 +72,14 @@ const char rec_file_name[3][CHAR_LEN]	= { "output_1.avi" , "output_2.avi", "outp
 //const char rec_file_name[3][CHAR_LEN] = { "output_1.mp4" , "output_2.avi", "output_3.avi" };
 const char window_name[3][CHAR_LEN]		= { "out_1" , "out_2", "out_3" };
 
-const FRAME_SIZES	frame_size   = SMALL;
+//const FRAME_SIZES	frame_size   = SMALL;
 
 /* for util functions : */
 const String STEREO_CALIBRATION_IMAGES_LIST = "fileList.txt";	// will include files names in left-right pairs order
 const String STEREO_CALIBRATION_VIDEO_PAIR  = "output_#.avi";  // '#' will be 1,2 , respectivley for cams 0,1
 
-const int frame_boundary		= 10;	  // for the tracking functions. to not consider the image boundaries.
-const int frame_boundary_W_init	= 40;	  // for the movement detection functions. to not consider the image boundaries.
+const int frame_boundary		= 0* 10;	 //TODO: check with other then 0 // for the tracking functions. to not consider the image boundaries.
+const int frame_boundary_W_init	= 0* 40;	 //TODO: check with other then 0 // for the movement detection functions. to not consider the image boundaries.
 
 	  /* constants */
 
@@ -99,40 +136,5 @@ struct StereoCams
 };
 
 
-struct Operation_flags{
-	bool make_stereo_calibration=	false;
-	bool calc_background_subs	=	false;
-	bool show_vid_source_selection =false;
-
-	bool show_stereo			=	false;
-	bool play_on				=	false;
-	bool save_disparity_img_to_file = false ; 
-
-	bool make_camshift			=	false;
-
-	bool reset_vid_file_location =	false;
-	bool reset_identification	=	false;
-
-	bool show_img_hist			=	false;
-	bool proces_img_frame		=	false;
-	bool draw_middle_x			=	true;
-};
-
-
-///StereoCams thisStereo;				// global 
-
-							
-// system status to include BackgroundSubstraction & Tracker.
-enum SYSTEM_STATUS{
-	INITIALIZING	=	0 ,		// Should show GRAY cross	 
-	STANDBY			=	1 ,		// Should show ORANGE cross
-	FOUND_SOME_MOVEMENT	,
-	FOUND_GOOD_TARGET	,
-	TRACKING_GOOD_QUALITY_TARGET,		// Should show GREEN cross
-	TRACKING_LOW_QUALITY_TARGET,
-	TARGET_IS_LOST			// Should show RED cross	,	after 3 sec will turn to ORANGE (while stopping the robot)
-};
-
-///SYSTEM_STATUS system_state = INITIALIZING ;
 
 #endif //WORKING_CONSTS_H
