@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "StereoRobot", "camera3D\camera3D.vcxproj", "{B3817844-3C83-4120-9AAC-876B6B7D0523}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "StereoRobot", "StereoRobot\StereoRobot.vcxproj", "{B3817844-3C83-4120-9AAC-876B6B7D0523}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

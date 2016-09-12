@@ -23,6 +23,12 @@ void ImagesSourceHandler::CaptureFromCam() {
 			right=left; 
 		//TODO: //captureTimeTag = ..   
 
+		if (bUserRecordRequest)
+		{
+			outFileL.write(left);
+			outFileR.write(right);
+		}
+
 		mut.unlock();
 		std::this_thread::sleep_for(std::chrono::milliseconds(capture_loop_dealy));
 	}
@@ -32,19 +38,48 @@ void ImagesSourceHandler::InitVideoCap()
 { 
 	/* initiate */
 	captureTimeTag = 0;
-	vidL.open(LEFT_CAMERA_INDEX);
-	if (ACTIVE_CAMS_NUM==2)
-		vidR.open(RIGHT_CAMERA_INDEX);	
-	 
+	if (bRepeat_scenario_from_files)
+	{
+		vidL.open(inout_file_nameL);
+		vidR.open(inout_file_nameR);
+	}
+	else
+	{
+		vidL.open(LEFT_CAMERA_INDEX);
+		if (ACTIVE_CAMS_NUM==2)
+			vidR.open(RIGHT_CAMERA_INDEX);	
+	}
+	
 	/* checks */
-	if(!vidL.isOpened())	throw cv::Exception(1, "Cannot open right camera\n" , "", "", 30);///std::exception(errMsg2.str().c_str());
+	if(!vidL.isOpened())	throw cv::Exception(1, "Cannot open right camera/file \n" , "", "", 30);///std::exception(errMsg2.str().c_str());
 	if (ACTIVE_CAMS_NUM==2)
 		if(!vidR.isOpened())	throw cv::Exception(); //std::exception(errMsg1.str().c_str()); //throw cv::Exception();
 	
 	/* settings */
-	vidL.set(CAP_PROP_FRAME_WIDTH, w);	vidL.set(CAP_PROP_FRAME_HEIGHT, h); vidL.set(CAP_PROP_FPS, FPS); 
-	if (ACTIVE_CAMS_NUM==2){
-		vidR.set(CAP_PROP_FRAME_WIDTH, w);	vidR.set(CAP_PROP_FRAME_HEIGHT, h);  vidR.set(CAP_PROP_FPS, FPS); }
+	if (!bRepeat_scenario_from_files) {
+		vidL.set(CAP_PROP_FRAME_WIDTH, w);	vidL.set(CAP_PROP_FRAME_HEIGHT, h); vidL.set(CAP_PROP_FPS, FPS); 
+		if (ACTIVE_CAMS_NUM==2){
+			vidR.set(CAP_PROP_FRAME_WIDTH, w);	vidR.set(CAP_PROP_FRAME_HEIGHT, h);  vidR.set(CAP_PROP_FPS, FPS); }
+	}
+
+	/* option for videos recording to files */
+	if (bUserRecordRequest)
+	{
+		if (!bRepeat_scenario_from_files)		// cannot record to files while also images are input from same files
+		{
+			//init files to record to
+			outFileR.open(inout_file_nameR, codec, FPS, Size(w,h), true);
+			outFileL.open(inout_file_nameL, codec, FPS, Size(w,h), true);
+
+			if (!outFileR.isOpened() || !outFileL.isOpened()) {
+				throw cv::Exception(); 
+				//cerr << "Could not open the output video file for write\n";
+				//return -1;
+			}				
+		}
+		else
+			bUserRecordRequest = false; //+error..
+	}
 }
 
 
@@ -65,4 +100,5 @@ ImagesSourceHandler :: ~ImagesSourceHandler()
 {
 	exit = true;
 	videoGrab_thrd.join();
+	// also - the videofile will be closed and released automatically in VideoWriter destructor
 }

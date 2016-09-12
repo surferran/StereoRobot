@@ -47,11 +47,18 @@ private:
 	VideoCapture	vidR,		// handles the Hardware right camera
 					vidL;		// handles the Hardware left camera
 
-	const int		w=working_FRAME_WIDTH ,		// desired resolution for the images
-					h=working_FRAME_HIGHT ,
-					FPS=30;		// 30, or 15  -> capture_loop_dealy=33, or 67 [mS]
+	const int		w	=	working_FRAME_WIDTH ,		// desired resolution for the images
+					h	=	working_FRAME_HIGHT ,
+					FPS	=	30;		// 30, or 15  -> capture_loop_dealy=33, or 67 [mS]
 
-	bool			bUserRecordRequest;
+	/* vars for input and output from/to files */
+	bool			bRepeat_scenario_from_files	=	false;//false;	// true for input images from previously recorded files.
+	bool			bUserRecordRequest			=	false;//false;	// true for record captured images to files.
+	char			inout_file_nameR[150]	= "../vidR.avi";	//string	//relative to 'StereoRobot\Src\StereoRobot' (in VS2015)
+	char			inout_file_nameL[150]	= "../vidL.avi";	//			//
+	VideoWriter		outFileR,
+					outFileL;
+	int				codec					= CV_FOURCC('M', 'J', 'P', 'G'); 
 
 	/* the output images and properties */
 	//const int		N = 10;		// number of frames to keep history for
