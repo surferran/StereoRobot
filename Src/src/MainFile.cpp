@@ -68,12 +68,19 @@ myGUI_handler myGUI; // thread for images displaying
 //#include "grabcut_from_OpencvSamples.cpp"
 
 #include "imporeted_raw_code_examples/watershed_from_OpencvSamples.cpp"
+#include "imporeted_raw_code_examples/backSubsExample.cpp"
+#include "imporeted_raw_code_examples/grabcut_from_OpencvSamples.cpp"//
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////					  main	   			  //////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////// 
 
 int main(int argc, char** argv) 
 {
+	//mainBgndSubs();
+	//return 0;
+
+
  	/* variables */
 	Mat left_im_color ,
 		right_im_color;
@@ -182,6 +189,7 @@ int main(int argc, char** argv)
 				continue;
 			
 			relative_counter++;
+
 			right_im_color  = myGUI.plotImages[0].clone();   
 			left_im_color   = myGUI.plotImages[1].clone();   
 			////////////// end of capture images ///////////
@@ -208,13 +216,6 @@ int main(int argc, char** argv)
 				// calc disparity every 1, 2 frame
 				if (relative_counter>0) //10  
 				{ 
-					/*myLocalDisparity::rectification_outputs disperity_struct;
-					Mat		disp_temporary;
-					Mat		modified_disperity_mat;
-					Scalar	avg_disperity_S;
-					double	avg_disperity;
-					double	avg_depth_of_ROI ;*/
-
 					/* sends gray images */
 					cv::cvtColor(left_im_color , left_im_gray  , CV_BGR2GRAY);
 					cv::cvtColor(right_im_color, right_im_gray , CV_BGR2GRAY);
@@ -280,22 +281,44 @@ int main(int argc, char** argv)
 				}
 			}
 			////////////* get Disperity & DEPTH by stereo *///////////////
-
-
-
+			//enum SYSTEM_STATUS{
+			//	INITIALIZING	=	0 ,		// Should show GRAY cross	 
+			//	STANDBY			=	1 ,		// Should show ORANGE cross
+			//	FOUND_SOME_MOVEMENT	,
+			//	FOUND_GOOD_TARGET	,
+			//	TRACKING_GOOD_QUALITY_TARGET,		// Should show GREEN cross
+			//	TRACKING_LOW_QUALITY_TARGET,
+			//	TARGET_IS_LOST			// Should show RED cross	,	after 3 sec will turn to ORANGE (while stopping the robot)
+			//};
+					
 			Point movementMassCenter, corected_MassCenter;
-			// condition by STANDBY, otherwise - only the tracker is in the loop 
-			if ( system_state < FOUND_GOOD_TARGET )
-			// will change system_state only when (system_state <= FOUND_SOME_MOVEMENT )
+			Mat bgnd;
+			switch (system_state) 
 			{
-				localBackSubs.find_forgnd( left_im_color(BckgndSubROI) , &movementMassCenter ) ; //// synthesize target by movement
-				corected_MassCenter = Point(movementMassCenter.x + BckgndSubROI.x,  movementMassCenter.y + BckgndSubROI.y);
-				////actually not needed .. makeContours(localBackSubs.get_foreground_mat()); 
+				case INITIALIZING:
+				case STANDBY:
+				case FOUND_SOME_MOVEMENT:
+					// condition by STANDBY, otherwise - only the tracker is in the loop 
+					//if ( system_state < FOUND_GOOD_TARGET )
+						// will change system_state only when (system_state <= FOUND_SOME_MOVEMENT )
+					{
+						localBackSubs.find_forgnd( left_im_color(BckgndSubROI) , &movementMassCenter ) ; //// synthesize target by movement
+						corected_MassCenter = Point(movementMassCenter.x + BckgndSubROI.x,  movementMassCenter.y + BckgndSubROI.y);
+						////actually not needed .. makeContours(localBackSubs.get_foreground_mat()); 
 
-				Mat bgnd = localBackSubs.get_the_background_average();  // display is with ..find fgnd
-				imshow("BackSubs background average",bgnd); //debugging
+						bgnd = localBackSubs.get_the_background_average();  // display is with ..find fgnd
+						imshow("BackSubs background average",bgnd); //debugging
+					}
+					break;
+
+				case FOUND_GOOD_TARGET:
+					break;
 			}
+					
 
+
+
+			
 
 			////////////////////////////////////////////////
 			//			tracking part (by 'goodFeatures')

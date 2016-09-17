@@ -64,9 +64,10 @@ private:
 	double	theta ;				// estimated oriantation of bounding box. though not well feature
 
 	/* initializing parameters for the Background_Subtractor algorithm */
-	const int				BackSubs_History		= 60;//120;
-	const double			BackSubs_Threshould		= 16.0;	
+	const int				BackSubs_History		= 300;///60;//120;			//by example: 300 ,32, true
+	const double			BackSubs_Threshould		= 32;///16.0;	
 	const bool				BackSubs_DetectShadows	= false;   // only for better run-time performance
+	const double			BackSubs_LearningRate	= -1.0;  //~-0.5~-0.7? -1
 
 };
 /*************************************************************************************/
@@ -146,8 +147,10 @@ int BackSubs::doMYbsManipulation( Mat & mask , Point *movementMassCenter)
 	int w =  mask.size().width;
 	int w_band = 40;
 	if ( //(boundRect.width < w) && 
-		(2.*rCircle < w) &&
-		(MassCenter.x > w/2 - w_band ) && (MassCenter.x < w/2 + w_band )
+		(2.*rCircle < w* 0.9) && (2.*rCircle > w * 0.1) &&
+		(MassCenter.x > w * 0.3 ) && (MassCenter.x < w * 0.7 )  
+
+		///(MassCenter.x > w/2 - w_band ) && (MassCenter.x < w/2 + w_band )
 		&& (stable_bkgnd_phase==0)
 		&& ( boundAreaRatio > 15 )
 		)
@@ -178,19 +181,25 @@ int BackSubs::show_forgnd_and_bgnd_init(int fpsIN)
 	return 0;
 }
 
+	/* apply background substraction and manipulate the resultant frame */
 int BackSubs::find_forgnd(Mat frame, Point *movementMassCenter)  // assuming input of vreified non-empty frame
 {
-	// using code in the file:"C:\OpenCV\sources\modules\video\src/bgfg_gaussmix2.cpp"
-	/* apply background substraction and manipulate the resultant frame */
-	mog->apply(frame,foreground, 0.5);	//learningRate~0.7? -1
+
+	medianBlur	(frame,	frame,	3); // new
+
+	mog->apply(frame,foreground, BackSubs_LearningRate);	
 	///mog->getBackgroundImage(backgroundAvg);
 	imshow("BackSubs Foreground before manipulations",foreground); //debugging
 	///imshow("BackSubs background average",backgroundAvg); //debugging
 
-    threshold	(foreground,	foreground,	128,	255,THRESH_BINARY);//28,128,198
-    medianBlur	(foreground,	foreground,	3);//9
+    ///threshold	(foreground,	foreground,	128,	255,THRESH_BINARY);//28,128,198
+    ///medianBlur	(foreground,	foreground,	3);//9
+	/* open: dst = open( src, element) = dilate( erode( src, element ) ) */
+	/* close: dst = close( src, element ) = erode( dilate( src, element ) ) */
+	dilate		(foreground,	foreground,	Mat());
     erode		(foreground,	foreground,	Mat());
-    dilate		(foreground,	foreground,	Mat());
+    ///dilate		(foreground,	foreground,	Mat()); /////
+	threshold	(foreground,	foreground,	128,	255,THRESH_BINARY);//28,128,198
 
 	imshow("BackSubs Foreground",foreground); 
 

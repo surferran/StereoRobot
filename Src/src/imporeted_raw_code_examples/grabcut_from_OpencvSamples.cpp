@@ -7,7 +7,7 @@
 using namespace std;
 using namespace cv;
 
-static void help()
+static void helpGC()
 {
     cout << "\nThis program demonstrates GrabCut segmentation -- select an object in a region\n"
             "and then grabcut will attempt to segment it out.\n"
@@ -294,7 +294,7 @@ int mainGC( Mat image ) //int argc, char** argv )
         return 1;
     }
 */
-    help();
+	helpGC();
 
     const string winName = "image";
     namedWindow( winName, WINDOW_AUTOSIZE );
