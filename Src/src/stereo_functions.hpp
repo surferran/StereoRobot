@@ -55,22 +55,28 @@ public:
 			Mat rectR,rectL;
 			Size imageSize ;
 			Rect validROI1, validROI2 ;
+			long originalyGivenframeCycle;
 		};	
 
 	myLocalDisparity();
 	~myLocalDisparity();
 
-	void set_disparity_input(Mat inR, Mat inL);
+	void set_disparity_input(Mat inR, Mat inL, long frameCycleCounter);
 	bool get_rectified_and_disparity(Mat& disp_output, rectification_outputs& rectification_vars);
 	void convert_disperity_value_to_depth(double in_disp, double & out_depth);
+
+	int calcDispEveryNcycles = 3;
+
+	int calcuatedRequestsCounter = 0;
 
 private: 
 	int stereo_match_and_disparity_init(int argc, char** argv,  Size img_size);
 	int do_stereo_match( Mat imgR, Mat imgL , Mat& disp8 );	// ..and disparity calculation
 
 	/* in , out matrices */
-	Mat imR, imL, 
-		disp_out;
+	Mat		imR, imL, 
+			disp_out;
+	long	relevantframeCycleIndex ;
 
 	rectification_outputs rectification_output_vars;
 	
@@ -92,7 +98,8 @@ private:
 			STEREO_VAR=3 
 		 };
     int		alg				= STEREO_SGBM;
-    int		SADWindowSize	= 0, numberOfDisparities = 0;
+    int		SADWindowSize		= 0, 
+			numberOfDisparities = 0;
     bool	no_display		= false;
     float	scale			= 1.f;
 
@@ -167,10 +174,11 @@ void myLocalDisparity::thread_loop_function() {
 	//argv[8]  = "";	argv[9] = "";	argv[10] = "";
 	stereo_match_and_disparity_init(argc,argv, imgSize); 
 
-	exit					= false;
-	calc_disparity_request	= false; 
-	calculating_disparity   = false;
-	ready_disparity_result	= false;
+	exit						= false;
+	calc_disparity_request		= false; 
+	calculating_disparity		= false;
+	ready_disparity_result		= false;
+	relevantframeCycleIndex	= 0;
 
 	while (!exit) {
 		mut.lock();
@@ -390,11 +398,12 @@ int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
         img1 = img1r;
         img2 = img2r;
 
-		rectification_output_vars.imageSize = img_size;
-		rectification_output_vars.rectR		=	img2;
-		rectification_output_vars.rectL		=	img1;
-		rectification_output_vars.validROI1	=	roi1;
-		rectification_output_vars.validROI2	=	roi2;
+		rectification_output_vars.imageSize					= img_size;
+		rectification_output_vars.rectR						=	img2;
+		rectification_output_vars.rectL						=	img1;
+		rectification_output_vars.validROI1					=	roi1;
+		rectification_output_vars.validROI2					=	roi2;
+		rectification_output_vars.originalyGivenframeCycle	=	relevantframeCycleIndex;
 				
     }
 
@@ -518,13 +527,14 @@ int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
 }
 
 
-void myLocalDisparity::set_disparity_input(Mat inR, Mat inL)
+void myLocalDisparity::set_disparity_input(Mat inR, Mat inL, long relevantCycleCounter)
 {
 //	mut.lock();	//?
 	if ((!calculating_disparity) && (!ready_disparity_result))	//TODO : check also for used_result?
 	{
-		imR						= inR.clone();
-		imL						= inL.clone();
+		imR							= inR.clone();
+		imL							= inL.clone();
+		relevantframeCycleIndex	= relevantCycleCounter;
 		calc_disparity_request	= true;
 	}
 //	mut.unlock();//?
@@ -541,8 +551,9 @@ bool myLocalDisparity::get_rectified_and_disparity(Mat& disp_output, rectificati
 		rectified_vars.rectR		=	rectification_output_vars.rectR;
 		rectified_vars.validROI1	=	rectification_output_vars.validROI1;
 		rectified_vars.validROI2	=	rectification_output_vars.validROI2;
-
-		ready_disparity_result = false;
+		rectified_vars.originalyGivenframeCycle	=	rectification_output_vars.originalyGivenframeCycle;
+		calcuatedRequestsCounter++;
+		ready_disparity_result		= false;
 		return true;
 	}
 	else

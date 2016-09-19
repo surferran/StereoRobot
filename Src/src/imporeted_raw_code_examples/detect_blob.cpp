@@ -65,10 +65,10 @@ static String Legende(SimpleBlobDetector::Params &pAct)
 
 
 
-int main(int argc, char *argv[])
+int mainBLOB(Mat img)  //int argc, char *argv[])
 {
     vector<String> fileName;
-    Mat img(600, 800, CV_8UC1);
+    /*Mat img(600, 800, CV_8UC1);
     if (argc == 1)
     {
         fileName.push_back("../data/detect_blob.png");
@@ -82,7 +82,12 @@ int main(int argc, char *argv[])
         help();
         return(0);
     }
+
+	fileName.push_back("../data/detect_blob.png");
+
     img = imread(fileName[0], IMREAD_COLOR);
+*/ 
+
     if (img.rows*img.cols <= 0)
     {
         cout << "Image " << fileName[0] << " is empty or cannot be found\n";

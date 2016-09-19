@@ -13,6 +13,9 @@ myGUI_handler::myGUI_handler()
 	plotWindowsNames[5] = "win6 - target aquired Depth";
 	plotWindowsNames[6] = "win7 - target aquired Depth Masked";
 
+	plotWindowsNames[7] = "win8 - filtered disperity";
+	plotWindowsNames[8] = "win9 - potential learned target";
+
 }
 
 
@@ -87,7 +90,7 @@ void myGUI_handler::draw_output_frames(String* WinNames, Mat* images)
 
 // add graphic layer to the image - for showing circle and bounding box for the target tracking.
 void myGUI_handler::show_graphics_with_image(Mat & mask, Point MassCenter, double rCircle, Rect boundRect, 
-	double theta, double boundAreaRatio, int mask_status)
+	double theta, double boundAreaRatio, int mask_status, int frame_counter)
 {
 	String		StatusText ="";
 
@@ -106,6 +109,8 @@ void myGUI_handler::show_graphics_with_image(Mat & mask, Point MassCenter, doubl
 	putText(mask, StatusText, Point(15, 35), FONT_HERSHEY_COMPLEX, 0.4, (210, 210, 220), 1);
 	StatusText  = "status=" + _intToString(mask_status);
 	putText(mask, StatusText, Point(15, 45), FONT_HERSHEY_COMPLEX, 0.4, (210, 210, 220), 1);
+	StatusText  = "frame_counter= " + _intToString(frame_counter);
+	putText(mask, StatusText, Point(15, 65), FONT_HERSHEY_COMPLEX, 0.4, (210, 210, 220), 1);
 
 
 	///frame_counter++;
@@ -118,6 +123,14 @@ void myGUI_handler::show_graphics_with_image(Mat & mask, Point MassCenter, doubl
 
 /////////////////////////////
 
+//int to string helper function
+string myGUI_handler::_longToString(long number){
+
+	//this function has a number input and string output
+	std::stringstream ss;
+	ss << number;
+	return ss.str();
+}
 //int to string helper function
 string myGUI_handler::_intToString(int number){
 
@@ -139,6 +152,7 @@ string myGUI_handler::_doubleToString(double number){
 string myGUI_handler::_sysStatToString(SYSTEM_STATUS val){
 
 	std::stringstream ss;
+	ss<<"";
 	switch (val)
 	{
 	case INITIALIZING:
@@ -149,6 +163,9 @@ string myGUI_handler::_sysStatToString(SYSTEM_STATUS val){
 		break;
 	case FOUND_SOME_MOVEMENT:
 		ss << "sys : MOVEMENT";
+		break;
+	case FOUND_GOOD_TARGET:
+		ss << "sys : GOOD TARGET";
 		break;
 	case TRACKING_GOOD_QUALITY_TARGET:
 		ss << "sys : TRACKING_GOOD";
@@ -166,6 +183,7 @@ string myGUI_handler::_sysStatToString(SYSTEM_STATUS val){
 }
 
 /////////////////////////////
+
 
 /*
 add sign of cross on the x,y point, on the delivered image.
@@ -207,7 +225,7 @@ void myGUI_handler::add_Cross_to_Image(int x, int y, bool addLabel, SYSTEM_STATU
 }
 
 //
-void myGUI_handler::display_rectified_pair(Size imageSize , Mat Rimg, Mat Limg, Rect validROI1, Rect validROI2 )
+void myGUI_handler::display_rectified_pair(Size imageSize , Mat Rimg, Mat Limg, Rect validROI1, Rect validROI2 , long FrameCtr)
 {
 	Mat		canvas;
 	double	sf;
@@ -253,6 +271,8 @@ void myGUI_handler::display_rectified_pair(Size imageSize , Mat Rimg, Mat Limg, 
 		for( int j = 0; j < canvas.cols; j += 16 )
 			line(canvas, Point(j, 0), Point(j, canvas.rows), Scalar(0, 255, 0), 1, 8);
 				
+	add_counterFrame(canvas, &FrameCtr);
+
 	imshow("rectified", canvas);	
 }
 
@@ -340,4 +360,13 @@ void makeContours(Mat aBw){
 		imshow("hull results", aBw);
 	}
 }
+
+void myGUI_handler::add_counterFrame(Mat &inImage, long * frameNum)
+{
+
+	putText(inImage,"input frame counter (" + _longToString(*frameNum)+")",
+		Point(15, inImage.size().height - 15 ),1,0.51,Scalar(255,0,0),1);
+
+}
+
 ////////////////////////////

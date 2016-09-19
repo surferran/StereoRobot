@@ -39,7 +39,7 @@ private:
 	 
 	String					StatusText	= "NAN";
 
-	int						stable_bkgnd_phase = 2; 
+	int						stable_bkgnd_phase = 0; 
 
 	int						fps;
 	Mat						frame, foreground, image;	// inner vars for class functions.
@@ -69,6 +69,7 @@ private:
 	const bool				BackSubs_DetectShadows	= false;   // only for better run-time performance
 	const double			BackSubs_LearningRate	= -1.0;  //~-0.5~-0.7? -1
 
+	
 };
 /*************************************************************************************/
 /******************************end of Header section *********************************/
@@ -130,31 +131,50 @@ int BackSubs::doMYbsManipulation( Mat & mask , Point *movementMassCenter)
 
 
 	frame_counter++;
-	//if (frame_counter % 5)
+	//if (frame_counter % 5) 
 	//	cout << frame_counter << " : " << theta << endl;//Mat(p1) << endl;
 	
-	myGUI.show_graphics_with_image(mask, MassCenter, rCircle, boundRect, theta, boundAreaRatio, mask_status);
 
 
-	if ((frame_counter > 20)  // wait for at least 10 initial frames
-		&& (system_state <= STANDBY)
+	if ((frame_counter <= 10)  // wait for at least 10 initial frames
+		&& (system_state == INITIALIZING))
+		return 0;
+
+	if ((frame_counter > 10) //50 // wait for at least 10 initial frames
+		&& (system_state == INITIALIZING)
 		&& (rCircle < 5) )
+		///&& mask.empty() )
 	{
-		stable_bkgnd_phase = 0;
+		stable_bkgnd_phase	= 1;
+		mask_status			= 111;		// will move to STANDBY
+
+		return mask_status;
 	}
+	if (stable_bkgnd_phase==0)
+		return 0;
+
+	myGUI.show_graphics_with_image(mask, MassCenter, rCircle, boundRect, theta, boundAreaRatio, mask_status , frame_counter);
 
 	//TODO: make this condition more clear to read and understand
 	int w =  mask.size().width;
 	int w_band = 40;
-	if ( //(boundRect.width < w) && 
-		(2.*rCircle < w* 0.9) && (2.*rCircle > w * 0.1) &&
-		(MassCenter.x > w * 0.3 ) && (MassCenter.x < w * 0.7 )  
+	if ( ///(boundRect.width < w) && 
+		(stable_bkgnd_phase==1) 
+		&& (2.*rCircle < w* 0.9) && (2.*rCircle > w * 0.1)  		///(MassCenter.x > w/2 - w_band ) && (MassCenter.x < w/2 + w_band )				
+	   )
+	{
+		if ( (MassCenter.x > w * 0.3 ) && (MassCenter.x < w * 0.7 ) 
+			 && ( boundAreaRatio > 15 )
+		   )
+			mask_status = 222;		// treated as Good potential Target
+		if ( (MassCenter.x > w * 0.4 ) && (MassCenter.x < w * 0.6 )   
+			 && (2.*rCircle < w* 0.5) && (2.*rCircle > w * 0.1)
+			)
+			mask_status = 333;		// more centered and stabilized obeject - treated as Good Target	
+	} 
 
-		///(MassCenter.x > w/2 - w_band ) && (MassCenter.x < w/2 + w_band )
-		&& (stable_bkgnd_phase==0)
-		&& ( boundAreaRatio > 15 )
-		)
-		mask_status = 55;		// treated as GoodTarget
+
+
 
 	*movementMassCenter = MassCenter;
 	return mask_status;
@@ -189,7 +209,7 @@ int BackSubs::find_forgnd(Mat frame, Point *movementMassCenter)  // assuming inp
 
 	mog->apply(frame,foreground, BackSubs_LearningRate);	
 	///mog->getBackgroundImage(backgroundAvg);
-	imshow("BackSubs Foreground before manipulations",foreground); //debugging
+///	imshow("BackSubs Foreground before manipulations",foreground); //debugging
 	///imshow("BackSubs background average",backgroundAvg); //debugging
 
     ///threshold	(foreground,	foreground,	128,	255,THRESH_BINARY);//28,128,198
@@ -201,25 +221,29 @@ int BackSubs::find_forgnd(Mat frame, Point *movementMassCenter)  // assuming inp
     ///dilate		(foreground,	foreground,	Mat()); /////
 	threshold	(foreground,	foreground,	128,	255,THRESH_BINARY);//28,128,198
 
-	imshow("BackSubs Foreground",foreground); 
+///	imshow("BackSubs Foreground",foreground); 
 
 	middle_tmp_frame = foreground.clone();
 	// ---now 'foreground' it is a workable image binary--- // 
-	int frame_status = doMYbsManipulation(middle_tmp_frame, movementMassCenter);
-	
-	// i want this function to keep running in bckgnd but effect only of not tracking yet.
-	if ( system_state <= FOUND_SOME_MOVEMENT ) //|| (system_state == FOUND_SOME_MOVEMENT)STANDBY
+	int frame_status = doMYbsManipulation(middle_tmp_frame, movementMassCenter);	//also prints. to screen
+
+	if ((system_state == INITIALIZING) && (frame_status==111))
 	{
-		system_state = STANDBY ;
-		if (frame_status> 95)
-			system_state = INITIALIZING ;
-		else
-		if (frame_status==55)					//TODO:check this condition
-			system_state = FOUND_GOOD_TARGET ;
-		else
-		if (frame_status> 10)
-			system_state = FOUND_SOME_MOVEMENT ;
+		system_state = STANDBY ; 
+		return frame_status;
 	}
+	if ((system_state == STANDBY) && (frame_status==222))
+	{
+		system_state = FOUND_SOME_MOVEMENT ; 
+		return frame_status;
+	}
+	if ((system_state == FOUND_SOME_MOVEMENT) && (frame_status==333))
+	{
+		//TODO: if also disperity is fine ,, then :
+			system_state = FOUND_GOOD_TARGET; 
+		return frame_status;
+	}
+
 	/// thus far the main stuff of BackgroundSubs. from now on just extra manipulations
 	//show_more_details(foreground);
 	return frame_status;

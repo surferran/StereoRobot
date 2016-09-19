@@ -12,23 +12,29 @@ ImagesSourceHandler::ImagesSourceHandler() :
 
 void ImagesSourceHandler::CaptureFromCam() {
 	InitVideoCap();
+	userDisableFramesCapture = false;
 	exit = false;
 	while (!exit) {
 		mut.lock();
 
-		vidL >> left;
-		if (ACTIVE_CAMS_NUM==2)
-			vidR >> right;
-		else
-			right=left; 
-		//TODO: //captureTimeTag = ..   
-
-		if (bUserRecordRequest)
+		if (!userDisableFramesCapture)
 		{
-			outFileL.write(left);
-			outFileR.write(right);
-		}
+			vidL >> left;
+			if (ACTIVE_CAMS_NUM==2)
+				vidR >> right;
+			else
+				right=left; 
+			//TODO: //captureTimeTag = .. 
 
+			inputFrameCycleCounter++; //TODO: condition with non empty frames?!
+
+			/*if (bUserRecordRequest)	// moved to recieving function
+			{
+				outFileL.write(left);
+				outFileR.write(right);
+			}
+			*/
+		}
 		mut.unlock();
 		std::this_thread::sleep_for(std::chrono::milliseconds(capture_loop_dealy));
 	}
@@ -61,6 +67,7 @@ void ImagesSourceHandler::InitVideoCap()
 		if (ACTIVE_CAMS_NUM==2){
 			vidR.set(CAP_PROP_FRAME_WIDTH, w);	vidR.set(CAP_PROP_FRAME_HEIGHT, h);  vidR.set(CAP_PROP_FPS, FPS); }
 	}
+	else; //TODO: update FPS from recorded files. (although it should be the same as the last setting that recorded.
 
 	/* option for videos recording to files */
 	if (bUserRecordRequest)
@@ -89,6 +96,15 @@ void ImagesSourceHandler::GetFrames(Mat &rightFrame, Mat &leftFrame)	// can b re
 
 	leftFrame  = left;
 	rightFrame = right;
+	recievedFramesCounter++;
+
+	if (bUserRecordRequest)
+	{
+		outFileL.write(leftFrame);
+		outFileR.write(rightFrame);
+	}
+
+	// TODO:
 	// make output fot the 'captureTimeTag'
 	// check if needed also gray level images
 

@@ -7,6 +7,8 @@
 
 #define MANUAL_TESTINGS		false // true - to allow manual overides to steering (by arrow-keys), and selecting target (by mouse)
 
+/*******************************************************************************************/
+/*******************************************************************************************/
  /* my  constants and parameters */
 
 // bounds in percent from image size
@@ -22,6 +24,8 @@
 #define SHOW_MOVING_BIG_RECTANGLES	false//true
 
 // below or above those limits it will be treated as noise. (or too close movement to camera)
+/*******************************************************************************************/
+/*******************************************************************************************/
 
 /*********  thread object  ********/
 #include "stereo_functions.hpp"		//set the disparity object (variables and functions)
@@ -31,7 +35,7 @@ myLocalDisparity localDisp;
 #include "frameFunctions.h"		// general definitions and functions. that's why it is first to include.
 #include "working_consts.h"		// my added definitions, constants
 
-StereoCams		thisStereo;				// global 
+///StereoCams		thisStereo;				// global 
 SYSTEM_STATUS	system_state = INITIALIZING ;
 Operation_flags	op_flags; //global
 
@@ -40,11 +44,15 @@ Operation_flags	op_flags; //global
 
 #include "stereo_calib.h" 
 #include "FeatureTracker.hpp"
+#include "ImagesSourceHandler.h"
+/*********  GUI object  ********/
+#include "myGUI_handler.h"
+myGUI_handler myGUI;				// class for displaying the images
+/*  ***************************  */
 
 #ifdef COMPILING_ON_ROBOT
 ////#include "OdroidC1_handlers/RobotController.h"
 #include <unistd.h>
-
 #include "pwm.h"
 #endif
 
@@ -53,23 +61,10 @@ Operation_flags	op_flags; //global
 #include <memory>
 #include <thread>
 
-#include "ImagesSourceHandler.h"
-#include "myGUI_handler.h"
-
-/*  initiating GUI setup*/
-myGUI_handler myGUI; // thread for images displaying
-/*  ***************************  */
-
-//#include "showManyImages.cpp"   ///void cvShowManyImages(char* title, int nArgs, ...) ;
-
-////when need to eliminate the consule that is opened in parallel 
-//#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
-
-//#include "grabcut_from_OpencvSamples.cpp"
-
 #include "imporeted_raw_code_examples/watershed_from_OpencvSamples.cpp"
 #include "imporeted_raw_code_examples/backSubsExample.cpp"
 #include "imporeted_raw_code_examples/grabcut_from_OpencvSamples.cpp"//
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////					  main	   			  //////////////////////////////////
@@ -77,28 +72,23 @@ myGUI_handler myGUI; // thread for images displaying
 
 int main(int argc, char** argv) 
 {
-	//mainBgndSubs();
-	//return 0;
-
-
  	/* variables */
 	Mat left_im_color ,
 		right_im_color;
 	Mat left_im_gray ,
 		right_im_gray;
 
-	thisStereo.input_source = LIVE_CAM;
+	///thisStereo.input_source = LIVE_CAM;
 
 #ifdef COMPILING_ON_ROBOT
 	RobotController hardwareController ;
-
 #endif
 
 	op_flags.show_stereo=true;	// initialize and conduct stereo algo imidiatly when running.
 
 ///	string	base_out_file_path	= "C:/Users/Ran_the_User/Documents/Technion_Studies/IP_STUFF/video_4_testing/out";
-	string	framesCounterStr	= ""	, base_file_name = "" , file_full_name="", file_suffix = ".*";	
-	int		stream_frame_index	= 0;
+	//string	framesCounterStr	= ""	, base_file_name = "" , file_full_name="", file_suffix = ".*";	
+	//int		stream_frame_index	= 0;
 	/*char	rec_file_name[150]  = "C:/Users/Ran_the_User/Documents/Technion_Studies/IP_STUFF/video_4_testing/in/VID_3D_scenario/output_1.avi";
 	VideoCapture vid			= VideoCapture(rec_file_name);	*/
 	Mat		target_candidate_features;
@@ -115,13 +105,11 @@ int main(int argc, char** argv)
 	ImagesSourceHandler myStereoCams; // thread for images capturing
 	/*  ***************************  */
 
-	const int target_lost_timeout_counter  = 2* loop_delay ; // [~sec]//counter to simulate delay of about 2 sec. (depend on loop inner delay)
-	int		  target_lost_time_counter = 0 ;   // stopper to timeout
-
-
 	/*  initiating createBackgroundSubtractorMOG2   */
 	BackSubs	localBackSubs ;
 	/*  *****************************************   */
+	const int target_lost_timeout_counter  = 2* loop_delay ; // [~sec]//counter to simulate delay of about 2 sec. (depend on loop inner delay)
+	int		  target_lost_time_counter = 0 ;   // stopper to timeout
 
 	Tracker		tracker;
 	Rect		BckgndSubROI;
@@ -132,6 +120,16 @@ int main(int argc, char** argv)
 	int			depthAvgNdx = 0;
 
 	bool got_1st_stable_bkgnd = false;
+
+	myLocalDisparity::rectification_outputs disperity_struct;
+	Mat		disp_temporary;
+	Mat		modified_disperity_mat;
+	Scalar	avg_disperity_S;
+	double	avg_disperity;
+	double	avg_depth_of_ROI ;
+
+	Point	movementMassCenter, corected_MassCenter;
+	Mat		bgnd;
 
 	/* end of variables */
 	
@@ -159,9 +157,6 @@ int main(int argc, char** argv)
 
 	////////////// end of initializations ///////////
 	
-	//TODO:  (default image target shoult be zeroes(res.x, res.y) )
-	//		allow 1 or 2 frames to be with no featres. set a GapCounter.
-
 	while (1)		
 	{
 
@@ -192,36 +187,38 @@ int main(int argc, char** argv)
 
 			right_im_color  = myGUI.plotImages[0].clone();   
 			left_im_color   = myGUI.plotImages[1].clone();   
+
+			if (myStereoCams.GetUserRepeatFlag())
+			{
+				// if testing recorded files - don't continue to read image frames in background. 
+				// until next deterministic loop request. (specially if stopping for debugging).
+				myStereoCams.ToggleDisableFramesCapture();
+			}
+
 			////////////// end of capture images ///////////
 			
 			//// example code
 			//mainGC(left_im_color);
 			////mainWSH(left_im_color);	//NICE one for fast segmenting
+			/*
 			myWaterShed WSH;
 			WSH.init_mask_by_input (left_im_color);
-			
+			*/
 			//return 0;
-			/////
 
-			myLocalDisparity::rectification_outputs disperity_struct;
-			Mat		disp_temporary;
-			Mat		modified_disperity_mat;
-			Scalar	avg_disperity_S;
-			double	avg_disperity;
-			double	avg_depth_of_ROI ;
-
+			////////////*////////////*////////////*////////////*////////////
 			////////////* get Disperity & DEPTH by Stereo */////////////// 
 			if (!RUN_ON_LAPTOP__MONO)
 			{
 				// calc disparity every 1, 2 frame
-				if (relative_counter>0) //10  
+				if ( relative_counter > (localDisp.calcDispEveryNcycles - 1) ) //10  
 				{ 
 					/* sends gray images */
 					cv::cvtColor(left_im_color , left_im_gray  , CV_BGR2GRAY);
 					cv::cvtColor(right_im_color, right_im_gray , CV_BGR2GRAY);
 
 					// delivers new input , when the process is waiting (not in calculation process)
-					localDisp.set_disparity_input(right_im_gray,left_im_gray);  
+					localDisp.set_disparity_input(right_im_gray,left_im_gray, myStereoCams.GetFrameCycleCounter() );  
 					
 					/* if output is ready from disparity calculation , it returns true */
 					if ( localDisp.get_rectified_and_disparity(disp_temporary, disperity_struct) )  
@@ -236,12 +233,14 @@ int main(int argc, char** argv)
 						avg_disperity	= avg_disperity_S[0];
 
 						localDisp.convert_disperity_value_to_depth(avg_disperity , avg_depth_of_ROI);
-						///cout   << " avg_disperity " << avg_disperity  << " avg_depth_of_ROI " << avg_depth_of_ROI << endl;
+						///			cout   << " avg_disperity " << avg_disperity  << " avg_depth_of_ROI " << avg_depth_of_ROI << endl;
 						////////////
 
 						/* displays */
-						myGUI.display_rectified_pair( disperity_struct.imageSize , disperity_struct.rectR , disperity_struct.rectL, 
-														disperity_struct.validROI1 , disperity_struct.validROI2 );
+					/*	myGUI.display_rectified_pair( disperity_struct.imageSize , disperity_struct.rectR , disperity_struct.rectL, 
+														disperity_struct.validROI1 , disperity_struct.validROI2 , 
+															disperity_struct.originalyGivenframeCycle );
+*/
 						imshow(myGUI.plotWindowsNames[2],  myGUI.plotImages[2]);
 
 						lastDepthImg		= modified_disperity_mat.clone();
@@ -253,34 +252,18 @@ int main(int argc, char** argv)
 						dilate		(lastDepthImg,	lastDepthImg, element);
 						Mat depthMask = lastDepthImg.clone();
 
-						imshow ( "lastDepthImg", lastDepthImg);
+						imshow ( myGUI.plotWindowsNames[7], lastDepthImg);
 						///cvtColor(depthMask	, depthMask , COLOR_BGR2GRAY);
 
-/*
-						vector<int> hull; 
-						convexHull(depthMask, hull, true);*/
-
-						///int hullcount = (int)hull.size();
-						/*Point pt0 = points[hull[hullcount-1]];
-
-						for( i = 0; i < hullcount; i++ )
-						{
-							Point pt = points[hull[i]];
-							line(img, pt0, pt, Scalar(0, 255, 0), 1,LINE_AA);
-							pt0 = pt;
-						}
-*/
-						////imshow("hull", img);
-
-
-
-						request_water_shed	= true;
+						request_water_shed	= true;			//segmentation
 						 
 					}
 					relative_counter	=	0;
 				}
 			}
 			////////////* get Disperity & DEPTH by stereo *///////////////
+			////////////*////////////*////////////*////////////*////////////
+
 			//enum SYSTEM_STATUS{
 			//	INITIALIZING	=	0 ,		// Should show GRAY cross	 
 			//	STANDBY			=	1 ,		// Should show ORANGE cross
@@ -290,35 +273,46 @@ int main(int argc, char** argv)
 			//	TRACKING_LOW_QUALITY_TARGET,
 			//	TARGET_IS_LOST			// Should show RED cross	,	after 3 sec will turn to ORANGE (while stopping the robot)
 			//};
-					
-			Point movementMassCenter, corected_MassCenter;
-			Mat bgnd;
+			Mat potential_target;
+
 			switch (system_state) 
 			{
 				case INITIALIZING:
 				case STANDBY:
-				case FOUND_SOME_MOVEMENT:
-					// condition by STANDBY, otherwise - only the tracker is in the loop 
-					//if ( system_state < FOUND_GOOD_TARGET )
-						// will change system_state only when (system_state <= FOUND_SOME_MOVEMENT )
-					{
-						localBackSubs.find_forgnd( left_im_color(BckgndSubROI) , &movementMassCenter ) ; //// synthesize target by movement
-						corected_MassCenter = Point(movementMassCenter.x + BckgndSubROI.x,  movementMassCenter.y + BckgndSubROI.y);
-						////actually not needed .. makeContours(localBackSubs.get_foreground_mat()); 
+				case FOUND_SOME_MOVEMENT: 
 
-						bgnd = localBackSubs.get_the_background_average();  // display is with ..find fgnd
-						imshow("BackSubs background average",bgnd); //debugging
+					/* run BackGroundSubs as long as searching for GoodTarget (system_state is FOUND_GOOD_TARGET) */
+					
+					localBackSubs.find_forgnd( left_im_color(BckgndSubROI) , &movementMassCenter ) ; //// synthesize target by movement
+					if (system_state <= STANDBY) /// INITIALIZING)
+					{
+						if (myStereoCams.GetUserRepeatFlag())
+						{
+							myStereoCams.ToggleDisableFramesCapture();
+						}
+						int c2 = waitKey(loop_delay);
+						if (c2==27)
+							break;
+						continue;
 					}
+
+					//else	// system_state == FOUND_SOME_MOVEMENT
+					
+					corected_MassCenter = Point(movementMassCenter.x + BckgndSubROI.x,  movementMassCenter.y + BckgndSubROI.y);
+					////actually not needed .. makeContours(localBackSubs.get_foreground_mat()); 
+											
+					left_im_color.copyTo		//left_im_color.(localBackSubs.get_foreground_boundRect())
+										( potential_target, localBackSubs.get_foreground_mat() ) ;
+					tracker.processImage(left_im_gray, potential_target, system_state , localBackSubs.get_foreground_boundRect() );
+
+					circle(potential_target, corected_MassCenter, 4, Scalar(0, 255, 255), -1, 8, 0);
+					imshow(myGUI.plotWindowsNames[8], potential_target);
+					 
 					break;
 
 				case FOUND_GOOD_TARGET:
 					break;
-			}
-					
-
-
-
-			
+			}				
 
 			////////////////////////////////////////////////
 			//			tracking part (by 'goodFeatures')
@@ -331,7 +325,7 @@ int main(int argc, char** argv)
 				//imshow("BackSubs bg-fg diff",bgndDiff); //debugging
 
 				bgndDiff = mat1  -  left_im_color ;
-				imshow("BackSubs bg-current diff",bgndDiff); //debugging
+				///imshow("BackSubs bg-current diff",bgndDiff); //debugging
 
 				//if ( request_water_shed )
 				//{
@@ -367,87 +361,52 @@ int main(int argc, char** argv)
 
 				if ( request_water_shed )
 				{
-					WSH.calculate_the_watershed(lastDepthImg);//    localBackSubs.get_foreground_mat());
-					request_water_shed = false;
+					//WSH.calculate_the_watershed(lastDepthImg);//    localBackSubs.get_foreground_mat());
+					//request_water_shed = false;
 				}
 			}
+			Point2f targetCenter ;
 
-			if (system_state >= FOUND_GOOD_TARGET)
-			{ 
-				////////////////////////////////////////////////
-				//			make tracking of the 'goodFeatures'
-				//			from previous frame to the new one		
-				tracker.processImage(left_im_color.clone()  ,system_state);  
+			////////////// added graphics section ///////////
+			left_im_color	= myGUI.plotImages[1].clone();   // for some additional display layer
 
-				Point2f targetCenter ;
-				
-				if ( system_state == FOUND_GOOD_TARGET )
-					targetCenter = localBackSubs.get_foreground_center() ;
-				else
-				{
-					targetCenter = Point(tracker.TrkErrX_Avg + left_im_color.size().width/2 ,  left_im_color.size().height/2  );
-#ifdef COMPILING_ON_ROBOT
-					double thrust_percent = depth(targetCenter) ;//, 
-					double pix_to_FOV = 1.0/ /*fx=*/ 375 ;
-					double angle	  = atan( tracker.TrkErrX_Avg * pix_to_FOV ); // max of 160 will give 160/375 ~ 0.42 // atand(0.42)=23.1deg~0.4rad
-					double turn_ratio = 0.9 ; // first angle, then forward. so target stays in FOV center
-					hardwareController.Forward(thrust_percent, angle, turn_ratio);
-					//Forward(double thrust_percent, double angle, double turn_ratio)  // TODO: add turn_rate_ratio option
-#endif
-				}
-				if (tracker.TrackPercent > 65)
-					system_state = TRACKING_GOOD_QUALITY_TARGET;
-				else 
-				if (tracker.TrackPercent > 20)
-					system_state = TRACKING_LOW_QUALITY_TARGET;
-				else
-					if ( ( (tracker.TrackPercent > 5) && (target_lost_time_counter < target_lost_timeout_counter) ) //95
-						 && (target_lost_time_counter >= 0) )
-					{	
-						system_state = TARGET_IS_LOST;
-						target_lost_time_counter ++;
-					}
-					else
-					{
-						system_state	= INITIALIZING;
-						target_lost_time_counter		=	0;
-					}
-				//// check direction change from the previous tracked poits center. mark an arrow .
-				//////////////////////////////////////////////////
-				////	calculate translation from previous to current.
-				////	display modified current 
-		//		Mat invTrans = tracker.rigidTransform.inv(DECOMP_SVD);
-		//		Mat orig_warped;
-		//		warpAffine(left_im_color,orig_warped,invTrans.rowRange(0,2),Size());
-		//		imshow("stabilized",orig_warped);
-				
-				
+			if (op_flags.draw_middle_x)
+			{
+				//on the right image
+				//add_Cross_to_Image(left_im_color.size[1]/2, left_im_color.size[0]/2, false, system_state , left_im_color); // 120h,160w , with no coor. label
 
-				////////////// added graphics section ///////////
-				left_im_color	= myGUI.plotImages[1].clone();   // for some additional display layer
-
-				if (op_flags.draw_middle_x)
-				{
-					//on the right image
-					//add_Cross_to_Image(left_im_color.size[1]/2, left_im_color.size[0]/2, false, system_state , left_im_color); // 120h,160w , with no coor. label
-
-					// TODO: test source of track errors, from BackgroundSubs, or Tracker
-				///	add_Cross_to_Image(tracker.TrkErrX  ,  left_im_color.size().height/2  , 
-					myGUI.add_Cross_to_Image(targetCenter.x  ,  targetCenter.y  , 
-											false, system_state , left_im_color); // 120h,160w , with no coor. label
+				// TODO: test source of track errors, from BackgroundSubs, or Tracker
+			///	add_Cross_to_Image(tracker.TrkErrX  ,  left_im_color.size().height/2  , 
+				myGUI.add_Cross_to_Image(targetCenter.x  ,  targetCenter.y  , 
+										false, system_state , left_im_color); // 120h,160w , with no coor. label
 					
-				}
-				
-				////////////* end of graphics section *///////////////
 			}
+				
+			////////////* end of graphics section *///////////////
+			
 			// move to broadcast from outside. // separate the graphic layer to only when track is on.
 			//									otherwise just draw raw images.
+
+			long tmpLong = myStereoCams.GetFrameCycleCounter();
+			myGUI.add_counterFrame(left_im_color , &tmpLong ) ;
 			imshow(myGUI.plotWindowsNames[0],	myGUI.plotImages[0] );
 			imshow(myGUI.plotWindowsNames[1],	left_im_color);
 			 
 		}
-		//char c = (char)waitKey(loop_delay);
+/*
+		if (myStereoCams.GetUserRepeatFlag())
+		{
+			myStereoCams.ToggleDisableFramesCapture();
+		}*/
 		int c = waitKey(loop_delay);
+
+		if (myStereoCams.GetUserRepeatFlag())
+		{
+			waitKey(0*loop_delay);
+			myStereoCams.ToggleDisableFramesCapture();
+			waitKey(loop_delay);
+		}
+
 		if (c==(int)'w')
 			request_water_shed = true;
 

@@ -52,7 +52,7 @@ private:
 					FPS	=	30;		// 30, or 15  -> capture_loop_dealy=33, or 67 [mS]
 
 	/* vars for input and output from/to files */
-	bool			bRepeat_scenario_from_files	=	false;//false;	// true for input images from previously recorded files.
+	bool			bRepeat_scenario_from_files	=	true;//false;	// true for input images from previously recorded files.
 	bool			bUserRecordRequest			=	false;//false;	// true for record captured images to files.
 	char			inout_file_nameR[150]	= "../vidR.avi";	//string	//relative to 'StereoRobot\Src\StereoRobot' (in VS2015)
 	char			inout_file_nameL[150]	= "../vidL.avi";	//			//
@@ -66,8 +66,13 @@ private:
     //Mat left[N],
 	//	right[N];
 	
+	/* output variables */
 	Mat		left, right;
+	long	inputFrameCycleCounter	= 0 ;
+	long	recievedFramesCounter	= 0 ;
 	double	captureTimeTag;
+
+	bool userDisableFramesCapture;
 
 	/* local variables to use */
 	const int		capture_loop_dealy = 33 ; //[mS] , delay between capture cycles
@@ -82,7 +87,12 @@ public:
 	void CaptureFromCam();			// the overall-wrapping function for the thread
 	void InitVideoCap();
     void GetFrames(Mat& rightFrame,Mat& leftFrame);
-	Size GetRes() { return Size(w,h); };
+	Size GetRes()					{ return Size(w,h); };
+	long GetFrameCycleCounter()		{ return inputFrameCycleCounter; };
+	long GetRecievedFramesCounter() { return recievedFramesCounter; };
+	long GetUserRepeatFlag()		{ return bRepeat_scenario_from_files; };
+	bool ToggleDisableFramesCapture() { userDisableFramesCapture = !userDisableFramesCapture; return userDisableFramesCapture; };
+	
 	//TODO: //void setRecordOption()
 };
 

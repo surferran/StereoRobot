@@ -2,13 +2,14 @@
 #include "myGUI_handler.h"
 
 #include "imporeted_raw_code_examples/MatchTemplate_Demo.cpp"
+#include "imporeted_raw_code_examples/detect_blob.cpp"
 
 extern SYSTEM_STATUS	system_state ;
 extern myGUI_handler	myGUI;
 
 ///Tracker::Tracker() {}
 
-
+/* used when system_status is FOUND_SOME_MOVEMENT only */
 void Tracker::setNewTarget(
 							Rect			newTargetROI,	// ROI in original image source coor.system
 							Mat				newTarget,		// image of target alone. resolution is not known a head
@@ -19,33 +20,159 @@ void Tracker::setNewTarget(
 	/*if (newTargetROI.x < 0) newTargetROI.x = 0;
 	if (newTargetROI.y < 0) newTargetROI.y = 0;*/
 	//if (newTargetROI.x + newTargetROI.width > imSource.W) newTargetROI.x = imSource.W;
-	
+
+	//////////////////////////////////
+
 	OriginalTargetROI	= newTargetROI;		// arrives as result of BKgndSubs, therefore should be correct(in limits)
 	current_trackingROI	= OriginalTargetROI;
-	
+
 	OriginalTarget		= newTarget.clone();
 	TrackerROI			= TrackingROI;
 
 	cvtColor(OriginalTarget, grayOriginalTarget, CV_BGR2GRAY);
-	goodFeaturesToTrack(grayOriginalTarget, OriginalTargetFeatures, num_of_maxCornersFeatures,0.01,10);	//  int maxCorners, double qualityLevel, double minDistance,
-	cout << "found on new target " << OriginalTargetFeatures.size() << " features\n";		//TODO: set to operate through GUI object..
+	//////////////////////////////////
+
+	prevImProp.relevantROI = newTargetROI ;
+	cvtColor(newTarget, prevImProp.grayImage, CV_BGR2GRAY);
+	goodFeaturesToTrack(prevImProp.grayImage, prevImProp.goodFeatures, num_of_maxCornersFeatures,0.01,10);	//  int maxCorners, double qualityLevel, double minDistance,
+	///cout << "found on new target " << OriginalTargetFeatures.size() << " features\n";		//TODO: set to operate through GUI object..
 	 
 	/* OriginalTargetFeatures : store feature points in full image coordinates, rather then local image target ones */
 	/* trackedFeatures = OriginalTargetFeatures */
 	trackedFeatures.clear();
-	for (int i = 0; i < OriginalTargetFeatures.size(); ++i) {
-		OriginalTargetFeatures[i].x = OriginalTargetFeatures[i].x + OriginalTargetROI.x;
-		OriginalTargetFeatures[i].y = OriginalTargetFeatures[i].y + OriginalTargetROI.y;
-		trackedFeatures.push_back(OriginalTargetFeatures[i]);
+	for (int i = 0; i < prevImProp.goodFeatures.size(); ++i) {
+		prevImProp.goodFeatures[i].x = prevImProp.goodFeatures[i].x ;//+ OriginalTargetROI.x;
+		prevImProp.goodFeatures[i].y = prevImProp.goodFeatures[i].y ;//+ OriginalTargetROI.y;
+		trackedFeatures.push_back(prevImProp.goodFeatures[i]);
 	}
 
-	TrackPercent	= 100;
+	TrackPercent	= 0*100;  // just learning
 }
+
+/////////////////////////////
+
+// Lexicographic compare, same as for ordering words in a dictionnary:
+// test first 'letter of the word' (x coordinate), if same, test 
+// second 'letter' (y coordinate).
+bool lexico_compare(const Point2f& p1, const Point2f& p2) {
+	if(p1.x < p2.x) { return true; }
+	if(p1.x > p2.x) { return false; }
+	return (p1.y < p2.y);
+}
+
+
+bool points_are_equal(const Point2f& p1, const Point2f& p2) {
+	return ((p1.x == p2.x) && (p1.y == p2.y));
+}
+
+/////////////////////////////
+
+void Tracker::processImage(Mat inputGrayIm, Mat newImage,  SYSTEM_STATUS external_state, Rect Brect) //need mask and need image?.
+{
+	vector<uchar> flow_output_status; 
+	vector<float> flow_output_errors;
+
+	if (external_state == FOUND_SOME_MOVEMENT)
+	{
+		/* feature tracker part - in this section only learn the potential target */
+		// image given from BackSubs so it shows only foreground. in original image size.
+		    // new image is a mask from BGSubs
+		// later implement full gray image in the 'current' struct
+		currentImProp.relevantROI	= Brect;// boundingRect ( newImage );
+		cvtColor(newImage, currentImProp.grayImage, CV_BGR2GRAY); 
+		goodFeaturesToTrack(currentImProp.grayImage, currentImProp.goodFeatures, num_of_maxCornersFeatures,0.01,10);
+		currentImProp.grayImage		= inputGrayIm.clone(); 
+
+		if (Tracker_State == TRACKER_OFF)
+		{
+			prevImProp		= currentImProp ; 
+			Tracker_State	= TRACKER_LEARNING ;	
+			return;
+		}
+		
+		// find connection between 2 images
+		vector<Point2f> newFlowFeatures;  
+		calcOpticalFlowPyrLK(	prevImProp.grayImage	, currentImProp.grayImage , 
+								prevImProp.goodFeatures , newFlowFeatures , 
+								flow_output_status, flow_output_errors,Size(21,11), 3,
+								TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 0.01),0, 0.001);	
+
+		///currentImProp.goodFeatures + newGoodFeatures
+		int features_vec_size ,i ;
+		trackedFeatures.clear();
+
+		features_vec_size = currentImProp.goodFeatures.size()  ;
+		for ( i = 0; i < features_vec_size ; ++i) { 
+			trackedFeatures.push_back(currentImProp.goodFeatures[i]);
+		} 
+		features_vec_size = newFlowFeatures.size() ; 
+		for ( i = 0; i < features_vec_size ; ++i) { 
+			if (flow_output_status[i])
+				trackedFeatures.push_back(newFlowFeatures[i]);
+		} 
+
+
+		///////		
+		///////
+		Mat tmpIMblob = newImage.clone();
+
+		mainBLOB(tmpIMblob);
+		
+		///////
+		///////
+
+		// sort and delete duplicates
+		// ( ref by : http://stackoverflow.com/questions/1041620/whats-the-most-efficient-way-to-erase-duplicates-and-sort-a-vector )
+		//			->	http://stackoverflow.com/questions/25197805/how-to-delete-repeating-coordinates-of-vectorpoint2f 
+		sort( trackedFeatures.begin(), trackedFeatures.end(), lexico_compare );		
+		trackedFeatures.erase( unique( trackedFeatures.begin(), trackedFeatures.end() , points_are_equal), trackedFeatures.end() );
+
+		//////
+		Mat tmpIM = newImage.clone();
+		int r	= 2;	//3
+		for(  i = 0; i < trackedFeatures.size(); i++ )
+		{ 
+			circle( tmpIM, trackedFeatures[i], r, 
+				///Scalar(rng.uniform(0,255), rng.uniform(0,255), rng.uniform(0,255)), -1, 8, 0 ); 
+				Scalar(255, 100, 255), -1, 8, 0 ); 
+		}	 
+		for(  i = 0; i < currentImProp.goodFeatures.size(); i++ )
+		{ 
+			circle( tmpIM, currentImProp.goodFeatures[i], r, 
+				///Scalar(rng.uniform(0,255), rng.uniform(0,255), rng.uniform(0,255)), -1, 8, 0 ); 
+				Scalar(10, 100, 255), -1, 8, 0 ); 
+		}	
+		//imshow ("debug current features"	, tmpIM);
+
+		////tmpIM = newImage.clone();
+		for(  i = 0; i < newFlowFeatures.size(); i++ )
+		{ 
+			circle( tmpIM, newFlowFeatures[i], r, 
+				///Scalar(rng.uniform(0,255), rng.uniform(0,255), rng.uniform(0,255)), -1, 8, 0 ); 
+				Scalar(10, 255, 255), -1, 8, 0 ); 
+		}	 
+		//imshow ("debug new     features"	, tmpIM);
+
+		//tmpIM = newImage.clone();
+		imshow ("debug summarized features"	, tmpIM);
+
+
+		prevImProp.goodFeatures		= trackedFeatures;  //currentImProp ; 
+		prevImProp.grayImage		= currentImProp.grayImage;
+		prevImProp.relevantROI		= boundingRect(trackedFeatures);
+
+		// check condition for GOOD_TRACKING? or by subs?
+
+	}
+		return;
+
+}
+
 
 // getting newIage variable, and saving it as Gray of previous or current frame.
 // trackedFeatures vector is usually the points from previous frame . 
 //		newly calculated or given as result of previous 'opticalFlow'.
-void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state) 
+void Tracker::processImage_x(Mat newImage,  SYSTEM_STATUS external_state) 
 {
 	Mat grayROI ;
 
@@ -234,14 +361,18 @@ void Tracker::processImage(Mat newImage,  SYSTEM_STATUS external_state)
 
 
 			myGUI.show_graphics_with_image(prevGrayROI, MassCenter, 0, current_trackingROI,
-				0, 0, 0);
+				0, 0, 0,0);
 			 
 
 			TrkErrX_Readings[TrkErrX_readIndex] = MassCenter.x - prevGrayROI.size().width/2.0 ;
 			TrkErrX_Avg = 0;
-			for (int i=0; i< Nreads; i++)
-				TrkErrX_Avg += TrkErrX_Readings[i];
-			TrkErrX_Avg = TrkErrX_Avg / Nreads;
+			int iNdx=0;
+			for ( iNdx=0; iNdx< Nreads; iNdx++)
+				if (TrkErrX_Readings[iNdx]!=0.0)			//-1 didnt work..
+					TrkErrX_Avg += TrkErrX_Readings[iNdx];
+				else
+					break;
+			TrkErrX_Avg = TrkErrX_Avg / iNdx;
 			TrkErrX_readIndex++;
 			if (TrkErrX_readIndex>=Nreads) TrkErrX_readIndex = 0;
 			
