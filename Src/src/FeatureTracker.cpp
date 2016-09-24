@@ -94,7 +94,7 @@ void Tracker::processImage(Mat inputGrayIm, Mat newImage,  SYSTEM_STATUS externa
 		vector<Point2f> newFlowFeatures;  
 		calcOpticalFlowPyrLK(	prevImProp.grayImage	, currentImProp.grayImage , 
 								prevImProp.goodFeatures , newFlowFeatures , 
-								flow_output_status, flow_output_errors,Size(21,11), 3,
+								flow_output_status, flow_output_errors, flowSearchWinSize, 3,
 								TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 0.01),0, 0.001);	
 
 		///currentImProp.goodFeatures + newGoodFeatures

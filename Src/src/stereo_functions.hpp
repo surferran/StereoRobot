@@ -23,31 +23,7 @@ using namespace cv;
 
 #include "myGUI_handler.h"
 extern myGUI_handler myGUI; // thread for images displaying
-
-static void print_helpM()
-{
-    printf("\nDemo stereo matching converting L and R images into disparity and point clouds\n");
-    printf("\nUsage: stereo_match <left_image> <right_image> [--algorithm=bm|sgbm|hh] [--blocksize=<block_size>]\n"
-           "[--max-disparity=<max_disparity>] [--scale=scale_factor>] [-i <intrinsic_filename>] [-e <extrinsic_filename>]\n"
-           "[--no-display] [-o <disparity_image>] [-p <point_cloud_file>]\n");
-}
-
-static void saveXYZ(const char* filename, const Mat& mat)
-{
-    const double max_z = 1.0e4;
-    FILE* fp = fopen(filename, "wt");
-    for(int y = 0; y < mat.rows; y++)
-    {
-        for(int x = 0; x < mat.cols; x++)
-        {
-            Vec3f point = mat.at<Vec3f>(y, x);
-            if(fabs(point[2] - max_z) < FLT_EPSILON || fabs(point[2]) > max_z) continue;
-            fprintf(fp, "%f %f %f\n", point[0], point[1], point[2]);
-        }
-    }
-    fclose(fp);
-}
-
+ 
 class myLocalDisparity
 {
 public:
@@ -65,13 +41,20 @@ public:
 	bool get_rectified_and_disparity(Mat& disp_output, rectification_outputs& rectification_vars);
 	void convert_disperity_value_to_depth(double in_disp, double & out_depth);
 
-	int calcDispEveryNcycles = 3;
+	int calcDispEveryNcycles = 1;//3;
 
 	int calcuatedRequestsCounter = 0;
 
 private: 
 	int stereo_match_and_disparity_init(int argc, char** argv,  Size img_size);
 	int do_stereo_match( Mat imgR, Mat imgL , Mat& disp8 );	// ..and disparity calculation
+
+	void set_BM_params_options_1();
+	void set_BM_params_options_2();
+	void set_BM_params_options_3();
+	void set_SGBM_params_options_1();
+	void set_SGBM_params_options_2();
+	
 
 	/* in , out matrices */
 	Mat		imR, imL, 
@@ -97,9 +80,11 @@ private:
 			STEREO_HH=2, 
 			STEREO_VAR=3 
 		 };
-    int		alg				= STEREO_SGBM;
+    int		alg					= STEREO_SGBM;
+	int		desired_param_set	= 1;		//1,2,3
     int		SADWindowSize		= 0, 
 			numberOfDisparities = 0;
+	Size	target_image_size	;
     bool	no_display		= false;
     float	scale			= 1.f;
 
@@ -133,6 +118,8 @@ private:
 
 	void thread_loop_function();
 };
+
+/////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
 myLocalDisparity::myLocalDisparity():
@@ -146,6 +133,7 @@ myLocalDisparity :: ~myLocalDisparity()
 	stereoIm_thrd.join();
 }
 
+/////////////////////////////////////////////////////////////////////////
 
 void myLocalDisparity::thread_loop_function() {
 
@@ -203,20 +191,25 @@ void myLocalDisparity::thread_loop_function() {
 	}
 }
 
+/////////////////////////////////////////////////////////////////////////
+
 int myLocalDisparity::stereo_match_and_disparity_init(int argc, char** argv,  Size img_size)
 {  
 	if(argc < 3)  
-    {
-        print_helpM();
+    { 
         return 0;
     } 
 
-	alg				= STEREO_SGBM;
-	//alg				= STEREO_BM;
-	SADWindowSize	= 0;
-	numberOfDisparities = 0;
-	no_display		= false;
-	scale			= 1.f;
+	//alg						= STEREO_SGBM;	
+	alg						=	 STEREO_BM;
+	desired_param_set		=	3;
+
+	SADWindowSize			= 0;
+	numberOfDisparities		= 0;
+	no_display				= false;
+	scale					= 1.f;
+
+	target_image_size		=	img_size;
 
     for( int i = 1+2; i < argc; i++ )
     {
@@ -344,8 +337,164 @@ int myLocalDisparity::stereo_match_and_disparity_init(int argc, char** argv,  Si
 
 	}
 
+	//// set algorithm and parameters :
+	if (alg == STEREO_SGBM)
+	{ 
+		if (desired_param_set==1)
+			set_SGBM_params_options_1();
+		else
+			set_SGBM_params_options_2();
+	}
+	else if (alg == STEREO_BM)
+	{
+		switch (desired_param_set)
+		{
+		case 1:
+			set_BM_params_options_1(); break;
+		case 2:
+			set_BM_params_options_2(); break;
+		case 3:
+			set_BM_params_options_3(); break;
+		default:
+			break;
+		} 
+	}
+	else ; //ERROR about alg type
+
+
 	return 0;
 }
+
+//// set parameters according to some recomandations 
+void myLocalDisparity::set_BM_params_options_1()
+{  
+
+	numberOfDisparities = numberOfDisparities > 0 ? numberOfDisparities : ((target_image_size.width/8) + 15) & -16;
+	numberOfDisparities = 112;
+
+	////  bm  params
+
+	bm->setROI1(roi1);
+	bm->setROI2(roi2);
+	bm->setPreFilterCap(31);
+	bm->setBlockSize(SADWindowSize > 0 ? SADWindowSize : 9);
+	bm->setMinDisparity(0);
+	bm->setNumDisparities(numberOfDisparities);
+	bm->setTextureThreshold(10);
+	bm->setUniquenessRatio(15);
+	bm->setSpeckleWindowSize(100);
+	bm->setSpeckleRange(32);
+	bm->setDisp12MaxDiff(1);
+
+	
+}
+
+//// set parameters according to some recomandations 
+void myLocalDisparity::set_BM_params_options_2()
+{  
+
+	set_BM_params_options_1();
+
+	numberOfDisparities = numberOfDisparities > 0 ? numberOfDisparities : ((target_image_size.width/8) + 15) & -16;
+	numberOfDisparities = 112;
+
+	//// from ref web site :..
+	//SADWindowSize=9;
+	//bm->setBlockSize(SADWindowSize) ;
+	//bm.state->numberOfDisparities = 112;
+	//bm.state->preFilterSize = 5;
+	//sbm.state->preFilterCap = 61;
+	//sbm.state->minDisparity = -39;
+	//sbm.state->textureThreshold = 507;
+	//sbm.state->uniquenessRatio = 0;
+	//sbm.state->speckleWindowSize = 0;
+	//sbm.state->speckleRange = 8;
+	//sbm.state->disp12MaxDiff = 1;
+	 
+	 
+}
+
+
+//// set parameters according to some recomandations 
+void myLocalDisparity::set_BM_params_options_3()
+{  
+	numberOfDisparities	=	12;//8;		//128		//	/8->48 
+	numberOfDisparities	=	  ((target_image_size.width/8/4) + 15) & -16;
+
+	bm->setPreFilterSize	( 41 );
+	bm->setPreFilterCap		( 31 );
+	bm->setBlockSize		( 41 );//SADWindowSize
+	bm->setMinDisparity		(-numberOfDisparities/2 );//-64
+	bm->setNumDisparities	( numberOfDisparities );
+	bm->setTextureThreshold	( 10 );
+	bm->setUniquenessRatio	( 15 );
+
+	/*bm->setROI1(roi1);
+	bm->setROI2(roi2);
+	bm->setBlockSize( > 0 ? SADWindowSize : 9);	
+	bm->setSpeckleWindowSize(100);
+	bm->setSpeckleRange(32);
+	bm->setDisp12MaxDiff(1);*/
+
+}
+
+//// set parameters according to some recomandations 
+void myLocalDisparity::set_SGBM_params_options_1()
+{  
+
+	numberOfDisparities = numberOfDisparities > 0 ? numberOfDisparities : ((target_image_size.width/8) + 15) & -16;
+	numberOfDisparities = 112;
+
+	// sgbm params
+
+	// sgbm is Semi Global Block Matching
+	sgbm->setPreFilterCap(63); 
+	int sgbmWinSize = SADWindowSize > 0 ? SADWindowSize : 3;
+	sgbm->setBlockSize(sgbmWinSize);
+
+	int cn = 1;//img1.channels();
+
+	sgbm->setP1(8*cn*sgbmWinSize*sgbmWinSize);
+	sgbm->setP2(32*cn*sgbmWinSize*sgbmWinSize);
+	sgbm->setMinDisparity(-10);//0
+	sgbm->setNumDisparities(160);//160//numberOfDisparities/////////////////
+	sgbm->setUniquenessRatio(50);//10
+	sgbm->setSpeckleWindowSize(10);//100
+	sgbm->setSpeckleRange(96);//32
+	sgbm->setDisp12MaxDiff(10);//1
+	sgbm->setMode(alg == STEREO_HH ? StereoSGBM::MODE_HH : StereoSGBM::MODE_SGBM);
+
+	/////////////////////
+
+}
+//// set parameters according to some recomandations 
+void myLocalDisparity::set_SGBM_params_options_2()
+{  
+
+	numberOfDisparities = numberOfDisparities > 0 ? numberOfDisparities : ((target_image_size.width/8) + 15) & -16;
+	numberOfDisparities = 112;
+
+	sgbm->setP1(600);   // 600
+	sgbm->setP2(2400); //2400
+	sgbm->setMinDisparity(-64);						// -64
+	sgbm->setNumDisparities(numberOfDisparities);//192
+	sgbm->setUniquenessRatio(1);	//1
+	sgbm->setSpeckleWindowSize(150);//150
+	sgbm->setSpeckleRange(2);//2
+	sgbm->setDisp12MaxDiff(10);//10
+	sgbm->setMode(alg == STEREO_HH ? StereoSGBM::MODE_HH : StereoSGBM::MODE_SGBM);
+	
+	/*
+	sgbm.SADWindowSize = 5;
+	sgbm.preFilterCap = 4;
+	sgbm.fullDP = false;*/
+	
+
+	/////////////////////
+
+}
+
+/////////////////////////////////////////////////////////////////////////
 
 int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
 {
@@ -356,22 +505,9 @@ int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
 			Right camera as img2
 	*/
 	img1 = imgL.clone();
-	img2 = imgR.clone();
-	//img1 = imgR.clone();
-	//img2 = imgL.clone();
+	img2 = imgR.clone(); 
 
-	// already checked before input..
-    //if (img1.empty())
-    //{
-    //    printf("Command-line parameter error: could not load the first (Left) input image file\n");
-    //    return -1;
-    //}
-    //if (img2.empty())
-    //{
-    //    printf("Command-line parameter error: could not load the second (Right) input image file\n");
-    //    return -1;
-    //}
-
+	// scale if image sizes are different then calibrated images resultion
  /*   if (scale != 1.f)
     {
         Mat temp1, temp2;
@@ -407,78 +543,15 @@ int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
 				
     }
 
-    numberOfDisparities = numberOfDisparities > 0 ? numberOfDisparities : ((img_size.width/8) + 15) & -16;
-	numberOfDisparities = 112;
-
-    bm->setROI1(roi1);
-    bm->setROI2(roi2);
-    bm->setPreFilterCap(31);
-    bm->setBlockSize(SADWindowSize > 0 ? SADWindowSize : 9);
-    bm->setMinDisparity(0);
-    bm->setNumDisparities(numberOfDisparities);
-    bm->setTextureThreshold(10);
-    bm->setUniquenessRatio(15);
-    bm->setSpeckleWindowSize(100);
-    bm->setSpeckleRange(32);
-    bm->setDisp12MaxDiff(1);
-
-	// from ref web site :..
-	/*
-	sbm.state->SADWindowSize = 9;
-	sbm.state->numberOfDisparities = 112;
-	sbm.state->preFilterSize = 5;
-	sbm.state->preFilterCap = 61;
-	sbm.state->minDisparity = -39;
-	sbm.state->textureThreshold = 507;
-	sbm.state->uniquenessRatio = 0;
-	sbm.state->speckleWindowSize = 0;
-	sbm.state->speckleRange = 8;
-	sbm.state->disp12MaxDiff = 1;
-	*/
-	//
-
-	// sgbm is Semi Global Block Matching
-    sgbm->setPreFilterCap(63); 
-	int sgbmWinSize = SADWindowSize > 0 ? SADWindowSize : 3;
-    sgbm->setBlockSize(sgbmWinSize);
-
-    int cn = img1.channels();
-
-    sgbm->setP1(8*cn*sgbmWinSize*sgbmWinSize);
-    sgbm->setP2(32*cn*sgbmWinSize*sgbmWinSize);
-    sgbm->setMinDisparity(-10);//0
-    sgbm->setNumDisparities(160);//160//numberOfDisparities/////////////////
-    sgbm->setUniquenessRatio(50);//10
-    sgbm->setSpeckleWindowSize(10);//100
-    sgbm->setSpeckleRange(96);//32
-    sgbm->setDisp12MaxDiff(10);//1
-    sgbm->setMode(alg == STEREO_HH ? StereoSGBM::MODE_HH : StereoSGBM::MODE_SGBM);
-
-	// from : http://www.jayrambhia.com/blog/disparity-maps/
-
-
-	//sgbm->setP1(600);   // 600
-	//sgbm->setP2(2400); //2400
-	//sgbm->setMinDisparity(-64);						// -64
-	//sgbm->setNumDisparities(numberOfDisparities);//192
-	//sgbm->setUniquenessRatio(1);	//1
-	//sgbm->setSpeckleWindowSize(150);//150
-	//sgbm->setSpeckleRange(2);//2
-	//sgbm->setDisp12MaxDiff(10);//10
-	//sgbm->setMode(alg == STEREO_HH ? StereoSGBM::MODE_HH : StereoSGBM::MODE_SGBM);
-/*
-	sgbm.SADWindowSize = 5;
-	sgbm.preFilterCap = 4;
-	sgbm.fullDP = false;
-*/
 
     Mat		disp;
 
     int64	t = getTickCount(); 
 
     if( alg == STEREO_BM ){
-		img1.convertTo(img1, CV_8UC1+CV_BGR2GRAY);
-		img2.convertTo(img2, CV_8UC1+CV_BGR2GRAY);
+		// connversion not needed because already gray and UINT8
+		//img1.convertTo(img1, CV_8UC1+CV_BGR2GRAY);
+		//img2.convertTo(img2, CV_8UC1+CV_BGR2GRAY);
 		
         bm->compute(img1, img2, disp);
 		}
@@ -486,7 +559,8 @@ int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
         sgbm->compute(img1, img2, disp);
 
     t = getTickCount() - t;
-  ////  printf("STEREO_BM/STEREO_SGBM Time elapsed: %fms\n\n", t*1000/getTickFrequency());
+  ////
+	printf("STEREO_BM/STEREO_SGBM Time elapsed: %fms\n\n", t*1000/getTickFrequency());
 
     //	disp = disp.colRange(numberOfDisparities, img1p.cols);
     if( alg != STEREO_VAR )
@@ -526,6 +600,9 @@ int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
     return 0;
 }
 
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 
 void myLocalDisparity::set_disparity_input(Mat inR, Mat inL, long relevantCycleCounter)
 {

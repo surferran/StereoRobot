@@ -60,6 +60,7 @@ public:
 	int				min_features				= 5;// depend on light conditions 10;//40//200; 
 	int				num_of_maxCornersFeatures	= 100;//300;
 	float			mid_level_percent			= 1.25;		//	1/1.25=80%
+	Size			flowSearchWinSize			=	Size(21,11);	//size(w,h)
 
 	int		alphaSlider       = 0;
 	int		alphaSlider2      = 0;
