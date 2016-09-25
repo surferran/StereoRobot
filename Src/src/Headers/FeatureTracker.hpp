@@ -15,6 +15,7 @@ using namespace std;
 
 //
 #include "working_consts.h"
+#include "Target.hpp"
 //
 
 const int		Nreads = 10;
@@ -33,8 +34,9 @@ private:
 
 	frameProperties prevImProp,
 					currentImProp
-					/*,firstImProp*/  ;
+					/*,firstImProp*/  ;	//no histoy furthere? 
 
+	Target			Target_obj;
 
 public:
 	Rect			TrackerROI; 
@@ -53,7 +55,6 @@ public:
 	double			TrkErrX_Readings[Nreads] ;
 	int				TrkErrX_readIndex = 0;
 
-
 	int				TrackPercent = 0;		// % of the feature points that has correspondance to the next/previous frame
     bool            freshStart = true;
     Mat_<float>     rigidTransform = Mat::eye(3,3,CV_32FC1); //affine 2x3 in a 3x3 matrix;
@@ -69,6 +70,9 @@ public:
 
 	int		alphaSlider_max=100;
 
+	Moments		m; 
+	Point		MassCenter;
+
 	/* functions */
 
     ///Tracker();
@@ -81,6 +85,7 @@ public:
 	// both imgTarget, imgROI should be of the same size.
 	void processImage(Mat inGray, Mat imgTarget,  SYSTEM_STATUS external_state, Rect Brect);
 	void processImage_x(Mat imgTarget,  SYSTEM_STATUS external_state);
+
 
 };
 

@@ -28,25 +28,25 @@
 /*******************************************************************************************/
 
 /*********  thread object  ********/
-#include "stereo_functions.hpp"		//set the disparity object (variables and functions)
+#include ".\Headers\myLocalDisparity.hpp"		//set the disparity object (variables and functions)
 myLocalDisparity localDisp;
 /**********************************/
 
-#include "frameFunctions.h"		// general definitions and functions. that's why it is first to include.
-#include "working_consts.h"		// my added definitions, constants
+#include ".\Headers\frameFunctions.h"		// general definitions and functions. that's why it is first to include.
+#include ".\Headers\working_consts.h"		// my added definitions, constants
 
 ///StereoCams		thisStereo;				// global 
 SYSTEM_STATUS	system_state = INITIALIZING ;
 Operation_flags	op_flags; //global
 
-#include "BackgroundSub.hpp"
-#include "OdroidC1_handlers\RobotController.h"
+#include ".\Headers\BackgroundSub.hpp"
+#include ".\OdroidC1_handlers\RobotController.h"
 
-#include "stereo_calib.h" 
-#include "FeatureTracker.hpp"
-#include "ImagesSourceHandler.h"
+#include ".\Headers\stereo_calib.h" 
+#include ".\Headers\FeatureTracker.hpp"
+#include ".\Headers\ImagesSourceHandler.h"
 /*********  GUI object  ********/
-#include "myGUI_handler.h"
+#include ".\Headers\myGUI_handler.h"
 myGUI_handler myGUI;				// class for displaying the images
 /*  ***************************  */
 
@@ -129,7 +129,11 @@ int main(int argc, char** argv)
 	double	avg_depth_of_ROI ;
 
 	Point	movementMassCenter, corected_MassCenter;
+	Mat		current_mask1,
+			current_mask2;
 	Mat		bgnd;
+
+	bool	gotNewDispImageToWorkWith = false;
 
 	/* end of variables */
 	
@@ -207,61 +211,6 @@ int main(int argc, char** argv)
 			//return 0;
 
 			////////////*////////////*////////////*////////////*////////////
-			////////////* get Disperity & DEPTH by Stereo */////////////// 
-			if (!RUN_ON_LAPTOP__MONO)
-			{
-				// calc disparity every 1, 2 frame
-				if ( relative_counter > (localDisp.calcDispEveryNcycles - 1) ) //10  
-				{ 
-					/* sends gray images */
-					cv::cvtColor(left_im_color , left_im_gray  , CV_BGR2GRAY);
-					cv::cvtColor(right_im_color, right_im_gray , CV_BGR2GRAY);
-
-					// delivers new input , when the process is waiting (not in calculation process)
-					localDisp.set_disparity_input(right_im_gray,left_im_gray, myStereoCams.GetFrameCycleCounter() );  
-					
-					/* if output is ready from disparity calculation , it returns true */
-					if ( localDisp.get_rectified_and_disparity(disp_temporary, disperity_struct) )  
-					{
-						myGUI.plotImages[2]    = disp_temporary;	// keep for display
-
-						/////////////
-						/* calculate average depth for the ROI of the target */
-						threshold (disp_temporary , modified_disperity_mat ,	50 ,	255,THRESH_TOZERO);/// THRESH_BINARY
-
-						avg_disperity_S = mean( modified_disperity_mat((tracker.current_trackingROI)) ) ;
-						avg_disperity	= avg_disperity_S[0];
-
-						localDisp.convert_disperity_value_to_depth(avg_disperity , avg_depth_of_ROI);
-						///			cout   << " avg_disperity " << avg_disperity  << " avg_depth_of_ROI " << avg_depth_of_ROI << endl;
-						////////////
-
-						/* displays */
-					/*	myGUI.display_rectified_pair( disperity_struct.imageSize , disperity_struct.rectR , disperity_struct.rectL, 
-														disperity_struct.validROI1 , disperity_struct.validROI2 , 
-															disperity_struct.originalyGivenframeCycle );
-*/
-						imshow(myGUI.plotWindowsNames[2],  myGUI.plotImages[2]);
-
-						lastDepthImg		= modified_disperity_mat.clone();
-
-						int an=3;	//an=1->kernel of 3
-						Mat element = getStructuringElement(MORPH_RECT, Size(an*2+1, an*2+1), Point(an, an) );
-						medianBlur	(lastDepthImg,	lastDepthImg,	9);//9//3
-						erode		(lastDepthImg , lastDepthImg, element);									
-						dilate		(lastDepthImg,	lastDepthImg, element);
-						Mat depthMask = lastDepthImg.clone();
-
-						imshow ( myGUI.plotWindowsNames[7], lastDepthImg);
-						///cvtColor(depthMask	, depthMask , COLOR_BGR2GRAY);
-
-						request_water_shed	= true;			//segmentation
-						 
-					}
-					relative_counter	=	0;
-				}
-			}
-			////////////* get Disperity & DEPTH by stereo *///////////////
 			////////////*////////////*////////////*////////////*////////////
 
 			//enum SYSTEM_STATUS{
@@ -283,7 +232,8 @@ int main(int argc, char** argv)
 
 					/* run BackGroundSubs as long as searching for GoodTarget (system_state is FOUND_GOOD_TARGET) */
 					
-					localBackSubs.find_forgnd( left_im_color(BckgndSubROI) , &movementMassCenter ) ; //// synthesize target by movement
+/* *********** */	localBackSubs.find_forgnd( left_im_color(BckgndSubROI) , &movementMassCenter ) ; //// synthesize target by movement
+
 					if (system_state <= STANDBY) /// INITIALIZING)
 					{
 						if (myStereoCams.GetUserRepeatFlag())
@@ -297,74 +247,93 @@ int main(int argc, char** argv)
 					}
 
 					//else	// system_state == FOUND_SOME_MOVEMENT
-					
-					corected_MassCenter = Point(movementMassCenter.x + BckgndSubROI.x,  movementMassCenter.y + BckgndSubROI.y);
-					////actually not needed .. makeContours(localBackSubs.get_foreground_mat()); 
-											
-					left_im_color.copyTo		//left_im_color.(localBackSubs.get_foreground_boundRect())
-										( potential_target, localBackSubs.get_foreground_mat() ) ;
+
+				case FOUND_GOOD_TARGET:
+
+					////////////* get Disperity & DEPTH by Stereo */////////////// 
+					if (!RUN_ON_LAPTOP__MONO)
+					{
+						// calc disparity every 1, 2 frame
+						if (
+							(relative_counter > (localDisp.calcDispEveryNcycles - 1)) &&    //10  
+							(system_state > STANDBY) 
+							) 
+						{ 
+							/* sends gray images */
+							cv::cvtColor(left_im_color , left_im_gray  , CV_BGR2GRAY);
+							cv::cvtColor(right_im_color, right_im_gray , CV_BGR2GRAY);
+
+							// delivers new input , when the process is waiting (not in calculation process)
+/* *********** */			localDisp.set_disparity_input(right_im_gray,left_im_gray, myStereoCams.GetFrameCycleCounter() );  
+
+							/* if output is ready from disparity calculation , it returns true */
+/* *********** */			if ( localDisp.get_rectified_and_disparity(disp_temporary, disperity_struct) )  
+							{
+								//myGUI.plotImages[2]    = disp_temporary;	// keep for display
+
+																			/////////////
+																			/* calculate average depth for the ROI of the target */
+								threshold (disp_temporary , modified_disperity_mat ,	50 ,	255,THRESH_TOZERO);/// THRESH_BINARY
+
+								avg_disperity_S = mean( modified_disperity_mat((tracker.current_trackingROI)) ) ;
+								avg_disperity	= avg_disperity_S[0];
+
+								localDisp.convert_disperity_value_to_depth(avg_disperity , avg_depth_of_ROI);
+								///			cout   << " avg_disperity " << avg_disperity  << " avg_depth_of_ROI " << avg_depth_of_ROI << endl;
+
+								lastDepthImg		= modified_disperity_mat.clone();
+
+								int an=3;	//an=1->kernel of 3
+								Mat element = getStructuringElement(MORPH_RECT, Size(an*2+1, an*2+1), Point(an, an) );
+								medianBlur	(lastDepthImg,	lastDepthImg,	9);//9//3
+								erode		(lastDepthImg , lastDepthImg, element);									
+								dilate		(lastDepthImg,	lastDepthImg, element);
+								//Mat depthMask = lastDepthImg.clone();
+
+								avg_disperity	= mean( lastDepthImg )[0];
+								localDisp.convert_disperity_value_to_depth(avg_disperity , avg_depth_of_ROI);
+
+								imshow ( myGUI.plotWindowsNames[3], lastDepthImg ); 
+
+								gotNewDispImageToWorkWith = true; 
+							}
+							else
+							{
+								if (myStereoCams.GetUserRepeatFlag())
+								{
+									myStereoCams.ToggleDisableFramesCapture();
+								}
+								int c2 = waitKey(loop_delay);
+								if (c2==27)
+									break;
+								continue;
+							}
+							relative_counter	=	0;
+						}
+					}
+					////////////* end of -get Disperity & DEPTH by stereo *///////////////
+
+					corected_MassCenter = Point(movementMassCenter.x + BckgndSubROI.x,  movementMassCenter.y + BckgndSubROI.y); 
+
+					current_mask1 = localBackSubs.get_foreground_mat() ; 
+					current_mask1.copyTo (current_mask2, lastDepthImg ) ;		//2nd mask , composing together
+
+					left_im_color.copyTo ( potential_target, current_mask2 ) ;	//foreground is a region mask 
+					//potential_target.copyTo ( potential_target, lastDepthImg ) ;					//lastDepthImg is a 2nd region mask 
+
 					tracker.processImage(left_im_gray, potential_target, system_state , localBackSubs.get_foreground_boundRect() );
 
 					circle(potential_target, corected_MassCenter, 4, Scalar(0, 255, 255), -1, 8, 0);
-					imshow(myGUI.plotWindowsNames[8], potential_target);
+					circle(potential_target, tracker.MassCenter, 4, Scalar(0, 255, 255), -1, 4, 0);
+
+					imshow(myGUI.plotWindowsNames[4], potential_target);//8
 					 
 					break;
 
-				case FOUND_GOOD_TARGET:
-					break;
+				//case FOUND_GOOD_TARGET:
+			//		break;
 			}				
 
-			////////////////////////////////////////////////
-			//			tracking part (by 'goodFeatures')
-			if ( system_state == FOUND_GOOD_TARGET )
-			{
-				Mat mat1 = localBackSubs.get_the_background_average() ;
-				Mat mat2 = localBackSubs.get_foreground_mat() ;
-				Mat bgndDiff ;
-				//bgndDiff = mat1  -  mat2 ;
-				//imshow("BackSubs bg-fg diff",bgndDiff); //debugging
-
-				bgndDiff = mat1  -  left_im_color ;
-				///imshow("BackSubs bg-current diff",bgndDiff); //debugging
-
-				//if ( request_water_shed )
-				//{
-				//	WSH.calculate_the_watershed(lastDepthImg);//    localBackSubs.get_foreground_mat());
-				//	request_water_shed = false;
-				//}
-				////consider GrabCut because input is spreaded points , and not curves
-
-				// want to init and lock the tracker
-				// get the feature points of the target from the BackgroundSubs ROI
-				Mat tracked_target_image;
-				Rect corrected_ROI = Rect(	BckgndSubROI.x  + localBackSubs.get_foreground_boundRect().x ,
-											BckgndSubROI.y  + localBackSubs.get_foreground_boundRect().y ,
-											localBackSubs.get_foreground_boundRect().width ,
-											localBackSubs.get_foreground_boundRect().height ) ;
-
-				/* keep also original target depth image */
-				if (!RUN_ON_LAPTOP__MONO)
-				{
-					myGUI.plotImages[5] = myGUI.plotImages[2]  ;	//last depth
-
-					myGUI.plotImages[5](BckgndSubROI).copyTo(myGUI.plotImages[6], localBackSubs.get_foreground_mat() );
-					imshow(myGUI.plotWindowsNames[5],  myGUI.plotImages[5]);
-					imshow(myGUI.plotWindowsNames[6],  myGUI.plotImages[6]);
-				}
-				left_im_color(corrected_ROI).copyTo(tracked_target_image);
-				imshow("tracked Target start", tracked_target_image) ; // show 4 debug  only
-
-				tracker.setNewTarget(corrected_ROI, tracked_target_image, TrackingROI);
-
-				// get smooth disparity and 
-				//TODO: clean the far points - disperity + watershed
-
-				if ( request_water_shed )
-				{
-					//WSH.calculate_the_watershed(lastDepthImg);//    localBackSubs.get_foreground_mat());
-					//request_water_shed = false;
-				}
-			}
 			Point2f targetCenter ;
 
 			////////////// added graphics section ///////////
@@ -377,8 +346,10 @@ int main(int argc, char** argv)
 
 				// TODO: test source of track errors, from BackgroundSubs, or Tracker
 			///	add_Cross_to_Image(tracker.TrkErrX  ,  left_im_color.size().height/2  , 
-				myGUI.add_Cross_to_Image(targetCenter.x  ,  targetCenter.y  , 
-										false, system_state , left_im_color); // 120h,160w , with no coor. label
+				targetCenter	=	tracker.MassCenter;
+				if (system_state >= FOUND_GOOD_TARGET) 
+					myGUI.add_Cross_to_Image(targetCenter.x  ,  targetCenter.y  , 
+											false, system_state , left_im_color); // 120h,160w , with no coor. label
 					
 			}
 				
@@ -393,6 +364,10 @@ int main(int argc, char** argv)
 			imshow(myGUI.plotWindowsNames[1],	left_im_color);
 			 
 		}
+
+		/////////////////////////////////////////////////////////////////////
+		/////////////////////////////////////////////////////////////////////
+		/////////////////////////////////////////////////////////////////////
 /*
 		if (myStereoCams.GetUserRepeatFlag())
 		{
