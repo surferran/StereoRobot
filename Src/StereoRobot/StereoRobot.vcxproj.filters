@@ -30,34 +30,37 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\src\frameFunctions.h">
+    <ClInclude Include="..\src\Headers\Target.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Headers\BackgroundSub.hpp">
+      <Filter>Header Files\algorithms</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Headers\FeatureTracker.hpp">
+      <Filter>Header Files\algorithms</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Headers\myLocalDisparity.hpp">
+      <Filter>Header Files\algorithms</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Headers\stereo_calib.h">
+      <Filter>Header Files\algorithms</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Headers\working_consts.h">
       <Filter>Header Files\general</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\working_consts.h">
+    <ClInclude Include="..\src\Headers\frameFunctions.h">
       <Filter>Header Files\general</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\OdroidC1_handlers\pwm.h">
+    <ClInclude Include="..\src\Headers\myGUI_handler.h">
       <Filter>Header Files\hardware</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\ImagesSourceHandler.h">
-      <Filter>Header Files\hardware</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\FeatureTracker.hpp">
-      <Filter>Header Files\algorithms</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\stereo_calib.h">
-      <Filter>Header Files\algorithms</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\stereo_functions.hpp">
-      <Filter>Header Files\algorithms</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\BackgroundSub.hpp">
-      <Filter>Header Files\algorithms</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\myGUI_handler.h">
+    <ClInclude Include="..\src\Headers\ImagesSourceHandler.h">
       <Filter>Header Files\hardware</Filter>
     </ClInclude>
     <ClInclude Include="..\src\OdroidC1_handlers\RobotController.h">
+      <Filter>Header Files\hardware</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\OdroidC1_handlers\pwm.h">
       <Filter>Header Files\hardware</Filter>
     </ClInclude>
   </ItemGroup>
@@ -66,19 +69,28 @@
     <ClCompile Include="..\src\OdroidC1_handlers\pwm.cpp">
       <Filter>Source Files\hardware</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ImagesSourceHandler.cpp">
+    <ClCompile Include="..\src\OdroidC1_handlers\RobotController.cpp">
       <Filter>Source Files\hardware</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\FeatureTracker.cpp">
+    <ClCompile Include="..\src\Sources\Target.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Sources\myLocalDisparity.cpp">
       <Filter>Source Files\algorithms</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\showManyImages.cpp">
+    <ClCompile Include="..\src\Sources\BackgroundSub.cpp">
+      <Filter>Source Files\algorithms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Sources\FeatureTracker.cpp">
+      <Filter>Source Files\algorithms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Sources\ImagesSourceHandler.cpp">
       <Filter>Source Files\hardware</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\myGUI_handler.cpp">
+    <ClCompile Include="..\src\Sources\myGUI_handler.cpp">
       <Filter>Source Files\hardware</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\OdroidC1_handlers\RobotController.cpp">
+    <ClCompile Include="..\src\Sources\showManyImages.cpp">
       <Filter>Source Files\hardware</Filter>
     </ClCompile>
   </ItemGroup>
