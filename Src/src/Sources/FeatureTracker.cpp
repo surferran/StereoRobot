@@ -103,7 +103,10 @@ void Tracker::processImage(Mat inputGrayIm, Mat newImage,  StereoRobotApp::SYSTE
 		}
 		
 		if (prevImProp.goodFeatures.size()==0)
-			return;		// describe error / lost
+		{
+			prevImProp		= currentImProp ;
+			return;		// describe error / lost	?
+		}
 
 		// find connection between 2 images
 		vector<Point2f> newFlowFeatures;  

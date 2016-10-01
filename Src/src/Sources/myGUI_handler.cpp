@@ -394,7 +394,7 @@ void myGUI_handler::add_counterFrame(Mat &inImage, long * frameNum)
 {
 
 	putText(inImage,"input frame counter (" + _longToString(*frameNum)+")",
-		Point(15, inImage.size().height - 15 ),1,0.51,Scalar(255,0,0),1);
+		Point(15, inImage.size().height - 15 ),1,0.75,Scalar(155,0,0),2);
 
 }
 

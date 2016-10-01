@@ -43,6 +43,8 @@ public:
 	void convert_disperity_value_to_depth(double in_disp, double & out_depth);
 	void convert_disperity_Mat_to_depth(Mat in_disp, Mat & out_depth);
 
+	void get_filtered_disparity(Mat &dispOut, int *avg_Depth);
+
 	int calcDispEveryNcycles = 1;//3;
 
 	int calcuatedRequestsCounter = 0;
@@ -122,5 +124,7 @@ private:
 
 	Mat						last_result_of_disparity,
 							filtered_disparity;
+	double					last_disparity_min_depth;
 	rectification_outputs	last_result_of_disparity_struct;
+
 };

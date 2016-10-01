@@ -103,6 +103,8 @@ int Depth_and_Disparity::stereo_match_and_disparity_init(int argc, char** argv, 
 
 	target_image_size		=	img_size;
 
+	last_disparity_min_depth= 0;
+
     for( int i = 1+2; i < argc; i++ )
     {
         //if( argv[i][0] != '-' )
@@ -609,9 +611,17 @@ bool Depth_and_Disparity::calc_disperity(int desiredPhase, Mat in_left_clr, Mat 
 		//max disperity into avg_disp var
 		minMaxLoc(filtered_disparity, 0, &avg_disperity ); 
 		convert_disperity_value_to_depth(avg_disperity , *avg_depth_of_ROI);	
+		last_disparity_min_depth = *avg_depth_of_ROI;
 	}
 	
 	*disperity_out = filtered_disparity.clone() ;
 	
 	return true;	// set as SUCCESS system enum
+}
+
+
+void Depth_and_Disparity::get_filtered_disparity(Mat &dispOut, int *avg_Depth)
+{
+	dispOut		= filtered_disparity.clone();
+	*avg_Depth	= (int)last_disparity_min_depth;
 }

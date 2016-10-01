@@ -117,7 +117,12 @@ int main(int argc, char** argv)
 	bool	gotNewDispImageToWorkWith = false;
 
 	myMatQueue<Mat>		matQueue;
-	myMatQueue<double>	doubleQueue;
+	myMatQueue<double>	doubleQueue;					
+	
+	Mat featTrackMask1, 
+		featTrackMask2,
+		featTrackMask;		//M1 & M2 -> M
+
 	/* end of variables */
 	
 	////////////// initializations ///////////
@@ -202,46 +207,52 @@ int main(int argc, char** argv)
 					break;
 
 				case StereoRobotApp::FOUND_SOME_MOVEMENT:
+					/************************bgSubt************************/
 /* *********** */	//localBackSubs.find_forgnd( left_im_color(BckgndSubROI) , &movementMassCenter ) ; //// synthesize target by movement
-
-/*					localDisp.calc_disperity(1, left_im_color, right_im_color, &disp_temporary , &avg_depth_of_ROI );
-					imshow ( myGUI.plotWindowsNames[7], disp_temporary ); */
-
-					localDisp.calc_disperity(3, left_im_color, right_im_color, &disp_temporary , &last_depth_of_ROI );  //2 , when 1 above
-							
-					///imshow ( myGUI.plotWindowsNames[3], disp_temporary ); 
-					/////////////
-					matQueue.populateNextElementInArray(disp_temporary);
-					///matQueue.getAvgElement(&disp_temporary);
-					///imshow ( myGUI.plotWindowsNames[5], disp_temporary ); 
-					/////////////
+					/************************disp************************/
+/* *********** */	localDisp.calc_disperity(3, left_im_color, right_im_color, &disp_temporary , &last_depth_of_ROI );  //2 , when 1 above
+							 
+					matQueue.populateNextElementInArray(disp_temporary); 
 					matQueue.getSumElement(&disp_temporary);
 
 					doubleQueue.populateNextElementInArray(last_depth_of_ROI);
 					doubleQueue.getAvgElement(&avg_depth_of_ROI);
+					 
+					/********************feat.tracker****************************/
 
-					imshow ( myGUI.plotWindowsNames[3], disp_temporary );	//win[7]
-					//myGUI.add_distance_to_disparityIM(last_depth_of_ROI, &disp_temporary);
+					int depth;		// rounded to [cm]
+					//featTrackMask1 = localBackSubs.get_foreground_mat();
+					localDisp.get_filtered_disparity(featTrackMask2, &depth);
+					//featTrackMask1.copyTo (featTrackMask, featTrackMask2 ) ;	// output is featTrackMask	
+
+					cv::cvtColor(left_im_color , left_im_gray  , CV_BGR2GRAY);
+					cv::cvtColor(right_im_color, right_im_gray , CV_BGR2GRAY);
+
+
+					left_im_color.copyTo ( first_target.potential_target, featTrackMask2 ) ;	//foreground is a region mask 
+																							//potential_target.copyTo ( potential_target, lastDepthImg ) ;					//lastDepthImg is a 2nd region mask 
+
+					tracker.processImage(left_im_gray, first_target.potential_target, system_state , localBackSubs.get_foreground_boundRect() );
+
+					circle(first_target.potential_target, corected_MassCenter, 4, Scalar(255, 155, 55), -1, 8, 0);
+					circle(first_target.potential_target, tracker.MassCenter, 4, Scalar(0, 255, 255), -1, 4, 0);	//yellow point.
+
+					imshow(myGUI.plotWindowsNames[4], first_target.potential_target);//8
+
+					/************************************************/
+					
 					myGUI.add_distance_to_disparityIM(avg_depth_of_ROI, disp_temporary);
 
-					imshow ( myGUI.plotWindowsNames[4], disp_temporary );	//win[7]
+					imshow ( myGUI.plotWindowsNames[3], disp_temporary );	 
+					
 
+					if (tracker.Tracker_State == Tracker::TRACKER_TRACKING)
+						system_state = StereoRobotApp::FOUND_GOOD_TARGET;
+					
 					break;
 
 				case StereoRobotApp::FOUND_GOOD_TARGET:
-
-					//////////////* get Disperity & DEPTH by Stereo */////////////// 
-					//// calc disparity every 1, 2 frame
-					//if (
-					//	(relative_counter > (localDisp.calcDispEveryNcycles - 1)) &&    //10  
-					//	( (system_state > StereoRobotApp::STANDBY) || (raw_sensors_run) )
-					//	) 
-					//	if (!RUN_ON_LAPTOP__MONO)
-					//	{
-					//		localDisp.calc_disperity(left_im_color, left_im_gray, out_disp, out_mean_depth);
-					//	}
-					//////////////* end of - get Disperity & DEPTH by stereo *///////////////
-
+	
 					corected_MassCenter = Point(movementMassCenter.x + BckgndSubROI.x,  movementMassCenter.y + BckgndSubROI.y); 
 
 					current_mask1 = localBackSubs.get_foreground_mat() ; 
@@ -309,7 +320,7 @@ int main(int argc, char** argv)
 		}
 
 		/////////////////////////////////////////////////////////////////////
-		/////////////////////////////////////////////////////////////////////
+		///////////////////////user response handling////////////////////////
 		/////////////////////////////////////////////////////////////////////
 /*
 		if (myStereoCams.GetUserRepeatFlag())
@@ -352,10 +363,7 @@ int main(int argc, char** argv)
 		}
 
 		if (c==27)
-			break;
-		/////cout << " c " << (int)c <<endl;
-		//if (!check_user_input(&loop_delay, &user_pressing))
-			//break;
+			break; 
 	}
 	
 	return 0;
