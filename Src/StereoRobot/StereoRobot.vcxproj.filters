@@ -28,6 +28,9 @@
     <Filter Include="Source Files\algorithms">
       <UniqueIdentifier>{b6ce07c0-3172-46e7-b80c-62abe2d81e43}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\general">
+      <UniqueIdentifier>{011e5d0c-ff38-4393-b595-f665a8f5013b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\Headers\Target.hpp">
@@ -39,14 +42,8 @@
     <ClInclude Include="..\src\Headers\FeatureTracker.hpp">
       <Filter>Header Files\algorithms</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Headers\myLocalDisparity.hpp">
-      <Filter>Header Files\algorithms</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\Headers\stereo_calib.h">
       <Filter>Header Files\algorithms</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\Headers\working_consts.h">
-      <Filter>Header Files\general</Filter>
     </ClInclude>
     <ClInclude Include="..\src\Headers\frameFunctions.h">
       <Filter>Header Files\general</Filter>
@@ -54,14 +51,20 @@
     <ClInclude Include="..\src\Headers\myGUI_handler.h">
       <Filter>Header Files\hardware</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Headers\ImagesSourceHandler.h">
-      <Filter>Header Files\hardware</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\OdroidC1_handlers\RobotController.h">
       <Filter>Header Files\hardware</Filter>
     </ClInclude>
     <ClInclude Include="..\src\OdroidC1_handlers\pwm.h">
       <Filter>Header Files\hardware</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Headers\ImagesSourceHandler.h">
+      <Filter>Header Files\hardware</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Headers\StereoRobotApp.hpp">
+      <Filter>Header Files\general</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Headers\Depth_and_Disparity.hpp">
+      <Filter>Header Files\algorithms</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -74,9 +77,6 @@
     </ClCompile>
     <ClCompile Include="..\src\Sources\Target.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\Sources\myLocalDisparity.cpp">
-      <Filter>Source Files\algorithms</Filter>
     </ClCompile>
     <ClCompile Include="..\src\Sources\BackgroundSub.cpp">
       <Filter>Source Files\algorithms</Filter>
@@ -93,8 +93,15 @@
     <ClCompile Include="..\src\Sources\showManyImages.cpp">
       <Filter>Source Files\hardware</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\Sources\StereoRobotApp.cpp">
+      <Filter>Source Files\general</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Sources\Depth_and_Disparity.cpp">
+      <Filter>Source Files\algorithms</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="ClassDiagram.cd" />
+    <None Include="ClassDiagram1.cd" />
   </ItemGroup>
 </Project>

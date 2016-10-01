@@ -16,7 +16,7 @@
 using namespace cv;
 
 extern myGUI_handler	myGUI ;
-extern SYSTEM_STATUS	system_state ;
+extern StereoRobotApp::SYSTEM_STATUS	system_state ;
 
 /*************************************************************************************/
 /******************************    Header section    *********************************/
@@ -25,15 +25,23 @@ class BackSubs
 {
 public:
 
-	BackSubs(){};
+	BackSubs();
+
+	enum BgSubt_STATE {
+		INITIALIZING	=	0,
+		STANDING_BY		=	1,
+		FOUND_MOVEMENT	=	2
+	} BgSubt_Status ;
+
 	int		show_forgnd_and_bgnd_init(int a); 
 
-	int		find_forgnd(Mat frame, Point *movementMassCenter);
+	void	find_forgnd(Mat frame, Point *movementMassCenter);
 
 	Mat		get_foreground_mat()		{ return foreground.clone() ; } ;
 	Rect	get_foreground_boundRect()	{ return boundRect			; } ;
 	Point	get_foreground_center()		{ return MassCenter			; } ;
 	Mat		get_the_background_average(){ mog->getBackgroundImage(backgroundAvg) ; return backgroundAvg; } ;
+
 	 
 private:
 

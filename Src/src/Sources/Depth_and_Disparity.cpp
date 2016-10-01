@@ -1,18 +1,24 @@
 /*
- *  myLocalDisparity.cpp 
+ *  Depth_and_Disparity.cpp 
  */
 
-#include "..\Headers\myLocalDisparity.hpp"
+////#define COPMILING_ON_ROBOT
+
+#ifdef COMPILING_ON_ROBOT
+#include "Depth_and_Disparity.hpp"
+#else
+#include "..\Headers\Depth_and_Disparity.hpp"
+#endif
 
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-myLocalDisparity::myLocalDisparity():
+Depth_and_Disparity::Depth_and_Disparity():
 	/* initializing , and executing the thread */
-	stereoIm_thrd(&myLocalDisparity::thread_loop_function,this)  
+	stereoIm_thrd(&Depth_and_Disparity::thread_loop_function,this)  
 {}
 
-myLocalDisparity :: ~myLocalDisparity()
+Depth_and_Disparity :: ~Depth_and_Disparity()
 {
 	exit = true;
 	stereoIm_thrd.join();
@@ -20,12 +26,13 @@ myLocalDisparity :: ~myLocalDisparity()
 
 /////////////////////////////////////////////////////////////////////////
 
-void myLocalDisparity::thread_loop_function() {
+void Depth_and_Disparity::thread_loop_function() {
 
 	int		argc;
 	char*	argv[11];  
-	
-	Size imgSize= Size(working_FRAME_WIDTH,	working_FRAME_HIGHT);	// desired resolution for the images, same as in ImageSourceHandler 
+	StereoRobotApp obj;
+
+	Size imgSize= Size(obj.working_FRAME_WIDTH,	obj.working_FRAME_HIGHT);	// desired resolution for the images, same as in ImageSourceHandler 
 
 
 	argc = 8;//11;
@@ -78,7 +85,7 @@ void myLocalDisparity::thread_loop_function() {
 
 /////////////////////////////////////////////////////////////////////////
 
-int myLocalDisparity::stereo_match_and_disparity_init(int argc, char** argv,  Size img_size)
+int Depth_and_Disparity::stereo_match_and_disparity_init(int argc, char** argv,  Size img_size)
 {  
 	if(argc < 3)  
     { 
@@ -251,7 +258,7 @@ int myLocalDisparity::stereo_match_and_disparity_init(int argc, char** argv,  Si
 }
 
 //// set parameters according to some recomandations 
-void myLocalDisparity::set_BM_params_options_1()
+void Depth_and_Disparity::set_BM_params_options_1()
 {  
 
 	numberOfDisparities = numberOfDisparities > 0 ? numberOfDisparities : ((target_image_size.width/8) + 15) & -16;
@@ -275,7 +282,7 @@ void myLocalDisparity::set_BM_params_options_1()
 }
 
 //// set parameters according to some recomandations 
-void myLocalDisparity::set_BM_params_options_2()
+void Depth_and_Disparity::set_BM_params_options_2()
 {  
 
 	set_BM_params_options_1();
@@ -301,10 +308,9 @@ void myLocalDisparity::set_BM_params_options_2()
 
 
 //// set parameters according to some recomandations 
-void myLocalDisparity::set_BM_params_options_3()
-{  
-	numberOfDisparities	=	12;//8;		//128		//	/8->48 
-	numberOfDisparities	=	  ((target_image_size.width/8) + 15) & -16;   //  /8..-> 48,   /8/4.. -> 16 disperities
+void Depth_and_Disparity::set_BM_params_options_3()
+{   
+	///numberOfDisparities	=	  ((target_image_size.width/8) + 15) & -16;   //  /8..-> 48,   /8/4.. -> 16 disperities
 	numberOfDisparities	=	  ((target_image_size.width/8)*3 + 15) & -16;   // -> 128 disperities
 
 	bm->setPreFilterSize	( 41 );
@@ -325,7 +331,7 @@ void myLocalDisparity::set_BM_params_options_3()
 }
 
 //// set parameters according to some recomandations 
-void myLocalDisparity::set_SGBM_params_options_1()
+void Depth_and_Disparity::set_SGBM_params_options_1()
 {  
 
 	numberOfDisparities = numberOfDisparities > 0 ? numberOfDisparities : ((target_image_size.width/8) + 15) & -16;
@@ -354,7 +360,7 @@ void myLocalDisparity::set_SGBM_params_options_1()
 
 }
 //// set parameters according to some recomandations 
-void myLocalDisparity::set_SGBM_params_options_2()
+void Depth_and_Disparity::set_SGBM_params_options_2()
 {  
 
 	numberOfDisparities = numberOfDisparities > 0 ? numberOfDisparities : ((target_image_size.width/8) + 15) & -16;
@@ -382,7 +388,7 @@ void myLocalDisparity::set_SGBM_params_options_2()
 
 /////////////////////////////////////////////////////////////////////////
 
-int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
+int Depth_and_Disparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
 {
 	ready_disparity_result  = false;	// runover current unused previous result. if any.
 	/* 
@@ -490,7 +496,7 @@ int myLocalDisparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-void myLocalDisparity::set_disparity_input(Mat inR, Mat inL, long relevantCycleCounter)
+void Depth_and_Disparity::set_disparity_input(Mat inR, Mat inL, long relevantCycleCounter)
 {
 //	mut.lock();	//?
 	if ((!calculating_disparity) && (!ready_disparity_result))	//TODO : check also for used_result?
@@ -503,7 +509,7 @@ void myLocalDisparity::set_disparity_input(Mat inR, Mat inL, long relevantCycleC
 //	mut.unlock();//?
 }
 
-bool myLocalDisparity::get_rectified_and_disparity(Mat& disp_output, rectification_outputs& rectified_vars)
+bool Depth_and_Disparity::get_rectified_and_disparity(Mat& disp_output, rectification_outputs& rectified_vars)
 {
 ///	mut.lock();	//?
 	if (ready_disparity_result)	// TODO: verify - not another match in process?
@@ -525,14 +531,14 @@ bool myLocalDisparity::get_rectified_and_disparity(Mat& disp_output, rectificati
 }
 
 
-void myLocalDisparity::convert_disperity_value_to_depth(double in_disp, double & out_depth)
+void Depth_and_Disparity::convert_disperity_value_to_depth(double in_disp, double & out_depth)
 {
 
 	// manual settings
 	double camera_Base     = 0.06 ; //[m]
 	double Focal_lenght    = 375 ;	//[pix]
 	double constant_offset = 0;		//[m] 
-	double scale_factor    = 67.852222393615605;/// as 1/W 	// homogenic depth (Z/w) to real depth (Z) by *1/w
+	double scale_factor    = 255;//67.852222393615605;/// as 1/W 	// homogenic depth (Z/w) to real depth (Z) by *1/w
 
 	//perspectiveTransform?
 
@@ -544,4 +550,68 @@ void myLocalDisparity::convert_disperity_value_to_depth(double in_disp, double &
 
 	// add by 	perspectiveTransform ?
 
+}
+
+void Depth_and_Disparity::convert_disperity_Mat_to_depth(Mat in_disp, Mat & out_depth)
+{
+	reprojectImageTo3D(in_disp, out_depth, Q, true); 
+	//Vec3f point_middle = xyz_again.at<Vec3f>(xyz_again.rows/2, xyz_again.cols/2);
+	//printf("\n\n middle point relative coor. are: %f %f %f \n\n", point_middle.val[0],point_middle.val[1],point_middle.val[2]);
+}
+
+///////////////////////////
+/* desiredPhase :
+	1 - return raw disparity
+	2 - return only filtered disparity for last captured disparity
+	3 - make the whole process - calculate disparity and return the filtered one
+*/
+bool Depth_and_Disparity::calc_disperity(int desiredPhase, Mat in_left_clr, Mat in_right_clr, 
+											Mat *disperity_out, double *avg_depth_of_ROI)
+{
+	Mat						left_im_gray, right_im_gray;
+	double					avg_disperity;
+
+	if ( ! (desiredPhase==2) )		//calculate the new disparity for new inputs
+	{
+		/* sends gray images */
+		cv::cvtColor(in_left_clr , left_im_gray  , CV_BGR2GRAY);
+		cv::cvtColor(in_right_clr, right_im_gray , CV_BGR2GRAY);
+
+		// delivers new input , when the process is waiting (not in calculation process)
+		set_disparity_input(right_im_gray,left_im_gray, /*myStereoCams.GetFrameCycleCounter()*/ 1 );  
+
+		// waiting trial : 
+		while (! get_rectified_and_disparity(last_result_of_disparity, last_result_of_disparity_struct) )  
+		{
+		}
+
+		if ((desiredPhase==1))
+		{
+			*disperity_out = last_result_of_disparity.clone() ;
+			return true;
+		}
+	}
+	// continue to give the filtered disparity (for the new or the last calculated)
+
+	/* if output is ready from disparity calculation , it returns true */
+	/* *********** */			
+	//if ( localDisp.get_rectified_and_disparity(disp_temporary, disperity_struct) )  
+	{
+		/* calculate average depth for the ROI of the target */ 
+		threshold (last_result_of_disparity , filtered_disparity ,	35 ,	255,THRESH_TOZERO);		 //50
+
+		int an=3;	//an=1->kernel of 3
+		Mat element = getStructuringElement(MORPH_RECT, Size(an*2+1, an*2+1), Point(an, an) );
+		medianBlur	(filtered_disparity,	filtered_disparity,	9);//9//3
+		erode		(filtered_disparity ,	filtered_disparity, element);									
+		dilate		(filtered_disparity,	filtered_disparity, element); 
+
+		//max disperity into avg_disp var
+		minMaxLoc(filtered_disparity, 0, &avg_disperity ); 
+		convert_disperity_value_to_depth(avg_disperity , *avg_depth_of_ROI);	
+	}
+	
+	*disperity_out = filtered_disparity.clone() ;
+	
+	return true;	// set as SUCCESS system enum
 }

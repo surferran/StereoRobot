@@ -1,10 +1,13 @@
 
-#ifndef IMAGESSOURCEHANDLER_H_
-#define IMAGESSOURCEHANDLER_H_
+#ifndef IMAGESSOURCEHANDLER_Hpp_
+#define IMAGESSOURCEHANDLER_Hpp_
+
+#include "StereoRobotApp.hpp"
 
 #include "opencv2/opencv.hpp" 
+ 
 
-#include "working_consts.h"		// my added definitions, constants
+extern StereoRobotApp myCApp;
 
 using namespace cv;
 
@@ -16,7 +19,7 @@ using namespace cv;
 ////#define RUN_ON_LAPTOP__MONO 
 
 #ifdef COMPILING_ON_ROBOT
-#define ACTIVE_CAMS_NUM			2
+#define ACTIVE_CAMS_NUM			2 
 #define LEFT_CAMERA_INDEX		1		// depends on platform. 0 index is the default camera.
 #define RIGHT_CAMERA_INDEX		0
 
@@ -33,12 +36,13 @@ using namespace cv;
 
 #define RUN_ON_LAPTOP__MONO		false     
 #define ACTIVE_CAMS_NUM			2
-#define LEFT_CAMERA_INDEX		2		// depends on platform. 0 index is the default camera.
-#define RIGHT_CAMERA_INDEX		1
+#define LEFT_CAMERA_INDEX		1		// depends on platform. 0 index is the default camera. 0 or 2 value
+#define RIGHT_CAMERA_INDEX		2		// 2 or 1
 
 #endif
 
 #endif
+ 
 
 class ImagesSourceHandler 
 {
@@ -47,15 +51,15 @@ private:
 	VideoCapture	vidR,		// handles the Hardware right camera
 					vidL;		// handles the Hardware left camera
 
-	const int		w	=	working_FRAME_WIDTH ,		// desired resolution for the images
-					h	=	working_FRAME_HIGHT ,
-					FPS	=	30;		// 30, or 15  -> capture_loop_dealy=33, or 67 [mS]
+	const int		w	=	myCApp.working_FRAME_WIDTH ,		// desired resolution for the images
+					h	=	myCApp.working_FRAME_HIGHT ,
+					FPS	=	myCApp.working_FRAMES_FPS;		// 30, or 15  -> capture_loop_dealy=33, or 67 [mS]
 
-	/* vars for input and output from/to files */
-	bool			bRepeat_scenario_from_files	=	true;//false;	// true for input images from previously recorded files.
-	bool			bUserRecordRequest			=	false;//false;	// true for record captured images to files.
-	char			inout_file_nameR[150]	= "../vidR.avi";	//string	//relative to 'StereoRobot\Src\StereoRobot' (in VS2015)
-	char			inout_file_nameL[150]	= "../vidL.avi";	//			//
+	/* vars for input and output from/to files */ 
+	bool			bRepeat_scenario_from_files	 ; 	// true for input images from previously recorded files.
+	bool			bUserRecordRequest			 ;  //false;//false;	// true for record captured images to files.
+	char			inout_file_nameR[150]	;//= "../vidR.avi";	//string	//relative to 'StereoRobot\Src\StereoRobot' (in VS2015)
+	char			inout_file_nameL[150]	;//= "../vidL.avi";	//			//
 	VideoWriter		outFileR,
 					outFileL;
 	int				codec					= CV_FOURCC('M', 'J', 'P', 'G'); 
@@ -86,7 +90,7 @@ public:
 	~ImagesSourceHandler();			// also closes the thread for this
 	void CaptureFromCam();			// the overall-wrapping function for the thread
 	void InitVideoCap();
-    void GetFrames(Mat& rightFrame,Mat& leftFrame);
+    bool GetFrames(Mat& rightFrame,Mat& leftFrame);			// false if one of the images is empty
 	Size GetRes()					{ return Size(w,h); };
 	long GetFrameCycleCounter()		{ return inputFrameCycleCounter; };
 	long GetRecievedFramesCounter() { return recievedFramesCounter; };

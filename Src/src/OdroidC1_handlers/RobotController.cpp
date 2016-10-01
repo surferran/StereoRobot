@@ -1,8 +1,8 @@
 
+#ifdef COMPILING_ON_ROBOT
+
 #include "RobotController.h"
 
-//#include "/root/github/wiringPi/wiringPi/wiringPi.h" //RAN addition 27/12/15
-//#include "wiringPi.h"
 
 RobotController::RobotController(){
 	PWM_pointeer = PWM::create();
@@ -30,20 +30,35 @@ void RobotController::Forward(double thrust_percent, double angle, double turn_r
 	const double	action_dt		= 0.05;//0.01 ; // [sec]
 	///double			angle_turn_rate = angle / action_dt ;
 	const double	l_ref = MAX_HW_SPEED;   //10.0;
-	double			Tcommon			= MAX_HW_SPEED * thrust_percent * 1/turn_ratio ;
-	double			delta_thrust	= l_ref * sin(angle) * turn_ratio ;    // tan() also option.
+	if ((thrust_percent>10) && (thrust_percent<50))	//elevate the values
+		thrust_percent=50;
+		if (thrust_percent>100)
+			thrust_percent=100;
+	double			Tcommon			= MAX_HW_SPEED * thrust_percent/100 * (1 - turn_ratio) ;
+	double			delta_thrust	= l_ref * (angle) * turn_ratio ;    // tan() also option.//sin()
 	double			thrustR, thrustL;
+	int min_thrust = 5; //[%]
+
+
+
 	if (delta_thrust > 0)
 	{
+		if (delta_thrust + Tcommon < min_thrust)
+			{ Stop(); return; }
 		thrustL = Tcommon + delta_thrust;
 		thrustR = Tcommon ;
 	}
 	else
 	{
+		if (-delta_thrust + Tcommon < min_thrust)
+			{ Stop(); return; }
 		thrustL = Tcommon ;
 		thrustR = Tcommon - delta_thrust;	
 	}
 	basicMove(thrustL, thrustR);
+
+	std::this_thread::sleep_for(std::chrono::milliseconds( 10 ) ); //*action_dt//100 delay
+	//Stop();
 }
  
 void RobotController::Stop(){
@@ -54,3 +69,5 @@ void RobotController::Stop(){
 RobotController::~RobotController(){
     Stop();
 }
+
+#endif

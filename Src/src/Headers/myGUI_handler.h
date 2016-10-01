@@ -3,7 +3,8 @@
 
 #include "opencv2/opencv.hpp"
 
-#include "working_consts.h"
+//#include "working_consts.h"
+#include "StereoRobotApp.hpp"
 
 using namespace cv;
 using namespace std;
@@ -23,8 +24,9 @@ public:
 
 	void add_counterFrame(Mat &inImage, long * frameNum);
 
-	void add_Cross_to_Image(int x, int y, bool addLabel, SYSTEM_STATUS sys_stat, Mat &cameraFeed);
+	void add_Cross_to_Image(int x, int y, bool addLabel, StereoRobotApp::SYSTEM_STATUS sys_stat, Mat &cameraFeed);
 
+	void add_distance_to_disparityIM(double dist, Mat *ImFeed);
 
 	void dispFlowChanges(Mat & prevGrayROI, vector<Point2f> trackedFeatures, Mat& grayROI, vector<Point2f> corners,
 							vector<uchar> status);
@@ -50,7 +52,7 @@ private:
 	string _longToString(long number);
 	string _intToString(int number);
 	string _doubleToString(double number);
-	string _sysStatToString(SYSTEM_STATUS val);
+	string _sysStatToString(StereoRobotApp::SYSTEM_STATUS val);
 };
 
 #endif   //  MYGUI_HANDLER_H

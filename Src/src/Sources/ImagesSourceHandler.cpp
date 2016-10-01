@@ -1,9 +1,11 @@
 
+#ifdef COMPILING_ON_ROBOT
+#include "ImagesSourceHandler.h"
+#include <unistd.h>
+#else
 #include "..\Headers\ImagesSourceHandler.h"
-
-//TODO: #ifdef COMPILING_ON_ROBOT
-///#include <unistd.h>
-
+#endif
+ 
 
 /* initializing , and executing the thread */
 ImagesSourceHandler::ImagesSourceHandler() :
@@ -42,6 +44,12 @@ void ImagesSourceHandler::CaptureFromCam() {
 
 void ImagesSourceHandler::InitVideoCap() 
 { 
+
+	bRepeat_scenario_from_files	=	false;//true;//true;//false; 
+	bUserRecordRequest			=	false;//false;true;//
+	strcpy(inout_file_nameR , "../vidR.avi");
+	strcpy(inout_file_nameL , "../vidL.avi");
+
 	/* initiate */
 	captureTimeTag = 0;
 	if (bRepeat_scenario_from_files)
@@ -75,8 +83,8 @@ void ImagesSourceHandler::InitVideoCap()
 		if (!bRepeat_scenario_from_files)		// cannot record to files while also images are input from same files
 		{
 			//init files to record to
-			outFileR.open(inout_file_nameR, codec, FPS, Size(w,h), true);
-			outFileL.open(inout_file_nameL, codec, FPS, Size(w,h), true);
+			outFileR.open(inout_file_nameR, codec, FPS/2, Size(w,h), true);
+			outFileL.open(inout_file_nameL, codec, FPS/2, Size(w,h), true);
 
 			if (!outFileR.isOpened() || !outFileL.isOpened()) {
 				throw cv::Exception(); 
@@ -90,25 +98,36 @@ void ImagesSourceHandler::InitVideoCap()
 }
 
 
-void ImagesSourceHandler::GetFrames(Mat &rightFrame, Mat &leftFrame)	// can b replaced with shared_memory?!
+bool ImagesSourceHandler::GetFrames(Mat &rightFrame, Mat &leftFrame)	// can b replaced with shared_memory?!
 {
 	mut.lock();
 
 	leftFrame  = left;
 	rightFrame = right;
+
+	if ( rightFrame.empty()  ||  leftFrame.empty() )
+	{
+		//TODO: check TimeOut - if crooses timeout - then stop and ERROR
+		mut.unlock();
+		return false;
+	}
+	/* else : */
+
 	recievedFramesCounter++;
 
-	if (bUserRecordRequest)
-	{
-		outFileL.write(leftFrame);
-		outFileR.write(rightFrame);
-	}
+	if (bUserRecordRequest)		
+		{
+			outFileL.write(leftFrame);
+			outFileR.write(rightFrame);
+		}
 
 	// TODO:
 	// make output fot the 'captureTimeTag'
 	// check if needed also gray level images
 
 	mut.unlock();
+
+	return true;
 }
 
 

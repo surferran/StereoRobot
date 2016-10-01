@@ -1,11 +1,15 @@
 // file : Target.cpp
  
+#ifdef COMPILING_ON_ROBOT
+#include "Target.hpp"
+#else
 #include "..\Headers\Target.hpp"
- 
+#endif
+
 
 // TODO: return parameters of rCircle, boundRect, theta, frame_counter(of bkgSubs) (as part of class?)
 // calculate some parameters for the current possable target (frame foreground)
-Target::TargetProperties	Target::calc_target_properties(Mat image_mask) 
+Target::TargetState	Target::calc_target_properties(Mat image_mask) 
 { 
 	m			= moments(image_mask, false);				// points moment 
 	MassCenter	= Point(m.m10/m.m00, m.m01/m.m00);	// mass_centers

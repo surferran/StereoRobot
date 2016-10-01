@@ -6,10 +6,10 @@ file that contains all working parameters and constants.
 using namespace cv;
 
 /* unix key 'int' definitions */
-#define KEY_UP		65362
-#define KEY_DOWN	65364
-#define KEY_LEFT	65361
-#define KEY_RIGHT	65363
+#define UNIX_KEY_UP		65362		//or linux??
+#define UNIX_KEY_DOWN	65364
+#define UNIX_KEY_LEFT	65361
+#define UNIX_KEY_RIGHT	65363
 
 const int working_FRAME_WIDTH	= 320 /1 ;// 640;// 160;
 const int working_FRAME_HIGHT	= 240 /1 ;// 480;// 120;

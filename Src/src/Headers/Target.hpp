@@ -21,20 +21,25 @@ public:
 		inner_target_phases=0;
 	};
 
-	 enum TargetProperties {
+	 enum TargetState {
 		Target_NA,
 		Target_potential_move,
 		Target_present
 	 };
 
-	 TargetProperties		calc_target_properties(Mat image_mask); //BRG or Gray?
+	TargetState		calc_target_properties(Mat image_mask); //BRG or Gray?
 
 	/* foreground movement features */
-	Point	MassCenter ;
+	Point	MassCenter ;	// (x,y) [pix]
 	double	rCircle;			// estimated rounding circle for the object area
 	Rect	boundRect;
 	double	theta ;				// estimated oriantation of bounding box. though not well feature
-	double	boundAreaRatio;
+	double	boundAreaRatio;		// boundRect.area/image.area
+	/* target center mass properties */
+	int		target_estimated_distance ; //	[cm]
+	int		target_estimated_dx;		//	[pix]
+
+	Mat potential_target;
 
 private:
 	 

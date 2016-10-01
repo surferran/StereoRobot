@@ -1,4 +1,8 @@
+#ifdef COMPILING_ON_ROBOT
+#include "BackgroundSub.hpp"
+#else
 #include "..\Headers\BackgroundSub.hpp"
+#endif
 
 RNG						rng(12345);
 
@@ -58,11 +62,11 @@ int BackSubs::doMYbsManipulation( Mat & mask , Point *movementMassCenter)
 
 
 	if ((frame_counter <= 10)  // wait for at least 10 initial frames
-		&& (system_state == INITIALIZING))
+		&& (system_state == StereoRobotApp::INITIALIZING))
 		return 0;
 
 	if ((frame_counter > 10) //50 // wait for at least 10 initial frames
-		&& (system_state == INITIALIZING)
+		&& (system_state == StereoRobotApp::INITIALIZING)
 		&& (rCircle < 5) )
 		///&& mask.empty() )
 	{
@@ -97,7 +101,13 @@ int BackSubs::doMYbsManipulation( Mat & mask , Point *movementMassCenter)
 	*movementMassCenter = MassCenter;
 	return mask_status;
 }
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 
+BackSubs::BackSubs()
+{
+	BgSubt_Status = INITIALIZING ;
+}
 
 int BackSubs::show_forgnd_and_bgnd_init(int fpsIN)
 	//VideoCapture vidSource_LeftCam)
@@ -120,7 +130,7 @@ int BackSubs::show_forgnd_and_bgnd_init(int fpsIN)
 }
 
 	/* apply background substraction and manipulate the resultant frame */
-int BackSubs::find_forgnd(Mat frame, Point *movementMassCenter)  // assuming input of vreified non-empty frame
+void BackSubs::find_forgnd(Mat frame, Point *movementMassCenter)  // assuming input of vreified non-empty frame
 {
 
 	medianBlur	(frame,	frame,	3); // new
@@ -145,26 +155,28 @@ int BackSubs::find_forgnd(Mat frame, Point *movementMassCenter)  // assuming inp
 	// ---now 'foreground' it is a workable image binary--- // 
 	int frame_status = doMYbsManipulation(middle_tmp_frame, movementMassCenter);	//also prints. to screen
 
-	if ((system_state == INITIALIZING) && (frame_status==111))
+	if ((system_state == StereoRobotApp::INITIALIZING) && (frame_status==111))
 	{
-		system_state = STANDBY ; 
-		return frame_status;
+		//system_state = StereoRobotApp::STANDBY ; 
+		BgSubt_Status = STANDING_BY ;
+		//return frame_status;
 	}
-	if ((system_state == STANDBY) && (frame_status==222))
+	if ((system_state == StereoRobotApp::STANDBY) && (frame_status==222))
 	{
-		system_state = FOUND_SOME_MOVEMENT ; 
-		return frame_status;
+		//system_state = StereoRobotApp::FOUND_SOME_MOVEMENT ; 
+		BgSubt_Status = FOUND_MOVEMENT ;
+		//return frame_status;
 	}
-	if ((system_state == FOUND_SOME_MOVEMENT) && (frame_status==333))
-	{
-		//TODO: if also disperity is fine ,, then :
-			system_state = FOUND_GOOD_TARGET; 
-		return frame_status;
-	}
+	//if ((system_state == StereoRobotApp::FOUND_SOME_MOVEMENT) && (frame_status==333))
+	//{
+	//	//TODO: if also disperity is fine ,, then :
+	//		system_state = StereoRobotApp::FOUND_GOOD_TARGET; 
+	//	return frame_status;
+	//}
 
 	/// thus far the main stuff of BackgroundSubs. from now on just extra manipulations
 	//show_more_details(foreground);
-	return frame_status;
+	//return frame_status;
 }
 //
 //int BackSubs::show_more_details(Mat frame) 

@@ -1,4 +1,9 @@
+
+#ifdef COMPILING_ON_ROBOT
+#include "myGUI_handler.h"
+#else
 #include "..\Headers\myGUI_handler.h"
+#endif
 
 myGUI_handler::myGUI_handler()
 {
@@ -11,6 +16,7 @@ myGUI_handler::myGUI_handler()
 
 	plotWindowsNames[4] = "win5 - tracked object";
 
+	plotWindowsNames[5] = "win6 - depth mask";
 	//plotWindowsNames[5] = "win6 - target aquired Depth";
 	//plotWindowsNames[6] = "win7 - target aquired Depth Masked";
 
@@ -67,7 +73,7 @@ void myGUI_handler::dispFlowChanges(Mat & prevGrayROI, vector<Point2f> trackedFe
 				*im_mat3 = cvCloneImage(&im_mat3_),
 				*im_mat4 = cvCloneImage(&im_mat4_);
 
-	cvShowManyImages("images prev & current " , 4 , im_mat1, im_mat2 , im_mat3, im_mat4 );
+///	cvShowManyImages("images prev & current " , 4 , im_mat1, im_mat2 , im_mat3, im_mat4 );
 
 	if  (1==2)   // TODO: print only for 1st debugging
 		cout  << "trackedFeatures size " << trackedFeatures.size() 
@@ -149,31 +155,31 @@ string myGUI_handler::_doubleToString(double number){
 }
 
 //system status enum to string helper function
-string myGUI_handler::_sysStatToString(SYSTEM_STATUS val){
+string myGUI_handler::_sysStatToString(StereoRobotApp::SYSTEM_STATUS val){
 
 	std::stringstream ss;
 	ss<<"";
 	switch (val)
 	{
-	case INITIALIZING:
+	case StereoRobotApp::INITIALIZING:
 		ss << "sys : INITIALIZING";
 		break;
-	case STANDBY:
+	case StereoRobotApp::STANDBY:
 		ss << "sys : STANDBY";
 		break;
-	case FOUND_SOME_MOVEMENT:
+	case StereoRobotApp::FOUND_SOME_MOVEMENT:
 		ss << "sys : MOVEMENT";
 		break;
-	case FOUND_GOOD_TARGET:
+	case StereoRobotApp::FOUND_GOOD_TARGET:
 		ss << "sys : GOOD TARGET";
 		break;
-	case TRACKING_GOOD_QUALITY_TARGET:
+	case StereoRobotApp::TRACKING_GOOD_QUALITY_TARGET:
 		ss << "sys : TRACKING_GOOD";
 		break;
-	case TRACKING_LOW_QUALITY_TARGET:
+	case StereoRobotApp::TRACKING_LOW_QUALITY_TARGET:
 		ss << "sys : TRACKING_LOW";
 		break;
-	case TARGET_IS_LOST:
+	case StereoRobotApp::TARGET_IS_LOST:
 		ss << "sys : LOST";
 		break;
 	default:
@@ -189,7 +195,7 @@ string myGUI_handler::_sysStatToString(SYSTEM_STATUS val){
 add sign of cross on the x,y point, on the delivered image.
 usually to show Target location, or image center.
 */
-void myGUI_handler::add_Cross_to_Image(int x, int y, bool addLabel, SYSTEM_STATUS sys_stat, Mat &cameraFeed)   
+void myGUI_handler::add_Cross_to_Image(int x, int y, bool addLabel, StereoRobotApp::SYSTEM_STATUS sys_stat, Mat &cameraFeed)   
 {
 	Scalar	color	=	Scalar(0,255,0) ;
 	int		xMid	=	cameraFeed.size().width/2  , 
@@ -197,13 +203,13 @@ void myGUI_handler::add_Cross_to_Image(int x, int y, bool addLabel, SYSTEM_STATU
 
 	switch (sys_stat)
 	{
-	case INITIALIZING:
+	case StereoRobotApp::INITIALIZING:
 		color = Scalar(100	, 55	, 10) ;		break;
-	case STANDBY:
+	case StereoRobotApp::STANDBY:
 		color = Scalar(100	, 155	, 110) ;	break;
-	case FOUND_SOME_MOVEMENT:
+	case StereoRobotApp::FOUND_SOME_MOVEMENT:
 		color = Scalar(100	, 255	, 10) ;		break;
-	case FOUND_GOOD_TARGET:
+	case StereoRobotApp::FOUND_GOOD_TARGET:
 		color = Scalar(1	, 255	, 1) ;		break;
 	default:
 		color = Scalar(10	, 10	, 10) ;
@@ -234,6 +240,18 @@ void myGUI_handler::add_Cross_to_Image(int x, int y, bool addLabel, SYSTEM_STATU
 
 }
 
+/*
+add distance text to disparity image
+*/
+void myGUI_handler::add_distance_to_disparityIM(double dist, Mat *ImFeed)
+{
+	Scalar	color	=	Scalar(0,255,0) ;
+	int		xMid	=	(int) ((*ImFeed).size().width  * 0.65)  , 
+			yMid	=	(int) ((*ImFeed).size().height * 0.9) ;
+	
+	putText(*ImFeed,"" + _doubleToString(dist)+" [cm]",
+			Point(xMid, yMid),1,0.85,Scalar(255,0,0),1);
+}
 //
 void myGUI_handler::display_rectified_pair(Size imageSize , Mat Rimg, Mat Limg, Rect validROI1, Rect validROI2 , long FrameCtr)
 {

@@ -7,6 +7,12 @@
 #include <unistd.h>
 #endif
 
+#include <thread>
+#include <mutex>
+#include <atomic>
+
+using namespace std;
+
 #define FREQ			1000
 #define MAX_HW_SPEED	800
 
@@ -23,16 +29,27 @@ private:
 
 public:
   //enum TurningAngle{REGULAR,SHARP};
-  enum WheelSide{LEFT_WHEELS,RIGHT_WHEELS};
+  ///enum WheelSide{LEFT_WHEELS,RIGHT_WHEELS};
+  enum WheelSide{RIGHT_WHEELS, LEFT_WHEELS};
 
+#ifdef COMPILING_ON_ROBOT
   RobotController();
   ~RobotController();
-
-  void SetSpeed(int newSpeed);
-
+  
   void Forward(double thrust_percent, double angle, double turn_ratio);
   // void Reverse();	//not supported by Hardware.
   void Stop();
+#else
+
+  RobotController(){};
+  ~RobotController(){};
+
+  void Forward(double thrust_percent, double angle, double turn_ratio){};
+  // void Reverse();	//not supported by Hardware.
+  void Stop(){};
+#endif
+
+
 
 };
 

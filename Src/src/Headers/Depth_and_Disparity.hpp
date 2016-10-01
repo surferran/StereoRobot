@@ -1,8 +1,10 @@
 /*
- *  myLocalDisparity.hpp  
+ *  Depth_and_Disparity.hpp  
  */
 
 #pragma once
+
+#include "..\Headers\StereoRobotApp.hpp"
 
 #include "opencv2/calib3d/calib3d.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
@@ -21,7 +23,7 @@ using namespace cv;
 #include "myGUI_handler.h"
 extern myGUI_handler myGUI; // thread for images displaying
  
-class myLocalDisparity
+class Depth_and_Disparity
 {
 public:
 	struct rectification_outputs{
@@ -31,12 +33,15 @@ public:
 			long originalyGivenframeCycle;
 		};	
 
-	myLocalDisparity();
-	~myLocalDisparity();
+	Depth_and_Disparity();
+	~Depth_and_Disparity();
+
+	bool calc_disperity(int desiredPhase , Mat in_left, Mat in_right, Mat *disperity_out, double *avg_depth);
 
 	void set_disparity_input(Mat inR, Mat inL, long frameCycleCounter);
 	bool get_rectified_and_disparity(Mat& disp_output, rectification_outputs& rectification_vars);
 	void convert_disperity_value_to_depth(double in_disp, double & out_depth);
+	void convert_disperity_Mat_to_depth(Mat in_disp, Mat & out_depth);
 
 	int calcDispEveryNcycles = 1;//3;
 
@@ -114,4 +119,8 @@ private:
 		bool ready_disparity_result; 
 
 	void thread_loop_function();
+
+	Mat						last_result_of_disparity,
+							filtered_disparity;
+	rectification_outputs	last_result_of_disparity_struct;
 };
