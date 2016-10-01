@@ -243,13 +243,14 @@ void myGUI_handler::add_Cross_to_Image(int x, int y, bool addLabel, StereoRobotA
 /*
 add distance text to disparity image
 */
-void myGUI_handler::add_distance_to_disparityIM(double dist, Mat *ImFeed)
+void myGUI_handler::add_distance_to_disparityIM(double dist, Mat &ImFeed)
 {
-	Scalar	color	=	Scalar(0,255,0) ;
-	int		xMid	=	(int) ((*ImFeed).size().width  * 0.65)  , 
-			yMid	=	(int) ((*ImFeed).size().height * 0.9) ;
+	Scalar	color	=	Scalar(110,255,0) ;
+	int		xMid	=	(int) ((ImFeed).size().width  * 0.65)  , 
+			yMid	=	(int) ((ImFeed).size().height * 0.9) ;
 	
-	putText(*ImFeed,"" + _doubleToString(dist)+" [cm]",
+	dist = (int)dist;
+	putText(ImFeed,"" + _doubleToString(dist)+" [cm]",
 			Point(xMid, yMid),1,0.85,Scalar(255,0,0),1);
 }
 //

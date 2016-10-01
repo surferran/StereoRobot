@@ -107,6 +107,7 @@ int main(int argc, char** argv)
 	Scalar	avg_disperity_S;
 	double	avg_disperity;
 	double	avg_depth_of_ROI	= 0 ;
+	double	last_depth_of_ROI	= 0 ;
 
 	Point	movementMassCenter, corected_MassCenter;
 	Mat		current_mask1,
@@ -115,6 +116,8 @@ int main(int argc, char** argv)
 
 	bool	gotNewDispImageToWorkWith = false;
 
+	myMatQueue<Mat>		matQueue;
+	myMatQueue<double>	doubleQueue;
 	/* end of variables */
 	
 	////////////// initializations ///////////
@@ -200,16 +203,28 @@ int main(int argc, char** argv)
 
 				case StereoRobotApp::FOUND_SOME_MOVEMENT:
 /* *********** */	//localBackSubs.find_forgnd( left_im_color(BckgndSubROI) , &movementMassCenter ) ; //// synthesize target by movement
-					
-/*
-					localDisp.calc_disperity(1, left_im_color, right_im_color, &disp_temporary , &avg_depth_of_ROI );
+
+/*					localDisp.calc_disperity(1, left_im_color, right_im_color, &disp_temporary , &avg_depth_of_ROI );
 					imshow ( myGUI.plotWindowsNames[7], disp_temporary ); */
 
-					localDisp.calc_disperity(3, left_im_color, right_im_color, &disp_temporary , &avg_depth_of_ROI );  //2 , when 1 above
-		
-					myGUI.add_distance_to_disparityIM(avg_depth_of_ROI, &disp_temporary);
-					
-					imshow ( myGUI.plotWindowsNames[3], disp_temporary ); 
+					localDisp.calc_disperity(3, left_im_color, right_im_color, &disp_temporary , &last_depth_of_ROI );  //2 , when 1 above
+							
+					///imshow ( myGUI.plotWindowsNames[3], disp_temporary ); 
+					/////////////
+					matQueue.populateNextElementInArray(disp_temporary);
+					///matQueue.getAvgElement(&disp_temporary);
+					///imshow ( myGUI.plotWindowsNames[5], disp_temporary ); 
+					/////////////
+					matQueue.getSumElement(&disp_temporary);
+
+					doubleQueue.populateNextElementInArray(last_depth_of_ROI);
+					doubleQueue.getAvgElement(&avg_depth_of_ROI);
+
+					imshow ( myGUI.plotWindowsNames[3], disp_temporary );	//win[7]
+					//myGUI.add_distance_to_disparityIM(last_depth_of_ROI, &disp_temporary);
+					myGUI.add_distance_to_disparityIM(avg_depth_of_ROI, disp_temporary);
+
+					imshow ( myGUI.plotWindowsNames[4], disp_temporary );	//win[7]
 
 					break;
 

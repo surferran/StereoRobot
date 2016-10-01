@@ -163,3 +163,85 @@ public:
 
 	};
 };
+
+
+////////////////////
+template <typename T>
+class myMatQueue	//possible to set as template for making any type queue 
+{
+private:
+	static const int N = 3 ; //size of queue
+
+	int		nextArrayIndex;
+
+	T		typeArray[N],
+			lastElement,
+			arrayRunningSum,
+			arrayRunningAvg;
+
+	bool	sumInitialized ;
+
+public:
+
+	myMatQueue()
+	{
+		nextArrayIndex =	0 ;
+		sumInitialized	=	false;
+	}
+
+	~myMatQueue(){};
+
+	void populateNextElementInArray(Mat currentMat)
+	{
+		if (!sumInitialized)
+		{
+			arrayRunningSum	=	Mat::zeros( currentMat.size() , currentMat.type() );
+			for (int i=0; i<N; i++)
+				typeArray[i] = arrayRunningSum;
+			sumInitialized	=	true;
+		}
+		//TODO: add considaration for the first N elements (divide by smaller then N)
+		arrayRunningSum					= arrayRunningSum - typeArray[nextArrayIndex] ;
+		typeArray[nextArrayIndex]		= currentMat.clone() ;
+		arrayRunningSum					= arrayRunningSum + typeArray[nextArrayIndex] ;
+		nextArrayIndex					= (nextArrayIndex+1)%N;	//make it cyclic on 0..(N-1) range
+		arrayRunningAvg					= arrayRunningSum / N ;
+	}
+
+	void populateNextElementInArray(double currentDbl)
+	{
+		if (!sumInitialized)
+		{
+			arrayRunningSum	=	0;
+			for (int i=0; i<N; i++)
+				typeArray[i] = arrayRunningSum;
+			sumInitialized	=	true;
+		}
+		//TODO: add considaration for the first N elements (divide by smaller then N)
+		arrayRunningSum					= arrayRunningSum - typeArray[nextArrayIndex] ;
+		typeArray[nextArrayIndex]		= currentDbl ;
+		arrayRunningSum					= arrayRunningSum + typeArray[nextArrayIndex] ;
+		nextArrayIndex					= (nextArrayIndex+1)%N;	//make it cyclic on 0..(N-1) range
+		arrayRunningAvg					= arrayRunningSum / N ;
+	}
+	void getAvgElement(Mat *avg)
+	{
+		*avg = arrayRunningAvg.clone() ;
+	}
+
+	void getSumElement(Mat *sum)
+	{
+		*sum = arrayRunningSum.clone() ;
+	}
+
+	void getAvgElement(double *avg)
+	{
+		*avg = arrayRunningAvg  ;
+	}
+
+	void getSumElement(double *sum)
+	{
+		*sum = arrayRunningSum ;
+	}
+	
+};

@@ -26,7 +26,7 @@ public:
 
 	void add_Cross_to_Image(int x, int y, bool addLabel, StereoRobotApp::SYSTEM_STATUS sys_stat, Mat &cameraFeed);
 
-	void add_distance_to_disparityIM(double dist, Mat *ImFeed);
+	void add_distance_to_disparityIM(double dist, Mat &ImFeed);
 
 	void dispFlowChanges(Mat & prevGrayROI, vector<Point2f> trackedFeatures, Mat& grayROI, vector<Point2f> corners,
 							vector<uchar> status);
