@@ -83,21 +83,24 @@ void Tracker::processImage(Mat inputGrayIm, Mat newImage,  StereoRobotApp::SYSTE
 {
 	vector<uchar> flow_output_status; 
 	vector<float> flow_output_errors;
+	Mat currentMask;
+	static int learnTRKcounter =0;
 
 ///	if (external_state ==  StereoRobotApp::FOUND_SOME_MOVEMENT)
 	{
 		/* feature tracker part - in this section only learn the potential target */
 		// image given from BackSubs so it shows only foreground. in original image size.
 		    // new image is a mask from BGSubs & depth
-		// later implement full gray image in the 'current' struct
+		//  implemented full gray image in the 'current' struct
 		currentImProp.relevantROI	= Brect;// boundingRect ( newImage );
-		cvtColor(newImage, currentImProp.grayImage, CV_BGR2GRAY); 
-		goodFeaturesToTrack(currentImProp.grayImage, currentImProp.goodFeatures, num_of_maxCornersFeatures,0.01,10); // can add a mask
 		currentImProp.grayImage		= inputGrayIm.clone(); 
+		currentMask = newImage.clone();
+		goodFeaturesToTrack(currentImProp.grayImage, currentImProp.goodFeatures, num_of_maxCornersFeatures,0.01,10, currentMask );  
 
 		if (Tracker_State == TRACKER_OFF)
 		{
 			prevImProp		= currentImProp ; 
+			learnTRKcounter	= 0;
 			Tracker_State	= TRACKER_LEARNING ;	
 			return;
 		}
@@ -130,32 +133,53 @@ void Tracker::processImage(Mat inputGrayIm, Mat newImage,  StereoRobotApp::SYSTE
 				trackedFeatures.push_back(newFlowFeatures[i]);
 		} 
 
+		// measure the flow calculation success rate 
 		int 	diffSizes 	= newFlowFeatures.size() - trackedFeatures.size() ;
-		double 	successRate = (double)diffSizes / (double)newFlowFeatures.size() * 100.0 ;  //[%]
-		if ( successRate > 30 )
+		double 	successRate = (1. - (double)diffSizes / (double)newFlowFeatures.size()) * 100.0 ;  //[%]
+		///if ( successRate > 30 )
+			///Tracker_State = TRACKER_TRACKING;
+
+		if ( Tracker_State == TRACKER_LEARNING)
 		{
-			///if ( successRate >20 )  trackedFeatures.size()>5?
+			if ( successRate > 90)
 			{
-				// replace current feature points to enlarg the tracked vector
-				trackedFeatures.clear();
-				features_vec_size = currentImProp.goodFeatures.size() ;
-				for ( i = 0; i < features_vec_size ; ++i) {
-						trackedFeatures.push_back(currentImProp.goodFeatures[i]);
-				}
-			}
-			if (external_state == StereoRobotApp::FOUND_SOME_MOVEMENT)
-				if ( successRate >20 ){
+				learnTRKcounter++;
+				if (learnTRKcounter > 3)
 					Tracker_State = TRACKER_TRACKING;
-					system_state = StereoRobotApp::FOUND_GOOD_TARGET ;
-				}
+			}
+			else
+				;
 		}
 		else
-			//if ( successRate <20 )
-			{
-				trackedFeatures.clear();
-				MassCenter		= Point(inputGrayIm.size().width/2, inputGrayIm.size().height/2);
-				Tracker_State 	= TRACKER_OFF;
-			}
+		{
+			if ( successRate < 30 )
+				Tracker_State	=	TRACKER_OFF;
+		}
+			//
+		//{
+
+		//	///if ( successRate >20 )  trackedFeatures.size()>5?
+		//	{
+		//		// replace current feature points to enlarg the tracked vector
+		//		trackedFeatures.clear();
+		//		features_vec_size = currentImProp.goodFeatures.size() ;
+		//		for ( i = 0; i < features_vec_size ; ++i) {
+		//				trackedFeatures.push_back(currentImProp.goodFeatures[i]);
+		//		}
+		//	}
+		//	if (external_state == StereoRobotApp::FOUND_SOME_MOVEMENT)
+		//		if ( successRate >20 ){
+		//			Tracker_State = TRACKER_TRACKING;
+		//			system_state = StereoRobotApp::FOUND_GOOD_TARGET ;
+		//		}
+		//}
+		//else
+		//	//if ( successRate <20 )
+		//	{
+		//		trackedFeatures.clear();
+		//		MassCenter		= Point(inputGrayIm.size().width/2, inputGrayIm.size().height/2);
+		//		Tracker_State 	= TRACKER_OFF;
+		//	}
 
 		// sort and delete duplicates
 		// ( ref by : http://stackoverflow.com/questions/1041620/whats-the-most-efficient-way-to-erase-duplicates-and-sort-a-vector )
@@ -191,14 +215,14 @@ void Tracker::processImage(Mat inputGrayIm, Mat newImage,  StereoRobotApp::SYSTE
 		{ 
 			circle( tmpIM, trackedFeatures[i], r, 				Scalar(255, 100, 255), -1, 8, 0 );
 		}	 
-		for(  i = 0; i < currentImProp.goodFeatures.size(); i++ )
+		/*for(  i = 0; i < currentImProp.goodFeatures.size(); i++ )
 		{ 
 			circle( tmpIM, currentImProp.goodFeatures[i], r, 	Scalar(10, 100, 255), -1, 8, 0 );
 		}	
 		for(  i = 0; i < newFlowFeatures.size(); i++ )
 		{ 
 			circle( tmpIM, newFlowFeatures[i], r, 				Scalar(10, 255, 255), -1, 8, 0 );
-		}	 
+		}	 */
 		imshow ("debug summarized features"	, tmpIM);
 
 
@@ -207,10 +231,11 @@ void Tracker::processImage(Mat inputGrayIm, Mat newImage,  StereoRobotApp::SYSTE
 		prevImProp.relevantROI		= boundingRect(trackedFeatures);
 
 		// check condition for GOOD_TRACKING. instead of by subs. 
-		Target::TargetState tmpTargStat = Target_obj.calc_target_properties(tmp2) ;
-		if (tmpTargStat==Target::Target_present)
-			//system_state = TRACKING_GOOD_QUALITY_TARGET ;
-			system_state = StereoRobotApp::FOUND_GOOD_TARGET ;
+		Target_obj.calc_target_mask_properties(tmp2) ;
+		Target::TargetState tmpTargStat = Target_obj.check_target_mask_properties() ;
+		//if (tmpTargStat==Target::Target_present)
+		//	//system_state = TRACKING_GOOD_QUALITY_TARGET ;
+		//	system_state = StereoRobotApp::FOUND_GOOD_TARGET ;
 
 	}
 		return;

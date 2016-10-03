@@ -123,6 +123,9 @@ int main(int argc, char** argv)
 		featTrackMask2,
 		featTrackMask;		//M1 & M2 -> M
 
+
+	Mat tmpROI;
+
 	/* end of variables */
 	
 	////////////// initializations ///////////
@@ -150,6 +153,9 @@ int main(int argc, char** argv)
 	////////////// end of initializations ///////////
 
 	//	if (!raw_sensors_run), first_target
+
+	myWaterShed WSHD;
+	Mat distancesMask;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////				main loop	   			  //////////////////////////////////
@@ -198,6 +204,7 @@ int main(int argc, char** argv)
 /* *********** */	//localBackSubs.find_forgnd( left_im_color(BckgndSubROI) , &movementMassCenter ) ; //// synthesize target by movement
 					//if (localBackSubs.BgSubt_Status == BackSubs::STANDING_BY)
 						system_state = StereoRobotApp::STANDBY;
+					WSHD.init_mask_by_input(left_im_color) ;
 					break;
 
 				case StereoRobotApp::STANDBY:
@@ -222,17 +229,48 @@ int main(int argc, char** argv)
 
 					int depth;		// rounded to [cm]
 					//featTrackMask1 = localBackSubs.get_foreground_mat();
-					localDisp.get_filtered_disparity(featTrackMask2, &depth);
+					///localDisp.get_filtered_disparity(featTrackMask2, &depth);
+					featTrackMask2	=	disp_temporary.clone();
+					depth			=	avg_depth_of_ROI;
 					//featTrackMask1.copyTo (featTrackMask, featTrackMask2 ) ;	// output is featTrackMask	
+					///featTrackMask2.copyTo (featTrackMask);
+					featTrackMask = featTrackMask2.clone();
+					threshold (featTrackMask , featTrackMask ,	1 ,	255,THRESH_TOZERO);		// take all that is not zero
+
+					first_target.calc_target_mask_properties(featTrackMask) ;
+					if (!first_target.check_target_mask_properties_option1())
+					{
+
+						if (myStereoCams.GetUserRepeatFlag())
+						{
+							// if testing recorded files - don't continue to read image frames in background. 
+							// until next deterministic loop request. (specially if stopping for debugging).
+							///	waitKey(0*loop_delay);
+							myStereoCams.ToggleDisableFramesCapture();
+							waitKey( loop_delay );
+						}
+						continue;
+					}
 
 					cv::cvtColor(left_im_color , left_im_gray  , CV_BGR2GRAY);
 					cv::cvtColor(right_im_color, right_im_gray , CV_BGR2GRAY);
 
+					//// tmpROI is MASK in potential area of new target. 
+					tmpROI							=  Mat::zeros( left_im_gray.size() , left_im_gray.type() );
+					first_target.potential_target	= tmpROI.clone();
 
-					left_im_color.copyTo ( first_target.potential_target, featTrackMask2 ) ;	//foreground is a region mask 
-																							//potential_target.copyTo ( potential_target, lastDepthImg ) ;					//lastDepthImg is a 2nd region mask 
+					tmpROI( first_target.target_mask_prop.boundRect ) = 255;
+					// potential target is Trimmed area acording to ROI (from Depth or BgSubt)					
+					left_im_gray.copyTo(first_target.potential_target , tmpROI);
+//																		
+					///WSHD.calculate_the_watershed(featTrackMask2);
+					/*distancesMask = */
+					///distanceTransform(featTrackMask2, distancesMask, DIST_L2,3);
+				//	distanceTransform(left_im_gray, distancesMask, DIST_L2,3);						
+				//	imshow(myGUI.plotWindowsNames[7], distancesMask);
 
-					tracker.processImage(left_im_gray, first_target.potential_target, system_state , localBackSubs.get_foreground_boundRect() );
+
+					tracker.processImage(left_im_gray, first_target.potential_target, system_state , first_target.target_mask_prop.boundRect );// localBackSubs.get_foreground_boundRect() );
 
 					circle(first_target.potential_target, corected_MassCenter, 4, Scalar(255, 155, 55), -1, 8, 0);
 					circle(first_target.potential_target, tracker.MassCenter, 4, Scalar(0, 255, 255), -1, 4, 0);	//yellow point.
@@ -245,11 +283,12 @@ int main(int argc, char** argv)
 
 					imshow ( myGUI.plotWindowsNames[3], disp_temporary );	 
 					
+					break;	//TO REMOVE
 
-					if (tracker.Tracker_State == Tracker::TRACKER_TRACKING)
+				/*	if (tracker.Tracker_State == Tracker::TRACKER_TRACKING)
 						system_state = StereoRobotApp::FOUND_GOOD_TARGET;
 					
-					break;
+					break;*/
 
 				case StereoRobotApp::FOUND_GOOD_TARGET:
 	
@@ -266,11 +305,13 @@ int main(int argc, char** argv)
 /* *********** */	tracker.processImage(left_im_gray, first_target.potential_target, system_state , localBackSubs.get_foreground_boundRect() );
 
 					circle(first_target.potential_target, corected_MassCenter, 4, Scalar(255, 155, 55), -1, 8, 0);
-					circle(first_target.potential_target, tracker.MassCenter, 4, Scalar(0, 255, 255), -1, 4, 0);	//yellow point.
+					circle(first_target.potential_target, tracker.MassCenter, 4, Scalar(0, 25, 25), -1, 4, 0);	//yellow point.
 
 					imshow(myGUI.plotWindowsNames[4], first_target.potential_target);//8
 					 
 					// track forward
+
+					// TODO : add sliding bar to animate Thrust.
 					if (system_state == StereoRobotApp::FOUND_GOOD_TARGET)
 					if ((avg_depth_of_ROI>15) && (avg_depth_of_ROI<999)) // 5 as minimum depth to go to
 					{
@@ -284,8 +325,6 @@ int main(int argc, char** argv)
 
 					break;
 
-				//case FOUND_GOOD_TARGET:
-			//		break;
 			}				
 
 			Point2f targetCenter ;
@@ -333,7 +372,7 @@ int main(int argc, char** argv)
 		{
 			waitKey(0*loop_delay);
 			myStereoCams.ToggleDisableFramesCapture();
-			waitKey(loop_delay);
+			waitKey( loop_delay );
 		}
 
 		if (c==(int)'w')

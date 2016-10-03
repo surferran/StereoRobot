@@ -27,19 +27,26 @@ public:
 		Target_present
 	 };
 
-	TargetState		calc_target_properties(Mat image_mask); //BRG or Gray?
+	void			calc_target_mask_properties(Mat image_mask); //BRG or Gray?
+	TargetState		check_target_mask_properties(); 
+	bool			check_target_mask_properties_option1(); 
 
 	/* foreground movement features */
-	Point	MassCenter ;	// (x,y) [pix]
-	double	rCircle;			// estimated rounding circle for the object area
-	Rect	boundRect;
-	double	theta ;				// estimated oriantation of bounding box. though not well feature
-	double	boundAreaRatio;		// boundRect.area/image.area
+	struct target_mask_properties{
+		Point	MassCenter ;	// (x,y) [pix]
+		double	rCircle;			// estimated rounding circle for the object area
+		Rect	boundRect;
+		double	theta ;				// estimated oriantation of bounding box. though not well feature
+		double	boundAreaRatio;		// boundRect.area/image.area
+		int		image_mask_size_width;
+	}
+	target_mask_prop;
+
 	/* target center mass properties */
 	int		target_estimated_distance ; //	[cm]
 	int		target_estimated_dx;		//	[pix]
 
-	Mat potential_target;
+	Mat		potential_target;
 
 private:
 	 
@@ -64,7 +71,7 @@ private:
 	//	if ( (MassCenter.x > w * 0.4 ) && (MassCenter.x < w * 0.6 )   
 	//		&& (2.*rCircle < w* 0.5) && (2.*rCircle > w * 0.1)
 
-	int inner_target_phases ;	//0-init, 1-possible_move, 2-fit to good target, 3-was,but lost now.
+	int		inner_target_phases ;	//0-init, 1-possible_move, 2-fit to good target, 3-was,but lost now.
 	 	
 };
 /*************************************************************************************/
