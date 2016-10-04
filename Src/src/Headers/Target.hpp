@@ -33,6 +33,7 @@ public:
 
 	/* foreground movement features */
 	struct target_mask_properties{
+		Mat		maskIm;
 		Point	MassCenter ;	// (x,y) [pix]
 		double	rCircle;			// estimated rounding circle for the object area
 		Rect	boundRect;

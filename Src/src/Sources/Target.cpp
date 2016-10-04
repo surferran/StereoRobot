@@ -11,6 +11,7 @@
 // calculate some parameters for the current possable target (frame foreground)
 void Target::calc_target_mask_properties(Mat image_mask) 
 { 
+	target_mask_prop.maskIm		=	image_mask;
 	m			= moments(image_mask, false);				// points moment 
 	target_mask_prop.MassCenter	= Point(m.m10/m.m00, m.m01/m.m00);	// mass_centers
 	target_mask_prop.rCircle	= sqrt(m.m00/3.14)/rCircle_devider ;				// estimated rounding circle for the object area
@@ -29,6 +30,8 @@ void Target::calc_target_mask_properties(Mat image_mask)
 // calculate some parameters for the current possable target (frame foreground)
 Target::TargetState	Target::check_target_mask_properties() 
 {  
+	Mat tmp4debug = target_mask_prop.maskIm ;
+
 	int w = target_mask_prop.image_mask_size_width;
 	if (  (2.*target_mask_prop.rCircle < w * 0.9) && (2.*target_mask_prop.rCircle > w * 0.1)  		///(MassCenter.x > w/2 - w_band ) && (MassCenter.x < w/2 + w_band )				
 		)

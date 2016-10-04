@@ -3,6 +3,8 @@
  * @brief Sample code showing how to segment overlapping objects using Laplacian filtering, in addition to Watershed and Distance Transformation
  * @author OpenCV Team
  */
+// explained in : http://docs.opencv.org/3.1.0/d2/dbd/tutorial_distance_transform.html 
+//	left to check maybe : http://docs.opencv.org/3.1.0/d3/db4/tutorial_py_watershed.html 
 
 #include <opencv2/opencv.hpp>
 #include <iostream>

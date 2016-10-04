@@ -30,16 +30,26 @@ private:
 		Mat				grayImage;
 		vector<Point2f> goodFeatures; 
 		Rect			relevantROI;	//  bounding the calculated feature points. 
-										//	using for next image searching area for features-flow.
+		//-								//	using for next image searching area for features-flow.
 	};
-
 	frameProperties prevImProp,
-					currentImProp
-					/*,firstImProp*/  ;	//no histoy furthere? 
+					currentImProp;
 
-	Target			Target_obj;
+
+	/* criteria variables(contants) */
+	double	GFTFquality;
+	double	GFTFminDistance;
+	int		minFPsize_toLEARN;			// number of feature points
+	int		minROIareaRatio_toLEARN;	// percent of ratio
+	int		minFPsize_toTRACK;			// "
+	int		minROIareaRatio_toTRACK;	// "
+	int		minFlowSuccessRate_toTRACK; // percent . from previous frame to the new one.
+	int		minFlowSuccessRate_toLEARN; // percent . from previous frame to the new one.
+
 
 public:
+	Target			trackedTarget;	//for use at outside (calling)functions
+
 	Rect			TrackerROI; 
 
 	enum  TRACK_STATE {TRACKER_OFF = 0 , TRACKER_LEARNING, TRACKER_TRACKING} ;
@@ -69,7 +79,7 @@ public:
 	char	TrackbarName[50]  = "StatusSum";
 	char	TrackbarName2[50] = "StatusSumPercent";
 
-	int		alphaSlider_max=100;
+	int		alphaSlider_max		=	100;
 
 	Moments		m; 
 	Point		MassCenter;
@@ -79,16 +89,8 @@ public:
 	Tracker();
 	~Tracker();
 
-	void setNewTarget(
-		Rect			OriginalTargetROI,
-		Mat				OriginalTarget,
-		Rect			TrackerROI);
-
 	// both imgTarget, imgROI should be of the same size.
-	void processImage(Mat inGray, Mat imgTarget,  StereoRobotApp::SYSTEM_STATUS external_state, Rect Brect);
-	void processImage_x(Mat imgTarget,  StereoRobotApp::SYSTEM_STATUS external_state);
-
-
+	void processImage(Mat inGray, Mat imgTarget,  Rect Brect);
 };
 
 #endif  // FEATURETRACKER_H

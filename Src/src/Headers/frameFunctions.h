@@ -167,7 +167,7 @@ public:
 
 ////////////////////
 template <typename T>
-class myMatQueue	//possible to set as template for making any type queue 
+class myMatQueue	//change to myQueue
 {
 private:
 	static const int N = 3 ; //size of queue
@@ -179,52 +179,93 @@ private:
 			arrayRunningSum,
 			arrayRunningAvg;
 
-	bool	sumInitialized ;
+	bool	sumInitialized ,
+			firstCycleStarted;
+	
 
 public:
 
+	/* constructor & destructor */
 	myMatQueue()
 	{
-		nextArrayIndex =	0 ;
-		sumInitialized	=	false;
+		nextArrayIndex		=	0 ;
+		sumInitialized		=	false;
+		firstCycleStarted	=	false;
 	}
 
 	~myMatQueue(){};
 
-	void populateNextElementInArray(Mat currentMat)
+	/* init functions */
+	void initSumVar(Mat currentMat)	// not in constructor because i dont know size and type
 	{
-		if (!sumInitialized)
-		{
-			arrayRunningSum	=	Mat::zeros( currentMat.size() , currentMat.type() );
-			for (int i=0; i<N; i++)
-				typeArray[i] = arrayRunningSum;
-			sumInitialized	=	true;
-		}
-		//TODO: add considaration for the first N elements (divide by smaller then N)
-		arrayRunningSum					= arrayRunningSum - typeArray[nextArrayIndex] ;
-		typeArray[nextArrayIndex]		= currentMat.clone() ;
-		arrayRunningSum					= arrayRunningSum + typeArray[nextArrayIndex] ;
-		nextArrayIndex					= (nextArrayIndex+1)%N;	//make it cyclic on 0..(N-1) range
-		arrayRunningAvg					= arrayRunningSum / N ;
+		arrayRunningSum	=	Mat::zeros( currentMat.size() , currentMat.type() );
+		for (int i=0; i<N; i++)
+			typeArray[i] = arrayRunningSum;
+		sumInitialized	=	true;
+	}
+	void initSumVar(double dummyVar) 
+	{
+		arrayRunningSum	=	0.0;
+		for (int i=0; i<N; i++)
+			typeArray[i] = arrayRunningSum;
+		sumInitialized	=	true;
 	}
 
-	void populateNextElementInArray(double currentDbl)
+	/* set by type functions */
+	T getClone(Mat elem)
+	{
+		return elem.clone();
+	}
+	T getClone(double elem)
+	{
+		return elem;
+	}
+
+	/* general functions */
+	void populateNextElementInArray(T currentElem)
 	{
 		if (!sumInitialized)
+			initSumVar(currentElem);
+		// considaration for the first N elements (divide by smaller then N)
+		if ( (!firstCycleStarted) && (nextArrayIndex == N-1) )
 		{
-			arrayRunningSum	=	0;
-			for (int i=0; i<N; i++)
-				typeArray[i] = arrayRunningSum;
-			sumInitialized	=	true;
+			firstCycleStarted	=	true;
 		}
-		//TODO: add considaration for the first N elements (divide by smaller then N)
-		arrayRunningSum					= arrayRunningSum - typeArray[nextArrayIndex] ;
-		typeArray[nextArrayIndex]		= currentDbl ;
+		if (firstCycleStarted)	//can eliminate sumInitialized?!
+			arrayRunningSum					= arrayRunningSum - typeArray[nextArrayIndex] ;
+		typeArray[nextArrayIndex]		= getClone(currentElem) ;
 		arrayRunningSum					= arrayRunningSum + typeArray[nextArrayIndex] ;
+		if (firstCycleStarted)
+			arrayRunningAvg					= arrayRunningSum / N ;
+		else
+			arrayRunningAvg					= arrayRunningSum / (1+nextArrayIndex);
 		nextArrayIndex					= (nextArrayIndex+1)%N;	//make it cyclic on 0..(N-1) range
-		arrayRunningAvg					= arrayRunningSum / N ;
 	}
-	void getAvgElement(Mat *avg)
+
+	void getAvgElement(T *avg)
+	{
+		*avg = getClone(arrayRunningAvg)  ;
+	}
+
+	void getSumElement(T *sum)
+	{
+		*sum = getClone(arrayRunningSum) ;
+	}
+
+	//void populateNextElementInArray(double currentDbl)
+	//{
+	//	if (!sumInitialized)
+	//		initSumVar();
+	//	//TODO: add considaration for the first N elements (divide by smaller then N)
+	//	arrayRunningSum					= arrayRunningSum - typeArray[nextArrayIndex] ;
+	//	typeArray[nextArrayIndex]		= currentDbl ;
+	//	arrayRunningSum					= arrayRunningSum + typeArray[nextArrayIndex] ;
+	//	nextArrayIndex					= (nextArrayIndex+1)%N;	//make it cyclic on 0..(N-1) range
+	//	arrayRunningAvg					= arrayRunningSum / N ;
+	//}
+
+	/* specific functions for */
+	/*void getAvgElement(Mat *avg)
 	{
 		*avg = arrayRunningAvg.clone() ;
 	}
@@ -232,16 +273,7 @@ public:
 	void getSumElement(Mat *sum)
 	{
 		*sum = arrayRunningSum.clone() ;
-	}
+	}*/
 
-	void getAvgElement(double *avg)
-	{
-		*avg = arrayRunningAvg  ;
-	}
-
-	void getSumElement(double *sum)
-	{
-		*sum = arrayRunningSum ;
-	}
 	
 };

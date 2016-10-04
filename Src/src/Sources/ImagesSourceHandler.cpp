@@ -45,8 +45,8 @@ void ImagesSourceHandler::CaptureFromCam() {
 void ImagesSourceHandler::InitVideoCap() 
 { 
 
-	bRepeat_scenario_from_files	=	true;//true;//true;//false; 
-	bUserRecordRequest			=	false;//false;true;//
+	bRepeat_scenario_from_files	=	true;//false;//true;//true;//false; 
+	bUserRecordRequest			=	false;//true;//false;true;//
 	strcpy(inout_file_nameR , "../vidR.avi");
 	strcpy(inout_file_nameL , "../vidL.avi");
 

@@ -15,50 +15,20 @@ extern StereoRobotApp::SYSTEM_STATUS	system_state ;
 
 Tracker::Tracker() 
 {
+	/* for the good features to track function */
+	GFTFquality			=	0.01;
+	GFTFminDistance		=	10.0;
+	/* threshold conditions for going through track stages */
+	minFlowSuccessRate_toLEARN	=	90;
+	minROIareaRatio_toLEARN		=	10;
+	minFPsize_toLEARN			=	30;
+	minFlowSuccessRate_toTRACK	=	30;
+	minROIareaRatio_toTRACK		=	 5;
+	minFPsize_toTRACK			=	 5;
 }
 
 Tracker::~Tracker() 
 {
-}
-
-/* used when system_status is FOUND_SOME_MOVEMENT only */
-void Tracker::setNewTarget(
-							Rect			newTargetROI,	// ROI in original image source coor.system
-							Mat				newTarget,		// image of target alone. resolution is not known a head
-							Rect			TrackingROI)	// tracker ROI to work with. set by the calling method
-{
-	newTargetSituation	= true;
-	//ThresholdTypes//	threshold(newTargetROI, OriginalTargetROI, 0, 9999, THRESH_TOZERO );
-	/*if (newTargetROI.x < 0) newTargetROI.x = 0;
-	if (newTargetROI.y < 0) newTargetROI.y = 0;*/
-	//if (newTargetROI.x + newTargetROI.width > imSource.W) newTargetROI.x = imSource.W;
-
-	//////////////////////////////////
-
-	OriginalTargetROI	= newTargetROI;		// arrives as result of BKgndSubs, therefore should be correct(in limits)
-	current_trackingROI	= OriginalTargetROI;
-
-	OriginalTarget		= newTarget.clone();
-	TrackerROI			= TrackingROI;
-
-	cvtColor(OriginalTarget, grayOriginalTarget, CV_BGR2GRAY);
-	//////////////////////////////////
-
-	prevImProp.relevantROI = newTargetROI ;
-	cvtColor(newTarget, prevImProp.grayImage, CV_BGR2GRAY);
-	goodFeaturesToTrack(prevImProp.grayImage, prevImProp.goodFeatures, num_of_maxCornersFeatures,0.01,10);	//  int maxCorners, double qualityLevel, double minDistance,
-	///cout << "found on new target " << OriginalTargetFeatures.size() << " features\n";		//TODO: set to operate through GUI object..
-	 
-	/* OriginalTargetFeatures : store feature points in full image coordinates, rather then local image target ones */
-	/* trackedFeatures = OriginalTargetFeatures */
-	trackedFeatures.clear();
-	for (int i = 0; i < prevImProp.goodFeatures.size(); ++i) {
-		prevImProp.goodFeatures[i].x = prevImProp.goodFeatures[i].x ;//+ OriginalTargetROI.x;
-		prevImProp.goodFeatures[i].y = prevImProp.goodFeatures[i].y ;//+ OriginalTargetROI.y;
-		trackedFeatures.push_back(prevImProp.goodFeatures[i]);
-	}
-
-	TrackPercent	= 0*100;  // just learning
 }
 
 /////////////////////////////
@@ -79,166 +49,161 @@ bool points_are_equal(const Point2f& p1, const Point2f& p2) {
 
 /////////////////////////////
 
-void Tracker::processImage(Mat inputGrayIm, Mat newImage,  StereoRobotApp::SYSTEM_STATUS external_state, Rect Brect) //need mask and need image?.
+void Tracker::processImage(Mat inputGrayIm, Mat newImageMask, Rect Brect) //need mask and need image?.
 {
-	vector<uchar> flow_output_status; 
-	vector<float> flow_output_errors;
-	Mat currentMask;
-	static int learnTRKcounter =0;
+	// newImageMask is a mask from BGSubs & depth
+	// Brect - is boundingRect ( newImageMask );
 
-///	if (external_state ==  StereoRobotApp::FOUND_SOME_MOVEMENT)
+	static int		learnTRKcounter		=	0;
+	vector<uchar>	flow_output_status; 
+	vector<float>	flow_output_errors;
+	Mat				currentMask;
+	double			tmpRatio;
+	vector<Point2f> newFlowFeatures;  
+
+	currentImProp.relevantROI	= Brect;	
+	currentImProp.grayImage		= inputGrayIm.clone(); 
+	currentMask					= newImageMask.clone();
+
+	goodFeaturesToTrack(currentImProp.grayImage, currentImProp.goodFeatures, 
+							num_of_maxCornersFeatures, GFTFquality, GFTFminDistance, currentMask );  
+
+	//TODO?: if (currentImProp.goodFeatures.size() < min..) .. alert
+
+	if (Tracker_State == TRACKER_OFF)
 	{
-		/* feature tracker part - in this section only learn the potential target */
-		// image given from BackSubs so it shows only foreground. in original image size.
-		    // new image is a mask from BGSubs & depth
-		//  implemented full gray image in the 'current' struct
-		currentImProp.relevantROI	= Brect;// boundingRect ( newImage );
-		currentImProp.grayImage		= inputGrayIm.clone(); 
-		currentMask = newImage.clone();
-		goodFeaturesToTrack(currentImProp.grayImage, currentImProp.goodFeatures, num_of_maxCornersFeatures,0.01,10, currentMask );  
-
-		if (Tracker_State == TRACKER_OFF)
-		{
-			prevImProp		= currentImProp ; 
-			learnTRKcounter	= 0;
-			Tracker_State	= TRACKER_LEARNING ;	
-			return;
-		}
-		
-		if (prevImProp.goodFeatures.size()==0)
-		{
-			prevImProp		= currentImProp ;
-			return;		// describe error / lost	?
-		}
-
-		// find connection between 2 images
-		vector<Point2f> newFlowFeatures;  
-		calcOpticalFlowPyrLK(	prevImProp.grayImage	, currentImProp.grayImage , 
-								prevImProp.goodFeatures , newFlowFeatures , 
-								flow_output_status, flow_output_errors, flowSearchWinSize, 3,
-								TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 0.01),0, 0.001);	
-
-		///--currentImProp.goodFeatures + --
-		// filter newGoodFeatures
-		int features_vec_size ,i ;
-		trackedFeatures.clear();
-
-	//	features_vec_size = currentImProp.goodFeatures.size()  ;
-	//	for ( i = 0; i < features_vec_size ; ++i) { 
-	//		trackedFeatures.push_back(currentImProp.goodFeatures[i]);
-	//	} 
-		features_vec_size = newFlowFeatures.size() ; 
-		for ( i = 0; i < features_vec_size ; ++i) { 
-			if (flow_output_status[i])
-				trackedFeatures.push_back(newFlowFeatures[i]);
-		} 
-
-		// measure the flow calculation success rate 
-		int 	diffSizes 	= newFlowFeatures.size() - trackedFeatures.size() ;
-		double 	successRate = (1. - (double)diffSizes / (double)newFlowFeatures.size()) * 100.0 ;  //[%]
-		///if ( successRate > 30 )
-			///Tracker_State = TRACKER_TRACKING;
-
-		if ( Tracker_State == TRACKER_LEARNING)
-		{
-			if ( successRate > 90)
+		learnTRKcounter	= 0;
+		//  verify anough feature points found. and ROI in relevant size for possible target.
+		tmpRatio = 100.0 * (double) currentImProp.relevantROI.area() /  (double) currentImProp.grayImage.size().area() ;
+		if (tmpRatio > minROIareaRatio_toLEARN)	// can pass this condition to above. to 'save' a run-cycle.
+			if (currentImProp.goodFeatures.size() > minFPsize_toLEARN)
 			{
-				learnTRKcounter++;
-				if (learnTRKcounter > 3)
-					Tracker_State = TRACKER_TRACKING;
+				Tracker_State	= TRACKER_LEARNING ;/* in this section only learn the potential target */	
+				prevImProp		= currentImProp ; 
 			}
-			else
-				;
+		return;
+	}
+		
+	if (prevImProp.goodFeatures.size()==0)
+	{
+		prevImProp		= currentImProp ;
+		return;		// describe error / lost	?
+	}
+
+	/* Tracker_State	= TRACKER_LEARNING or TRACKER_TRACKING */
+
+	// find connection(flow) between 2 images
+	newFlowFeatures = currentImProp.goodFeatures;	// initial guess
+	calcOpticalFlowPyrLK(	prevImProp.grayImage	, currentImProp.grayImage , 
+							prevImProp.goodFeatures , newFlowFeatures , 
+							flow_output_status, flow_output_errors, flowSearchWinSize, 3,	// 3 is maxLevel for pyramids
+							TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 0.01),0, 0.001);	
+		
+	/* build the vector trackedFeatures */
+	// add to, and filter newGoodFeatures
+	int features_vec_size ,i ;
+	trackedFeatures.clear();
+
+	features_vec_size = newFlowFeatures.size() ; 
+	for ( i = 0; i < features_vec_size ; ++i) { 
+		if (flow_output_status[i])
+			trackedFeatures.push_back(newFlowFeatures[i]);
+	} 
+
+	// measure the flow calculation success rate 
+	int 	diffSizes 	= newFlowFeatures.size() - trackedFeatures.size() ;
+	double 	successRate = (1. - (double)diffSizes / (double)newFlowFeatures.size()) * 100.0 ;  //[%]
+
+	// when LEARNING : add 'blindly' the current image feature points. for the new current ROI.
+	if (Tracker_State == TRACKER_LEARNING)	
+	{
+		features_vec_size = currentImProp.goodFeatures.size()  ;
+		for ( i = 0; i < features_vec_size ; ++i) { 
+			trackedFeatures.push_back(currentImProp.goodFeatures[i]);
+		}
+	}
+
+	/******************************************/
+
+	if ( Tracker_State == TRACKER_LEARNING)
+	{
+		if ( successRate > minFlowSuccessRate_toLEARN )
+		{
+			learnTRKcounter++;
+			if (learnTRKcounter > 3)
+				Tracker_State = TRACKER_TRACKING;
 		}
 		else
+			;	//TODO: need to check how many gapped frames (with not enough features)
+	}
+	else // state is TRACKER_TRACKING:
+	{
+		//tmpRatio = 100.0 * (double) currentImProp.relevantROI.area() /  (double) currentImProp.grayImage.size().area() ;
+		tmpRatio = 100.0 * (double) boundingRect(trackedFeatures).area() /  (double) currentImProp.grayImage.size().area() ;
+		if ( ( successRate < minFlowSuccessRate_toTRACK )	
+				|| (trackedFeatures.size() < minFPsize_toTRACK) 
+				|| (tmpRatio < minROIareaRatio_toTRACK) )
 		{
-			if ( successRate < 30 )
-				Tracker_State	=	TRACKER_OFF;
+			Tracker_State	=	TRACKER_OFF;	// TODO: also cout a message?
+			return ;
 		}
-			//
-		//{
+	}
 
-		//	///if ( successRate >20 )  trackedFeatures.size()>5?
-		//	{
-		//		// replace current feature points to enlarg the tracked vector
-		//		trackedFeatures.clear();
-		//		features_vec_size = currentImProp.goodFeatures.size() ;
-		//		for ( i = 0; i < features_vec_size ; ++i) {
-		//				trackedFeatures.push_back(currentImProp.goodFeatures[i]);
-		//		}
-		//	}
-		//	if (external_state == StereoRobotApp::FOUND_SOME_MOVEMENT)
-		//		if ( successRate >20 ){
-		//			Tracker_State = TRACKER_TRACKING;
-		//			system_state = StereoRobotApp::FOUND_GOOD_TARGET ;
-		//		}
-		//}
-		//else
-		//	//if ( successRate <20 )
-		//	{
-		//		trackedFeatures.clear();
-		//		MassCenter		= Point(inputGrayIm.size().width/2, inputGrayIm.size().height/2);
-		//		Tracker_State 	= TRACKER_OFF;
-		//	}
+	// sort and delete duplicates
+	// ( ref by : http://stackoverflow.com/questions/1041620/whats-the-most-efficient-way-to-erase-duplicates-and-sort-a-vector )
+	//			->	http://stackoverflow.com/questions/25197805/how-to-delete-repeating-coordinates-of-vectorpoint2f 
+	///sort( trackedFeatures.begin(), trackedFeatures.end(), lexico_compare );		
+	///trackedFeatures.erase( unique( trackedFeatures.begin(), trackedFeatures.end() , points_are_equal), trackedFeatures.end() );
 
-		// sort and delete duplicates
-		// ( ref by : http://stackoverflow.com/questions/1041620/whats-the-most-efficient-way-to-erase-duplicates-and-sort-a-vector )
-		//			->	http://stackoverflow.com/questions/25197805/how-to-delete-repeating-coordinates-of-vectorpoint2f 
-		///sort( trackedFeatures.begin(), trackedFeatures.end(), lexico_compare );		
-		///trackedFeatures.erase( unique( trackedFeatures.begin(), trackedFeatures.end() , points_are_equal), trackedFeatures.end() );
-
-		/* calc center of points, and trackErr.x (bearing)  */
-		m	= moments(trackedFeatures,false);					// points moment 
-		Mat tmp2 = Mat::zeros(inputGrayIm.size(), CV_8U);
-		for (int i = 0; i < trackedFeatures.size(); ++i) {
+	/* calc center of points, and trackErr.x (bearing)  */
+	m	= moments(trackedFeatures,false);					// points moment 
+	Mat tmp2 = Mat::zeros(inputGrayIm.size(), CV_8U);
+	for (int i = 0; i < trackedFeatures.size(); ++i) {
+		{
+			int xx = trackedFeatures[i].x;
+			int yy = trackedFeatures[i].y;
+			if ( (xx<tmp2.size().width) &&
+				(yy<tmp2.size().height) &&
+				(xx>0 && yy>0) 
+				)
 			{
-				int xx = trackedFeatures[i].x;
-				int yy = trackedFeatures[i].y;
-				if ( (xx<tmp2.size().width) &&
-					(yy<tmp2.size().height) &&
-					(xx>0 && yy>0) 
-					)
-				{
-					auto ptr = tmp2.ptr<uchar>(yy) ;
-					ptr[xx] = 1*255;
-				}
+				auto ptr = tmp2.ptr<uchar>(yy) ;
+				ptr[xx] = 1*255;
 			}
 		}
-		m	= moments(tmp2,true); 
-		MassCenter	= Point(m.m10/m.m00, m.m01/m.m00);	// mass_centers
-		// ..tmp2 Mat can be showm as an image. for debug..
-		
-		//////
-		Mat tmpIM = newImage.clone();
-		int r	= 2;	//3
-		for(  i = 0; i < trackedFeatures.size(); i++ )
-		{ 
-			circle( tmpIM, trackedFeatures[i], r, 				Scalar(255, 100, 255), -1, 8, 0 );
-		}	 
-		/*for(  i = 0; i < currentImProp.goodFeatures.size(); i++ )
-		{ 
-			circle( tmpIM, currentImProp.goodFeatures[i], r, 	Scalar(10, 100, 255), -1, 8, 0 );
-		}	
-		for(  i = 0; i < newFlowFeatures.size(); i++ )
-		{ 
-			circle( tmpIM, newFlowFeatures[i], r, 				Scalar(10, 255, 255), -1, 8, 0 );
-		}	 */
-		imshow ("debug summarized features"	, tmpIM);
-
-
-		prevImProp.goodFeatures		= trackedFeatures;  //currentImProp ; 
-		prevImProp.grayImage		= currentImProp.grayImage;
-		prevImProp.relevantROI		= boundingRect(trackedFeatures);
-
-		// check condition for GOOD_TRACKING. instead of by subs. 
-		Target_obj.calc_target_mask_properties(tmp2) ;
-		Target::TargetState tmpTargStat = Target_obj.check_target_mask_properties() ;
-		//if (tmpTargStat==Target::Target_present)
-		//	//system_state = TRACKING_GOOD_QUALITY_TARGET ;
-		//	system_state = StereoRobotApp::FOUND_GOOD_TARGET ;
-
 	}
-		return;
+	m	= moments(tmp2,true); 
+	MassCenter	= Point(m.m10/m.m00, m.m01/m.m00);	// mass_centers
+	// ..tmp2 Mat can be showm as an image. for debug..
+		
+	//////
+	Mat tmpIM = newImageMask.clone();
+
+	cv::cvtColor(tmpIM , tmpIM  , CV_GRAY2BGR);
+	int r	= 2;	//3
+	for(  i = 0; i < trackedFeatures.size(); i++ )
+	{ 
+		circle( tmpIM, trackedFeatures[i], r, 				Scalar(255, 100, 255), -1, 8, 0 );//pink
+	}	 
+	for(  i = 0; i < currentImProp.goodFeatures.size(); i++ )
+	{ 
+		circle( tmpIM, currentImProp.goodFeatures[i], r, 	Scalar(10, 100, 255), -1, 8, 0 );//orange
+	}	
+	for(  i = 0; i < newFlowFeatures.size(); i++ )
+	{ 
+		circle( tmpIM, newFlowFeatures[i], r, 				Scalar(10, 255, 255), -1, 8, 0 );//yellow
+	}	 /**/
+	imshow ("debug summarized features"	, tmpIM);
+
+	// set data for next cycle loop
+	prevImProp.goodFeatures		= trackedFeatures; ; 
+	prevImProp.grayImage		= currentImProp.grayImage;
+	prevImProp.relevantROI		= Rect();//boundingRect(trackedFeatures);	//this one is just for reference. not useful
+
+	// set target calculated properties, by resultant faeture points mask. 
+	trackedTarget.calc_target_mask_properties(tmp2) ; 
+	
+	return;
 
 }
 

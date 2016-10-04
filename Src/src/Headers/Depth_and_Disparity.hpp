@@ -127,4 +127,6 @@ private:
 	double					last_disparity_min_depth;
 	rectification_outputs	last_result_of_disparity_struct;
 
+	int						minDisparityToCut;
+
 };

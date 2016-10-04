@@ -94,7 +94,9 @@ int Depth_and_Disparity::stereo_match_and_disparity_init(int argc, char** argv, 
 
 	//alg						= STEREO_SGBM;	
 	alg						=	 STEREO_BM;
-	desired_param_set		=	3;
+	desired_param_set		=	3;			// called at the end of this function.
+
+	minDisparityToCut		=	35;		// for the threshold cut	//default here. runover later in ParamFunction.
 
 	SADWindowSize			= 0;
 	numberOfDisparities		= 0;
@@ -322,6 +324,9 @@ void Depth_and_Disparity::set_BM_params_options_3()
 	bm->setNumDisparities	( numberOfDisparities );
 	bm->setTextureThreshold	( 10 );
 	bm->setUniquenessRatio	( 15 );
+
+	minDisparityToCut		=	15;		// for the threshold cut	//20 for 2.5m
+										//35 is for about 140cm // 18 about 4 meters, 12 about 5m
 
 	/*bm->setROI1(roi1);
 	bm->setROI2(roi2);
@@ -600,7 +605,8 @@ bool Depth_and_Disparity::calc_disperity(int desiredPhase, Mat in_left_clr, Mat 
 	//if ( localDisp.get_rectified_and_disparity(disp_temporary, disperity_struct) )  
 	{
 		/* calculate average depth for the ROI of the target */ 
-		threshold (last_result_of_disparity , filtered_disparity ,	35 ,	255,THRESH_TOZERO);		 //50
+		Mat tmpma = last_result_of_disparity;
+		threshold (last_result_of_disparity , filtered_disparity ,	minDisparityToCut ,	255,THRESH_TOZERO);		 //50
 
 		int an=3;	//an=1->kernel of 3
 		Mat element = getStructuringElement(MORPH_RECT, Size(an*2+1, an*2+1), Point(an, an) );
