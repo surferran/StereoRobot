@@ -127,6 +127,7 @@ int main(int argc, char** argv)
 
 	Mat					tmpROI;
 	Target::TargetState tmpTargStat;
+	bool				trackerNotOff;
 
 	/* end of variables */
 	
@@ -216,21 +217,27 @@ int main(int argc, char** argv)
 			switch (system_state) 
 			{
 				case StereoRobotApp::INITIALIZING:
-/* *********** */	//localBackSubs.find_forgnd( left_im_color(BckgndSubROI) , &movementMassCenter ) ; //// synthesize target by movement
-					//if (localBackSubs.BgSubt_Status == BackSubs::STANDING_BY)
-						system_state = StereoRobotApp::STANDBY;
-					///WSHD.init_mask_by_input(left_im_color) ;
+/* *********** */	//
+					localBackSubs.find_forgnd( left_im_color(BckgndSubROI) , &movementMassCenter ) ; //// synthesize target by movement
+					//
+					if (localBackSubs.BgSubt_Status == BackSubs::STANDING_BY)
+						system_state = StereoRobotApp::STANDBY; 
 					break;
 
 				case StereoRobotApp::STANDBY:
-/* *********** */	//localBackSubs.find_forgnd( left_im_color(BckgndSubROI) , &movementMassCenter ) ; //// synthesize target by movement
-					//if (localBackSubs.BgSubt_Status == BackSubs::FOUND_MOVEMENT)
+/* *********** */	//
+					localBackSubs.find_forgnd( left_im_color(BckgndSubROI) , &movementMassCenter ) ; //// synthesize target by movement
+					//
+					if (localBackSubs.BgSubt_Status == BackSubs::FOUND_MOVEMENT)
 						system_state = StereoRobotApp::FOUND_SOME_MOVEMENT;
 					break;
 
 				case StereoRobotApp::FOUND_SOME_MOVEMENT:
+				case StereoRobotApp::FOUND_GOOD_TARGET:		///
 					/************************bgSubt************************/
-/* *********** */	//localBackSubs.find_forgnd( left_im_color(BckgndSubROI) , &movementMassCenter ) ; //// synthesize target by movement
+/* *********** */	//
+					if (system_state == StereoRobotApp::FOUND_SOME_MOVEMENT)
+						localBackSubs.find_forgnd( left_im_color(BckgndSubROI) , &movementMassCenter ) ; //// synthesize target by movement
 					/************************disp************************/
 /* *********** */	localDisp.calc_disperity(3, left_im_color, right_im_color, &disp_temporary , &last_depth_of_ROI );  //2 , when 1 above
 							 
@@ -243,14 +250,25 @@ int main(int argc, char** argv)
 					/********************feat.tracker****************************/
 
 					int depth;		// rounded to [cm]
-					//featTrackMask1 = localBackSubs.get_foreground_mat();
-					///localDisp.get_filtered_disparity(featTrackMask2, &depth);
-					featTrackMask2	=	disp_temporary.clone();
+					//
+					featTrackMask	= Mat::zeros(left_im_gray.size(), left_im_gray.type() ) ;
+					if (system_state == StereoRobotApp::FOUND_SOME_MOVEMENT)
+						featTrackMask1	= localBackSubs.get_foreground_mat(); 
+					featTrackMask2	=	disp_temporary.clone();		// sum of last 3 frames
+						//TODO: drive should be around D closer. and around ROI.  in tracker - dont drag FP that are not in D ROI ( or vrery far..)
+					threshold (featTrackMask2 , featTrackMask2 ,	1 ,	255,THRESH_BINARY);		// take all that is not zero THRESH_TOZERO
 					depth			=	avg_depth_of_ROI;
-					//featTrackMask1.copyTo (featTrackMask, featTrackMask2 ) ;	// output is featTrackMask	
-					///featTrackMask2.copyTo (featTrackMask);
-					featTrackMask = featTrackMask2.clone();
-					threshold (featTrackMask , featTrackMask ,	1 ,	255,THRESH_BINARY);		// take all that is not zero THRESH_TOZERO
+					//
+
+					if (system_state == StereoRobotApp::FOUND_SOME_MOVEMENT)
+						featTrackMask1.copyTo (featTrackMask, featTrackMask2 ) ;	// output is featTrackMask , by mask1 && mask2
+					else
+						featTrackMask = featTrackMask2.clone(); // TODO:TODO: need to combine with previous FP ROI
+
+					///featTrackMask = featTrackMask2.clone();
+					///threshold (featTrackMask , featTrackMask ,	1 ,	255,THRESH_BINARY);		// take all that is not zero THRESH_TOZERO
+					
+					////////////////////////
 
 					first_target.calc_target_mask_properties(featTrackMask) ;
 					if (!first_target.check_target_mask_properties_option1())
@@ -281,7 +299,7 @@ int main(int argc, char** argv)
 					// potential target is Trimmed area acording to ROI (from Depth or BgSubt)					
 					left_im_gray.copyTo(first_target.potential_target , tmpROI); 
 
-					bool trackerNotOff = false;
+					trackerNotOff = false;
 					if ( tracker.Tracker_State != Tracker::TRACKER_OFF)
 						trackerNotOff = true;
 
@@ -290,10 +308,18 @@ int main(int argc, char** argv)
 					if ( (trackerNotOff) && (tracker.Tracker_State == Tracker::TRACKER_OFF) )	//back from advanced mode to OFF
 					{
 						system_state	=	 StereoRobotApp::INITIALIZING ;
+						//TODO: init BackSubs.BgSubt_Status to init 
 						//TODO: close potential_target window
 						break ;
 					}
+					if ( tracker.Tracker_State == Tracker::TRACKER_TRACKING )	//back from advanced mode to OFF
+					{
+						system_state	=	 StereoRobotApp::FOUND_GOOD_TARGET ; 
+						break ;
+					}
 
+					// center is by MaskROI. not related to feature points.. TODO: fix that.
+					// more: empty mask - not affecting. need to cut feature points in trcker by mask. by phase of D only or using BGsubt.
 					circle(first_target.potential_target, corected_MassCenter, 4, Scalar(255, 155, 55 ), -1, 8, 0);
 					circle(first_target.potential_target, tracker.MassCenter,  4, Scalar(0  , 255, 255), -1, 4, 0);	//yellow point.
 
@@ -310,6 +336,44 @@ int main(int argc, char** argv)
 						system_state = StereoRobotApp::FOUND_GOOD_TARGET;
 					*/
 
+					// track forward
+
+					// TODO : add sliding bar to animate Thrust.
+					// TODO : use kalman filter for that phase. to make it smooth
+					if (system_state == StereoRobotApp::FOUND_GOOD_TARGET)
+					{
+						if ( (avg_depth_of_ROI > myCApp.minDepth_toGoTo) && 
+							(avg_depth_of_ROI < myCApp.maxDepth_toGoTo) ) // 5 as minimum depth to go to
+						{
+							//thrust_percent = 50; //make static somwhere
+							//angle = -45 /57.3;		 //-45deg
+							//double thrust_per = (avg_depth_of_ROI-Dmin)/(Dmax-Dmin);
+							double thrust_per = 100.0*(avg_depth_of_ROI-11)/(190-11)*5.0;
+							hardwareController.Forward(thrust_per,  0, 0);
+						}
+						else 
+						{
+							hardwareController.Stop();
+						}
+
+						////////////// added graphics section /////////// 
+						if (myCApp.op_flags.draw_middle_x)
+						{			
+							Point2f targetCenter ;
+							// TODO: test source of track errors, from BackgroundSubs, or Tracker
+							///	add_Cross_to_Image(tracker.TrkErrX  ,  left_im_color.size().height/2  , 
+							targetCenter	=	tracker.MassCenter;
+							myGUI.add_Cross_to_Image(targetCenter.x  ,  targetCenter.y  , 
+								false, system_state , left_im_color); //	changes input image. but it is last in the flow cycle.
+						}
+
+					}
+					else
+					{
+						hardwareController.Stop();
+					}
+
+
 					/************************************************/
 					
 					myGUI.add_distance_to_disparityIM(avg_depth_of_ROI, disp_temporary);
@@ -319,7 +383,7 @@ int main(int argc, char** argv)
 
 					break;
 
-				case StereoRobotApp::FOUND_GOOD_TARGET:
+				case StereoRobotApp::FOUND_GOOD_TARGET+2:	// dont get here..
 	
 					corected_MassCenter = Point(movementMassCenter.x + BckgndSubROI.x,  movementMassCenter.y + BckgndSubROI.y); 
 
@@ -337,40 +401,6 @@ int main(int argc, char** argv)
 
 					imshow(myGUI.plotWindowsNames[4], first_target.potential_target);//8
 					 
-					// track forward
-
-					// TODO : add sliding bar to animate Thrust.
-					if (system_state == StereoRobotApp::FOUND_GOOD_TARGET)
-						if ((avg_depth_of_ROI>15) && (avg_depth_of_ROI<999)) // 5 as minimum depth to go to
-						{
-							 //thrust_percent = 50; //make static somwhere
-							 //angle = -45 /57.3;		 //-45deg
-							//double thrust_per = (avg_depth_of_ROI-Dmin)/(Dmax-Dmin);
-							double thrust_per = (avg_depth_of_ROI-11)/(190-11)*100.0*5.0;
-							hardwareController.Forward(thrust_per,  0, 0);
-						}
-						else 
-						{
-							hardwareController.Stop();
-						}
-					else
-					{
-						hardwareController.Stop();
-					}
-
-
-					////////////// added graphics section /////////// 
-
-					if (myCApp.op_flags.draw_middle_x)
-					{			
-						Point2f targetCenter ;
-						// TODO: test source of track errors, from BackgroundSubs, or Tracker
-						///	add_Cross_to_Image(tracker.TrkErrX  ,  left_im_color.size().height/2  , 
-						targetCenter	=	tracker.MassCenter;
-						if (system_state >= StereoRobotApp::FOUND_GOOD_TARGET) 
-							myGUI.add_Cross_to_Image(targetCenter.x  ,  targetCenter.y  , 
-								false, system_state , left_im_color); //	changes input image. but it is last in the flow cycle.
-					}
 
 					break;
 			}											

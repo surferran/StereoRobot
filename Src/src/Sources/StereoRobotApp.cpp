@@ -13,6 +13,10 @@ StereoRobotApp::StereoRobotApp()
 	frame_boundary_W_init	=	0;
 	frame_boundary			=	0;
 
+	minDepth_toGoTo			=	15;	//[cm]
+	maxDepth_toGoTo			=	300;//[cm]
+
+
 	op_flags.make_stereo_calibration	=	false;
 	op_flags.calc_background_subs		=	false;
 	op_flags.show_vid_source_selection	=	false;
@@ -29,6 +33,8 @@ StereoRobotApp::StereoRobotApp()
 	op_flags.show_img_hist				=	false;
 	op_flags.proces_img_frame			=	false;
 	op_flags.draw_middle_x				=	true ;
+
+
 };
 
 

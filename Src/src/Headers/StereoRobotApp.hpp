@@ -77,6 +77,9 @@ public:
 	  int	working_FRAME_HIGHT	= 240 /1 ;// 480;// 120;
 	  int	working_FRAMES_FPS  = 15;		// HW can support 15 or 30 fps. practically,with alg.calculations it can be up to 10fps.
 
+	  int	minDepth_toGoTo;
+	  int	maxDepth_toGoTo;
+
 	  int	frame_boundary_W_init;
 	  int	frame_boundary;
 
