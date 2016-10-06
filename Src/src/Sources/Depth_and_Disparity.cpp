@@ -572,17 +572,18 @@ void Depth_and_Disparity::convert_disperity_Mat_to_depth(Mat in_disp, Mat & out_
 	2 - return only filtered disparity for last captured disparity
 	3 - make the whole process - calculate disparity and return the filtered one
 */
-bool Depth_and_Disparity::calc_disperity(int desiredPhase, Mat in_left_clr, Mat in_right_clr, 
-											Mat *disperity_out, double *avg_depth_of_ROI)
+//bool Depth_and_Disparity::calc_disperity(int desiredPhase, Mat in_left_clr, Mat in_right_clr, 
+bool Depth_and_Disparity::calc_disperity(int desiredPhase, Mat left_im_gray, Mat right_im_gray, 
+											Mat *disperity_out, double *min_depth_of_ROI)
 {
-	Mat						left_im_gray, right_im_gray;
-	double					avg_disperity;
+	//Mat						left_im_gray, right_im_gray;
+	double					max_disperity;
 
 	if ( ! (desiredPhase==2) )		//calculate the new disparity for new inputs
 	{
-		/* sends gray images */
-		cv::cvtColor(in_left_clr , left_im_gray  , CV_BGR2GRAY);
-		cv::cvtColor(in_right_clr, right_im_gray , CV_BGR2GRAY);
+		///* sends gray images */
+		//cv::cvtColor(in_left_clr , left_im_gray  , CV_BGR2GRAY);
+		//cv::cvtColor(in_right_clr, right_im_gray , CV_BGR2GRAY);
 
 		// delivers new input , when the process is waiting (not in calculation process)
 		set_disparity_input(right_im_gray,left_im_gray, /*myStereoCams.GetFrameCycleCounter()*/ 1 );  
@@ -601,12 +602,11 @@ bool Depth_and_Disparity::calc_disperity(int desiredPhase, Mat in_left_clr, Mat 
 	// continue to give the filtered disparity (for the new or the last calculated)
 
 	/* if output is ready from disparity calculation , it returns true */
-	/* *********** */			
 	//if ( localDisp.get_rectified_and_disparity(disp_temporary, disperity_struct) )  
 	{
 		/* calculate average depth for the ROI of the target */ 
 		Mat tmpma = last_result_of_disparity;
-		threshold (last_result_of_disparity , filtered_disparity ,	minDisparityToCut ,	255,THRESH_TOZERO);		 //50
+		threshold (last_result_of_disparity , filtered_disparity ,	minDisparityToCut ,	255,THRESH_TOZERO);		 //15,35,50
 
 		int an=3;	//an=1->kernel of 3
 		Mat element = getStructuringElement(MORPH_RECT, Size(an*2+1, an*2+1), Point(an, an) );
@@ -615,9 +615,18 @@ bool Depth_and_Disparity::calc_disperity(int desiredPhase, Mat in_left_clr, Mat 
 		dilate		(filtered_disparity,	filtered_disparity, element); 
 
 		//max disperity into avg_disp var
-		minMaxLoc(filtered_disparity, 0, &avg_disperity ); 
-		convert_disperity_value_to_depth(avg_disperity , *avg_depth_of_ROI);	
-		last_disparity_min_depth = *avg_depth_of_ROI;
+		minMaxLoc(filtered_disparity, 0, &max_disperity ); 
+		convert_disperity_value_to_depth(max_disperity , *min_depth_of_ROI);	
+		last_disparity_min_depth	= *min_depth_of_ROI;
+
+
+		Scalar     mean;
+		Scalar     stddev;
+
+		meanStdDev ( filtered_disparity, mean, stddev );
+		uchar       mean_pxl = mean.val[0];
+		uchar       stddev_pxl = stddev.val[0];
+
 	}
 	
 	*disperity_out = filtered_disparity.clone() ;

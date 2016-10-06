@@ -335,7 +335,7 @@ static bool readStringList( const string& filename, vector<string>& l )
 /*
 calibrate stereo cameras , by pairs of pre-captured images. listed in given .xml file
 */
-int do_stereo_calib(int argc, char** argv)
+static int do_stereo_calib(int argc, char** argv)
 {
     Size boardSize;
     string imagelistfn;

@@ -11,12 +11,14 @@
 
 //#include "opencv2/opencv.hpp"
 //#include "GUIFunctions.h"		// for using _intToString
-#include "myGUI_handler.h"
+//#include "myGUI_handler.h"
+#include "StereoRobotApp.hpp"
 
 using namespace cv;
 
-extern myGUI_handler	myGUI ;
-extern StereoRobotApp::SYSTEM_STATUS	system_state ;
+//extern myGUI_handler	myGUI ;
+//extern StereoRobotApp::SYSTEM_STATUS	system_state ;
+///extern StereoRobotApp	myCApp;
 
 /*************************************************************************************/
 /******************************    Header section    *********************************/
@@ -44,8 +46,6 @@ public:
 
 	 
 private:
-
-	//myGUI_handler gui_handler;
 	
 	///int show_more_details(Mat frame) ;
 	int doMYbsManipulation( Mat & mask , Point *movementMassCenter);

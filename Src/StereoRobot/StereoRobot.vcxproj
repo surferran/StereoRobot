@@ -97,7 +97,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>C:\OpenCV\build\include;c:\OpenCV\sources\include;$(IncludePath)</IncludePath>
+    <IncludePath>C:\OpenCV\build\include;c:\OpenCV\sources\include;$(SolutionDir)src\Headers;$(SolutionDir)src\OdroidC1_handlers;$(IncludePath)</IncludePath>
     <LibraryPath>$(OPENCV_DIR)lib\Debug;C:\OpenCV\myBuild\bin\Debug;$(LibraryPath)</LibraryPath>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
@@ -106,7 +106,7 @@
     <LibraryPath>$(OPENCV_DIR)lib\Debug;C:\OpenCV\myBuild\bin\Debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>C:\OpenCV\build\include;c:\OpenCV\sources\include;$(VC_IncludePath);$(IncludePath)</IncludePath>
+    <IncludePath>C:\OpenCV\build\include;c:\OpenCV\sources\include;$(VC_IncludePath);$(SolutionDir)src\Headers;$(SolutionDir)src\OdroidC1_handlers;$(IncludePath)</IncludePath>
     <LibraryPath>$(OPENCV_DIR)lib\Debug;C:\OpenCV\myBuild\bin\Debug;$(LibraryPath);$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86);$(NETFXKitsDir)Lib\um\x86</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM'">

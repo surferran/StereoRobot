@@ -35,6 +35,9 @@ public:
 	///bool check_user_input(const int* waiting_delay, char* c);
 	void onMouseWSHED( int event, int x, int y, int flags, void* );
 
+	void show_raw_captures(Mat L_in, Mat R_in, long frameCounter);
+	void show_disparity_map(Mat sum_of_disp, int avg_depth);
+
 	static const int	thumb_num = 10;	
 	String				plotWindowsNames[thumb_num];
 	Mat					plotImages[thumb_num]; 
@@ -47,6 +50,15 @@ public:
 	/* for WaterShed use */
 	Mat		markerMask_WSHED, img_WSHED;
 	Point	prevPt_WSHED;//(-1, -1);
+
+	enum {
+		WIN1_NDX = 0,
+		WIN2_NDX,
+		WIN3_NDX,
+		WIN4_NDX,
+		NUM_OF_GUI_WINDOWS
+	};
+
 private:
 		//TODO: change those to overloading or use template
 	string _longToString(long number);

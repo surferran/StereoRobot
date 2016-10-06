@@ -20,8 +20,8 @@ using namespace cv;
 #include <mutex>
 #include <atomic>
 
-#include "myGUI_handler.h"
-extern myGUI_handler myGUI; // thread for images displaying
+///#include "myGUI_handler.h"
+///extern myGUI_handler myGUI; // thread for images displaying
  
 class Depth_and_Disparity
 {

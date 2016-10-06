@@ -19,6 +19,7 @@ using namespace cv;
 #include <thread>
 #include <mutex>
 #include <atomic>
+#include <memory>
 
 /*******************************************************************************************/
 /*******************************************************************************************/
@@ -44,6 +45,35 @@ using namespace cv;
 #define SHOW_MOVING_RECTANGLES		false//true
 #define SHOW_MOVING_BIG_CONTOURS	true
 #define SHOW_MOVING_BIG_RECTANGLES	false//true
+
+////////////////////////////////
+
+
+/*********  thread object  ********/
+#include "Depth_and_Disparity.hpp"		//set the disparity object (variables and functions)
+//Depth_and_Disparity localDisp;
+/**********************************/
+
+#include "frameFunctions.h"		// general definitions and functions. that's why it is first to include. 
+
+//StereoRobotApp::SYSTEM_STATUS	system_state = StereoRobotApp::INITIALIZING ;	//TODO: put under the main app OBJ
+
+
+#include "BackgroundSub.hpp"
+#include "RobotController.h"
+
+#include "stereo_calib.h" 
+#include "FeatureTracker.hpp"
+#include "ImagesSourceHandler.h"
+/*********  GUI object  ********/
+//#include "myGUI_handler.h"
+//extern myGUI_handler		myGUI;
+
+#ifdef COMPILING_ON_ROBOT
+										////#include "OdroidC1_handlers/RobotController.h"
+#include <unistd.h>
+#include "pwm.h"
+#endif
 
 /*******************************************************************************************/
 /*******************************************************************************************/
@@ -104,7 +134,90 @@ public:
 	
 	Operation_flags	op_flags; 
 
-};
+	/* ******** application objects ******** */
+	/*Depth_and_Disparity localDisp;*/
+	SYSTEM_STATUS		system_state ; //= INITIALIZING ;	
 
+	void appInitializations();
+	void appMainLoop();
+
+private:
+
+	bool wait_or_handle_user_input();
+
+	/* inner variables to work with */
+
+	Mat left_im_color ,
+		right_im_color;
+	Mat left_im_gray ,
+		right_im_gray;
+
+	RobotController hardwareController ;
+
+	Mat		target_candidate_features;
+
+	///bool request_water_shed = false;
+
+	const int		loop_delay = 33 ; //[ms]	// need to fit the file recording value
+	char			user_pressing=0;	// just optional.
+
+	int				relative_counter =0;
+
+	///*  initiating images capturing  */
+	//ImagesSourceHandler myStereoCams; // thread for images capturing
+	//								  /*  ***************************  */
+
+									  /*  initiating createBackgroundSubtractorMOG2   */
+	/*BackSubs	localBackSubs ;*/
+	/*  *****************************************   */
+	/*  initiating target   */
+	//Target	first_target ;
+	/*  *****************************************   */
+	//const int target_lost_timeout_counter  = 2* loop_delay ; // [~sec]//counter to simulate delay of about 2 sec. (depend on loop inner delay)
+	//int		  target_lost_time_counter = 0 ;   // stopper to timeout
+	
+	/*Tracker		tracker;*/
+	Rect		BckgndSubROI;
+	Rect		TrackingROI;
+
+	Mat			lastDepthImg,
+				depthAvg;
+	int			depthAvgNdx = 0;
+
+	bool	got_1st_stable_bkgnd ;
+/*
+	Depth_and_Disparity::rectification_outputs disperity_struct;*/
+	Mat		current_disparity = Mat();
+	Mat		sum_of_N_disparities = Mat();
+	Mat		modified_disperity_mat;
+	Scalar	avg_disperity_S;
+	double	avg_disperity;
+	double	avg_depth_of_ROI	= 0 ;
+	double	last_min_depth_of_ROI	= 0 ;
+
+	Point	movementMassCenter, corected_MassCenter;
+	Mat		current_mask1,
+			current_mask2;
+	Mat		bgnd;
+
+	bool	gotNewDispImageToWorkWith = false;
+
+	myCQueue<Mat>		matQueue;
+	myCQueue<double>	doubleQueue;					
+
+	Mat featTrackMask1, 
+		featTrackMask2,
+		featTrackMask;		//M1 & M2 -> M
+
+	Mat					tmpROI;/*
+	Target::TargetState tmpTargStat;*/
+	bool				trackerNotOff;
+
+	int w		,
+		h		;
+		//waitSec ;
+
+
+};
 
 extern StereoRobotApp myCApp;

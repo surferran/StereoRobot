@@ -8,10 +8,10 @@
 myGUI_handler::myGUI_handler()
 {
 
-	plotWindowsNames[0] = "win1 - original Right image";
-	plotWindowsNames[1] = "win2 - original Left image"; 
+	plotWindowsNames[WIN1_NDX] = "win1 - original Right image";
+	plotWindowsNames[WIN2_NDX] = "win2 - original Left image"; 
 
-	plotWindowsNames[2] = "win3 - background substruction output";
+	plotWindowsNames[WIN3_NDX] = "win3 - background substruction output";
 	plotWindowsNames[3] = "win4 - filtered disperity";
 
 	plotWindowsNames[4] = "win5 - tracked object";
@@ -24,6 +24,24 @@ myGUI_handler::myGUI_handler()
 
 }
 
+
+void myGUI_handler::show_raw_captures(Mat L_in, Mat R_in, long frameCounter)	//inputs in colour
+{
+	/// show raw images first
+	Mat tmpLeft = L_in.clone();
+	add_counterFrame(tmpLeft , &frameCounter ) ;
+	imshow(plotWindowsNames[0],	R_in	);
+	imshow(plotWindowsNames[1],	tmpLeft );
+}
+
+void myGUI_handler::show_disparity_map(Mat sum_of_N_disparities, int avg_depth)
+{
+	Mat tmpIm = sum_of_N_disparities.clone();
+	add_distance_to_disparityIM(avg_depth, tmpIm);
+
+	imshow ( plotWindowsNames[WIN4_NDX], tmpIm );	 
+
+}
 
 // shows the 4 images of previous and current images and 
 //						their matching feature points flow.
@@ -88,7 +106,7 @@ void myGUI_handler::dispFlowChanges(Mat & prevGrayROI, vector<Point2f> trackedFe
 
 void myGUI_handler::draw_output_frames(String* WinNames, Mat* images)
 {
-	for (int i=0; i<thumb_num ; i++)
+	for (int i=0; i < NUM_OF_GUI_WINDOWS; i++)	//<= thumb_num ?
 	{
 		imshow( WinNames[i]	, images[i] );
 	}
@@ -392,10 +410,8 @@ void makeContours(Mat aBw){
 
 void myGUI_handler::add_counterFrame(Mat &inImage, long * frameNum)
 {
-
 	putText(inImage,"input frame counter (" + _longToString(*frameNum)+")",
 		Point(15, inImage.size().height - 15 ),1,0.75,Scalar(155,0,0),2);
-
 }
 
 ////////////////////////////

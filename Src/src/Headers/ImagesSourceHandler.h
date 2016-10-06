@@ -7,7 +7,7 @@
 #include "opencv2/opencv.hpp" 
  
 
-extern StereoRobotApp myCApp;
+///extern StereoRobotApp myCApp;
 
 using namespace cv;
 
@@ -51,9 +51,9 @@ private:
 	VideoCapture	vidR,		// handles the Hardware right camera
 					vidL;		// handles the Hardware left camera
 
-	const int		w	=	myCApp.working_FRAME_WIDTH ,		// desired resolution for the images
-					h	=	myCApp.working_FRAME_HIGHT ,
-					FPS	=	myCApp.working_FRAMES_FPS;		// 30, or 15  -> capture_loop_dealy=33, or 67 [mS]
+	/*const */int	w	=	320,//myCApp.working_FRAME_WIDTH ,		// desired resolution for the images
+					h	=	240,//myCApp.working_FRAME_HIGHT ,
+					FPS	=	30;//myCApp.working_FRAMES_FPS;		// 30, or 15  -> capture_loop_dealy=33, or 67 [mS]
 
 	/* vars for input and output from/to files */ 
 	bool			bRepeat_scenario_from_files	 ; 	// true for input images from previously recorded files.
