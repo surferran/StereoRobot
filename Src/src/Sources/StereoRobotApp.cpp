@@ -69,7 +69,7 @@ void StereoRobotApp::appInitializations()
 	w		= myStereoCams.GetRes().width;
 	h		= myStereoCams.GetRes().height;
 
-	localBackSubs.show_forgnd_and_bgnd_init(working_FRAMES_FPS); 
+	localBackSubs.show_forgnd_and_bgnd_init(working_FRAMES_FPS, false); 
 
 	/* clear points that are out of my desired ROI (center of image) */
 	//TODO:make 20 h , 30 w /// sizes are for after resize
@@ -136,7 +136,7 @@ void StereoRobotApp::appMainLoop()
 
 			////////////// end of capture images ///////////
 
-			myGUI.show_raw_captures(left_im_color, right_im_color, myStereoCams.GetFrameCycleCounter());
+			myGUI.show_raw_captures(left_im_color, right_im_color, myStereoCams.GetFrameCycleCounter(), system_state);
 
 			/************************bgSubt************************/
 			if ( (system_state == INITIALIZING) || (system_state == STANDBY) || (system_state == FOUND_SOME_MOVEMENT) )
@@ -154,7 +154,7 @@ void StereoRobotApp::appMainLoop()
 			}
 			else
 			{
-				localBackSubs.show_forgnd_and_bgnd_init(working_FRAMES_FPS);
+				localBackSubs.show_forgnd_and_bgnd_init(working_FRAMES_FPS, false);
 				myGUI.close_BgSubt_win();  // TODO: just add red frame, and when operative set to green
 			}
 			
@@ -195,6 +195,7 @@ void StereoRobotApp::appMainLoop()
 				if ( (trackerNotOff) && (tracker.Tracker_State == Tracker::TRACKER_OFF) )	//back from advanced mode to OFF
 				{
 					system_state	=	 StereoRobotApp::INITIALIZING ;
+					localBackSubs.show_forgnd_and_bgnd_init(0,true);
 					myGUI.close_Tracking_win();
 					//continue;	
 				}
@@ -251,7 +252,7 @@ void StereoRobotApp::appMainLoop()
 			// move to broadcast from outside. // separate the graphic layer to only when track is on.
 			//									otherwise just draw raw images.
 
-			myGUI.show_raw_captures(left_im_color, right_im_color, myStereoCams.GetFrameCycleCounter());
+			myGUI.show_raw_captures(left_im_color, right_im_color, myStereoCams.GetFrameCycleCounter(), system_state);
 
 			////////////* end of graphics section *///////////////
 		}

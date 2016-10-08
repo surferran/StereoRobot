@@ -43,7 +43,7 @@ private:
 	int		minFPsize_toLEARN;			// number of feature points
 	int		minROIareaRatio_toLEARN;	// percent of ratio
 	int		minFPsize_toTRACK;			// "
-	int		minROIareaRatio_toTRACK;	// "
+	double	minROIareaRatio_toTRACK;	// "
 	int		minFlowSuccessRate_toTRACK; // percent . from previous frame to the new one.
 	int		minFlowSuccessRate_toLEARN; // percent . from previous frame to the new one.
 

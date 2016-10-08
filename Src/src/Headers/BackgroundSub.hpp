@@ -28,7 +28,7 @@ public:
 		FOUND_MOVEMENT	=	2
 	} BgSubt_Status ;
 
-	int		show_forgnd_and_bgnd_init(int a); 
+	int		show_forgnd_and_bgnd_init(int fps, bool lost); 
 
 	void	find_forgnd(Mat frame, Point *movementMassCenter);
 
@@ -49,6 +49,9 @@ private:
 	Mat						frame, foreground, image;	// inner vars for class functions.
 	Mat						middle_tmp_frame;			//	
 	Mat						backgroundAvg ;
+	int						frame_counter;
+	int						init_frames_number;
+	int						cycles_number_after_lost;
 
 	/* for show_more_details() */
 	vector<vector<Point> >	contours;

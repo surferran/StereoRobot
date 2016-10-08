@@ -12,6 +12,7 @@
 
 
 extern StereoRobotApp::SYSTEM_STATUS	system_state ;
+extern	myGUI_handler myGUI;
 
 Tracker::Tracker() 
 {
@@ -23,7 +24,7 @@ Tracker::Tracker()
 	minROIareaRatio_toLEARN		=	 5;
 	minFPsize_toLEARN			=	10;
 	minFlowSuccessRate_toTRACK	=	30;
-	minROIareaRatio_toTRACK		=	 5;
+	minROIareaRatio_toTRACK		=	 5;//1.5
 	minFPsize_toTRACK			=	 7;
 }
 
@@ -133,13 +134,13 @@ void Tracker::processImage(Mat inputGrayIm, Target *targetMask)
 		return;
 	}
 		
-	/* do not allow tracking trial without minimum number of feature points, every frame.
-	     because frame rate is not high, don't tollarance frame gaps. */
-	if (prevImProp.goodFeaturesCoor.size() <= minFPsize_toTRACK)
-	{
-		prevImProp		= currentImProp ;
-		return;		// describe error / lost / set alarm	?
-	}
+	///* do not allow tracking trial without minimum number of feature points, every frame.
+	//     because frame rate is not high, don't tollarance frame gaps. */
+	//if (prevImProp.goodFeaturesCoor.size() </*=*/ minFPsize_toTRACK)
+	//{
+	//	prevImProp		= currentImProp ;
+	//	return;		// describe error / lost / set alarm	?
+	//}
 
 	/* now Tracker_State is TRACKER_LEARNING or TRACKER_TRACKING */
 
@@ -182,26 +183,26 @@ void Tracker::processImage(Mat inputGrayIm, Target *targetMask)
 		}
 	} 
 
-	// option for checking backwards flow
-	/*********/	/*********/	/*********/	/*********/
-	newFlowFeaturesBack = prevImProp.goodFeaturesCoor;	// initial guess
-	calcOpticalFlowPyrLK(	currentImProp.grayImage , prevImProp.grayImage	,
-		trackedFeatures			, newFlowFeaturesBack , 
-		flow_output_status, flow_output_errors, flowSearchWinSize, 3,	// 3 is maxLevel for pyramids
-		TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 0.01),0, 0.001);
+	//// option for checking backwards flow
+	///*********/	/*********/	/*********/	/*********/
+	//newFlowFeaturesBack = prevImProp.goodFeaturesCoor;	// initial guess
+	//calcOpticalFlowPyrLK(	currentImProp.grayImage , prevImProp.grayImage	,
+	//	trackedFeatures			, newFlowFeaturesBack , 
+	//	flow_output_status, flow_output_errors, flowSearchWinSize, 3,	// 3 is maxLevel for pyramids
+	//	TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 0.01),0, 0.001);
 
-	trackedFeaturesBack.clear();
-	features_vec_size = newFlowFeaturesBack.size() ; 
-	for ( i = 0; i < features_vec_size ; ++i) { 
-		if (flow_output_status[i])
-			trackedFeaturesBack.push_back(newFlowFeaturesBack[i]);
-	} 
-	/*********/	/*********/	/*********/	/*********/
+	//trackedFeaturesBack.clear();
+	//features_vec_size = newFlowFeaturesBack.size() ; 
+	//for ( i = 0; i < features_vec_size ; ++i) { 
+	//	if (flow_output_status[i])
+	//		trackedFeaturesBack.push_back(newFlowFeaturesBack[i]);
+	//} 
+	///*********/	/*********/	/*********/	/*********/
 
 	// measure the flow calculation success rate 
 
 	int 	diffSizesBack 	= newFlowFeatures.size() - newFlowFeaturesBack.size() ;	//before screening
-	int 	diffSizesBack2 	= trackedFeatures.size() - trackedFeaturesBack.size() ;	//after screening
+	//int 	diffSizesBack2 	= trackedFeatures.size() - trackedFeaturesBack.size() ;	//after screening
 
 	int 	diffSizes 	= newFlowFeatures.size() - trackedFeatures.size() ;
 	double 	successRate = (1. - (double)diffSizes / (double)newFlowFeatures.size()) * 100.0 ;  //[%]
@@ -237,7 +238,8 @@ void Tracker::processImage(Mat inputGrayIm, Target *targetMask)
 				|| (trackedFeatures.size() < minFPsize_toTRACK) 
 				|| (tmpRatio < minROIareaRatio_toTRACK) )
 		{
-			Tracker_State	=	TRACKER_OFF;	// TODO: also cout a message?
+			Tracker_State	= TRACKER_OFF;	// TODO: also cout a message?
+			prevImProp		= currentImProp ;	// this maybe not needed
 			return ;
 		}
 	}
@@ -270,20 +272,19 @@ void Tracker::display_fPoint_4debug(vector<Point2f> newFlowFeatures)
 	Mat tmpIM = trackedTarget.target_mask_prop.maskIm.clone();//  newImageMask.clone();
 
 	cv::cvtColor(tmpIM , tmpIM  , CV_GRAY2BGR);
-	int r	= 2;	//3
+	int r	= 3;
 	int i;
-	for(  i = 0; i < trackedFeatures.size(); i++ )
-	{ 
-		circle( tmpIM, trackedFeatures[i], r, 				Scalar(255, 100, 255), -1, 8, 0 );//pink
-	}	 
 	for(  i = 0; i < currentImProp.goodFeaturesCoor.size(); i++ )
-	{ 
-		circle( tmpIM, currentImProp.goodFeaturesCoor[i], r, 	Scalar(10, 100, 255), -1, 8, 0 );//orange
+	{ circle( tmpIM, currentImProp.goodFeaturesCoor[i], r, 	Scalar(10, 100, 255), -1, 8, 0 );//orange
 	}	
 	for(  i = 0; i < newFlowFeatures.size(); i++ )
-	{ 
-		circle( tmpIM, newFlowFeatures[i], r, 				Scalar(10, 255, 255), -1, 8, 0 );//yellow
-	}	 /**/
-	imshow ("debug summarized features"	, tmpIM);
+	{ circle( tmpIM, newFlowFeatures[i], r, 				Scalar(10, 255, 255), -1, 8, 0 );//yellow
+	}	
+	r=2;
+	for(  i = 0; i < trackedFeatures.size(); i++ )
+	{ circle( tmpIM, trackedFeatures[i], r, 				Scalar(255, 100, 255), -1, 8, 0 );//pink
+	}	
+	
+	imshow ( myGUI.plotWindowsNames[myGUI_handler::WIN5_NDX_FeaturePoints]	, tmpIM);
 }
 

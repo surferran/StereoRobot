@@ -28,6 +28,7 @@ public:
 	void add_counterFrame(Mat &inImage, long * frameNum);
 
 	void add_Cross_to_Image(int x, int y, bool addLabel, StereoRobotApp::SYSTEM_STATUS sys_stat, Mat &cameraFeed);
+	void add_sysStatus_to_Image(StereoRobotApp::SYSTEM_STATUS sys_stat, Mat &cameraFeed);
 
 	void add_distance_to_disparityIM(double dist, Mat &ImFeed);
 
@@ -38,7 +39,7 @@ public:
 	///bool check_user_input(const int* waiting_delay, char* c);
 	void onMouseWSHED( int event, int x, int y, int flags, void* );
 
-	void show_raw_captures(Mat L_in, Mat R_in, long frameCounter);
+	void show_raw_captures(Mat L_in, Mat R_in, long frameCounter, StereoRobotApp::SYSTEM_STATUS sys_stat);
 	void show_disparity_map(Mat sum_of_disp, int avg_depth);
 
 	static const int	thumb_num = 10;	

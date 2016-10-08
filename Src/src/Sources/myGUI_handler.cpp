@@ -25,11 +25,12 @@ myGUI_handler::myGUI_handler()
 }
 
 
-void myGUI_handler::show_raw_captures(Mat L_in, Mat R_in, long frameCounter)	//inputs in colour
+void myGUI_handler::show_raw_captures(Mat L_in, Mat R_in, long frameCounter, StereoRobotApp::SYSTEM_STATUS sys_stat )	//inputs in colour
 {
 	/// show raw images first
 	Mat tmpLeft = L_in.clone();
 	add_counterFrame(tmpLeft , &frameCounter ) ;
+	add_sysStatus_to_Image(sys_stat, tmpLeft);
 	imshow(plotWindowsNames[WIN1_NDX_RightRawIm],	R_in	);
 	imshow(plotWindowsNames[WIN2_NDX_LeftRawIm],	tmpLeft );
 }
@@ -248,7 +249,10 @@ void myGUI_handler::add_Cross_to_Image(int x, int y, bool addLabel, StereoRobotA
 	if (addLabel)
 		putText(cameraFeed,"Tracking object at (" + _intToString(x)+","+_intToString(y)+")",
 			Point(x/20+1,y/20+20),1,0.51,Scalar(255,0,0),1);
-
+	//add_sysStatus_to_Image()
+}
+void myGUI_handler::add_sysStatus_to_Image(StereoRobotApp::SYSTEM_STATUS sys_stat, Mat &cameraFeed) 
+{
 	String StatusText = _sysStatToString(sys_stat);
 	putText(cameraFeed, StatusText, Point(15, 15), FONT_HERSHEY_COMPLEX, 0.4, (0, 0, 255), 1);
 
