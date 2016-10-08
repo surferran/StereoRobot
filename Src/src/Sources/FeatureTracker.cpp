@@ -48,8 +48,44 @@ bool points_are_equal(const Point2f& p1, const Point2f& p2) {
 }
 
 /////////////////////////////
+void Tracker::consider_duplicates()
+{
+	// sort and delete duplicates
+	// ( ref by : http://stackoverflow.com/questions/1041620/whats-the-most-efficient-way-to-erase-duplicates-and-sort-a-vector )
+	//			->	http://stackoverflow.com/questions/25197805/how-to-delete-repeating-coordinates-of-vectorpoint2f 
+	///sort( trackedFeatures.begin(), trackedFeatures.end(), lexico_compare );		
+	///trackedFeatures.erase( unique( trackedFeatures.begin(), trackedFeatures.end() , points_are_equal), trackedFeatures.end() );
+}
+void Tracker::set_featurePnts_into_image(Point *returnMassCenter, Mat &targetMask)
+{
+	/* calc center of points, and trackErr.x (bearing will be atan(x/D) )  */
+	m	= moments(trackedFeatures,false);					// points moment 
+	Mat tmp2 = Mat::zeros(currentImProp.grayImage.size(), CV_8U);
+	for (int i = 0; i < trackedFeatures.size(); ++i) {
+		{
+			int xx = trackedFeatures[i].x;
+			int yy = trackedFeatures[i].y;
+			if ( (xx<tmp2.size().width) &&
+				(yy<tmp2.size().height) &&
+				(xx>0 && yy>0) 
+				)
+			{
+				auto ptr = tmp2.ptr<uchar>(yy) ;
+				ptr[xx] = 1*255;
+			}
+		}
+	}
+	m	= moments(tmp2,false); 
+	m	= moments(tmp2,true); 
+	//MassCenter	= Point(m.m10/m.m00, m.m01/m.m00);	// mass_centers
+	*returnMassCenter	= Point(m.m10/m.m00, m.m01/m.m00);	// mass_centers
+	targetMask = tmp2;
+													// ..tmp2 Mat can be showm as an image. for debug..
+}
+/////////////////////////////
 
-void Tracker::processImage(Mat inputGrayIm, Mat newImageMask, Rect Brect) //need mask and need image?.
+//void Tracker::processImage(Mat inputGrayIm, Mat newImageMask, Rect Brect) //need mask and need image?.
+void Tracker::processImage(Mat inputGrayIm, Target *targetMask) 
 {
 	// newImageMask is a mask from BGSubs & depth
 	// Brect - is boundingRect ( newImageMask );
@@ -59,43 +95,56 @@ void Tracker::processImage(Mat inputGrayIm, Mat newImageMask, Rect Brect) //need
 	vector<float>	flow_output_errors;
 	Mat				currentMask;
 	double			tmpRatio;
-	vector<Point2f> newFlowFeatures;  
+	vector<Point2f> newFlowFeatures,
+					newFlowFeaturesBack;  
+	Target			currentTargetMask = *targetMask;
 
-	currentImProp.relevantROI	= Brect;	
+	//trackedTarget
+
+	// tmpROI is MASK in potential area of new target. 
+	// potential target is Trimmed area according to ROI (from Depth or BgSubt)	
+	Mat tmpROI	=  Mat::zeros( inputGrayIm.size() , inputGrayIm.type() );
+	tmpROI( currentTargetMask.target_mask_prop.boundRect )	= 255;				
+	inputGrayIm.copyTo(currentTargetMask.potential_target , tmpROI);
+
 	currentImProp.grayImage		= inputGrayIm.clone(); 
-	currentMask					= newImageMask.clone();
-
-	goodFeaturesToTrack(currentImProp.grayImage, currentImProp.goodFeatures, 
+	currentImProp.relevantROI	= currentTargetMask.target_mask_prop.boundRect ;  //Brect;	
+	currentMask					= currentTargetMask.target_mask_prop.maskIm.clone();
+	
+	goodFeaturesToTrack(currentImProp.grayImage, currentImProp.goodFeaturesCoor, 
 							num_of_maxCornersFeatures, GFTFquality, GFTFminDistance, currentMask );  
-
-	//TODO?: if (currentImProp.goodFeatures.size() < min..) .. alert
-
+	
 	if (Tracker_State == TRACKER_OFF)
 	{
 		learnTRKcounter	= 0;
-		//  verify anough feature points found. and ROI in relevant size for possible target.
-		tmpRatio = 100.0 * (double) currentImProp.relevantROI.area() /  (double) currentImProp.grayImage.size().area() ;
-		if (tmpRatio > minROIareaRatio_toLEARN)	// can pass this condition to above. to 'save' a run-cycle.
-			if (currentImProp.goodFeatures.size() > minFPsize_toLEARN)
-			{
-				Tracker_State	= TRACKER_LEARNING ;/* in this section only learn the potential target */	
-				prevImProp		= currentImProp ; 
-			}
+		if (currentImProp.goodFeaturesCoor.size() > minFPsize_toLEARN){
+			//  verify anough feature points found. and ROI in relevant size for possible target.
+			double tmpArea1 = (double) currentImProp.relevantROI.area();
+			double tmpArea2 = (double) currentImProp.grayImage.size().area();
+			tmpRatio = 100.0 * tmpArea1 / tmpArea2 ;
+			if (tmpRatio > minROIareaRatio_toLEARN)	// can pass this condition to above. to 'save' a run-cycle.
+				{
+					Tracker_State	= TRACKER_LEARNING ;/* in this section only learn the potential target */	
+					prevImProp		= currentImProp ; 
+				}
+		}
 		return;
 	}
 		
-	if (prevImProp.goodFeatures.size()==0)
+	/* do not allow tracking trial without minimum number of feature points, every frame.
+	     because frame rate is not high, don't tollarance frame gaps. */
+	if (prevImProp.goodFeaturesCoor.size() <= minFPsize_toTRACK)
 	{
 		prevImProp		= currentImProp ;
-		return;		// describe error / lost	?
+		return;		// describe error / lost / set alarm	?
 	}
 
-	/* Tracker_State	= TRACKER_LEARNING or TRACKER_TRACKING */
+	/* now Tracker_State is TRACKER_LEARNING or TRACKER_TRACKING */
 
 	// find connection(flow) between 2 images
-	newFlowFeatures = currentImProp.goodFeatures;	// initial guess
+	newFlowFeatures = currentImProp.goodFeaturesCoor;	// initial guess
 	calcOpticalFlowPyrLK(	prevImProp.grayImage	, currentImProp.grayImage , 
-							prevImProp.goodFeatures , newFlowFeatures , 
+							prevImProp.goodFeaturesCoor , newFlowFeatures , 
 							flow_output_status, flow_output_errors, flowSearchWinSize, 3,	// 3 is maxLevel for pyramids
 							TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 0.01),0, 0.001);	
 		
@@ -110,16 +159,36 @@ void Tracker::processImage(Mat inputGrayIm, Mat newImageMask, Rect Brect) //need
 			trackedFeatures.push_back(newFlowFeatures[i]);
 	} 
 
+	// option for checking backwards flow
+	/*********/	/*********/	/*********/	/*********/
+	newFlowFeaturesBack = prevImProp.goodFeaturesCoor;	// initial guess
+	calcOpticalFlowPyrLK(	currentImProp.grayImage , prevImProp.grayImage	,
+		trackedFeatures			, newFlowFeaturesBack , 
+		flow_output_status, flow_output_errors, flowSearchWinSize, 3,	// 3 is maxLevel for pyramids
+		TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 0.01),0, 0.001);
+
+	trackedFeaturesBack.clear();
+	features_vec_size = newFlowFeaturesBack.size() ; 
+	for ( i = 0; i < features_vec_size ; ++i) { 
+		if (flow_output_status[i])
+			trackedFeaturesBack.push_back(newFlowFeaturesBack[i]);
+	} 
+	/*********/	/*********/	/*********/	/*********/
+
 	// measure the flow calculation success rate 
+
+	int 	diffSizesBack 	= newFlowFeatures.size() - newFlowFeaturesBack.size() ;	//before screening
+	int 	diffSizesBack2 	= trackedFeatures.size() - trackedFeaturesBack.size() ;	//after screening
+
 	int 	diffSizes 	= newFlowFeatures.size() - trackedFeatures.size() ;
 	double 	successRate = (1. - (double)diffSizes / (double)newFlowFeatures.size()) * 100.0 ;  //[%]
 
 	// when LEARNING : add 'blindly' the current image feature points. for the new current ROI.
 	if (Tracker_State == TRACKER_LEARNING)	
 	{
-		features_vec_size = currentImProp.goodFeatures.size()  ;
+		features_vec_size = currentImProp.goodFeaturesCoor.size()  ;
 		for ( i = 0; i < features_vec_size ; ++i) { 
-			trackedFeatures.push_back(currentImProp.goodFeatures[i]);
+			trackedFeatures.push_back(currentImProp.goodFeaturesCoor[i]);
 		}
 	}
 
@@ -138,8 +207,9 @@ void Tracker::processImage(Mat inputGrayIm, Mat newImageMask, Rect Brect) //need
 	}
 	else // state is TRACKER_TRACKING:
 	{
-		//tmpRatio = 100.0 * (double) currentImProp.relevantROI.area() /  (double) currentImProp.grayImage.size().area() ;
-		tmpRatio = 100.0 * (double) boundingRect(trackedFeatures).area() /  (double) currentImProp.grayImage.size().area() ;
+		double tmpArea1 = (double) boundingRect(trackedFeatures).area();
+		double tmpArea2 = (double) currentImProp.grayImage.size().area();
+		tmpRatio = 100.0 * tmpArea1 / tmpArea2 ;
 		if ( ( successRate < minFlowSuccessRate_toTRACK )	
 				|| (trackedFeatures.size() < minFPsize_toTRACK) 
 				|| (tmpRatio < minROIareaRatio_toTRACK) )
@@ -149,62 +219,48 @@ void Tracker::processImage(Mat inputGrayIm, Mat newImageMask, Rect Brect) //need
 		}
 	}
 
-	// sort and delete duplicates
-	// ( ref by : http://stackoverflow.com/questions/1041620/whats-the-most-efficient-way-to-erase-duplicates-and-sort-a-vector )
-	//			->	http://stackoverflow.com/questions/25197805/how-to-delete-repeating-coordinates-of-vectorpoint2f 
-	///sort( trackedFeatures.begin(), trackedFeatures.end(), lexico_compare );		
-	///trackedFeatures.erase( unique( trackedFeatures.begin(), trackedFeatures.end() , points_are_equal), trackedFeatures.end() );
+	///consider_duplicates();
 
-	/* calc center of points, and trackErr.x (bearing)  */
-	m	= moments(trackedFeatures,false);					// points moment 
-	Mat tmp2 = Mat::zeros(inputGrayIm.size(), CV_8U);
-	for (int i = 0; i < trackedFeatures.size(); ++i) {
-		{
-			int xx = trackedFeatures[i].x;
-			int yy = trackedFeatures[i].y;
-			if ( (xx<tmp2.size().width) &&
-				(yy<tmp2.size().height) &&
-				(xx>0 && yy>0) 
-				)
-			{
-				auto ptr = tmp2.ptr<uchar>(yy) ;
-				ptr[xx] = 1*255;
-			}
-		}
-	}
-	m	= moments(tmp2,true); 
-	MassCenter	= Point(m.m10/m.m00, m.m01/m.m00);	// mass_centers
-	// ..tmp2 Mat can be showm as an image. for debug..
-		
+	Mat tmp2;
+	set_featurePnts_into_image(&MassCenter, tmp2);		
+	// set target calculated properties, by resultant faeture points mask. 
+	trackedTarget.set_target_mask_properties(tmp2) ; 
+	//trackedTarget.target_estimated_distance	=	
+	trackedTarget.target_estimated_dx	=	trackedTarget.target_mask_prop.MassCenter.x - 
+												trackedTarget.target_mask_prop.image_mask_size_width;
 	//////
-	Mat tmpIM = newImageMask.clone();
+	display_fPoint_4debug(newFlowFeatures);
+
+	// set data for next cycle loop
+	prevImProp.goodFeaturesCoor	= trackedFeatures; ; 
+	prevImProp.grayImage		= currentImProp.grayImage;
+	prevImProp.relevantROI		= Rect();//boundingRect(trackedFeatures);	//this one is just for reference. not useful
+
+	targetMask = &trackedTarget;
+
+	return;
+
+}
+
+void Tracker::display_fPoint_4debug(vector<Point2f> newFlowFeatures)
+{
+	Mat tmpIM = trackedTarget.target_mask_prop.maskIm.clone();//  newImageMask.clone();
 
 	cv::cvtColor(tmpIM , tmpIM  , CV_GRAY2BGR);
 	int r	= 2;	//3
+	int i;
 	for(  i = 0; i < trackedFeatures.size(); i++ )
 	{ 
 		circle( tmpIM, trackedFeatures[i], r, 				Scalar(255, 100, 255), -1, 8, 0 );//pink
 	}	 
-	for(  i = 0; i < currentImProp.goodFeatures.size(); i++ )
+	for(  i = 0; i < currentImProp.goodFeaturesCoor.size(); i++ )
 	{ 
-		circle( tmpIM, currentImProp.goodFeatures[i], r, 	Scalar(10, 100, 255), -1, 8, 0 );//orange
+		circle( tmpIM, currentImProp.goodFeaturesCoor[i], r, 	Scalar(10, 100, 255), -1, 8, 0 );//orange
 	}	
 	for(  i = 0; i < newFlowFeatures.size(); i++ )
 	{ 
 		circle( tmpIM, newFlowFeatures[i], r, 				Scalar(10, 255, 255), -1, 8, 0 );//yellow
 	}	 /**/
 	imshow ("debug summarized features"	, tmpIM);
-
-	// set data for next cycle loop
-	prevImProp.goodFeatures		= trackedFeatures; ; 
-	prevImProp.grayImage		= currentImProp.grayImage;
-	prevImProp.relevantROI		= Rect();//boundingRect(trackedFeatures);	//this one is just for reference. not useful
-
-	// set target calculated properties, by resultant faeture points mask. 
-	trackedTarget.calc_target_mask_properties(tmp2) ; 
-	
-	return;
-
 }
-
 

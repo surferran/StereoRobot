@@ -8,15 +8,15 @@
 myGUI_handler::myGUI_handler()
 {
 
-	plotWindowsNames[WIN1_NDX] = "win1 - original Right image";
-	plotWindowsNames[WIN2_NDX] = "win2 - original Left image"; 
+	plotWindowsNames[WIN1_NDX_RightRawIm]		= "win1 - original Right image";
+	plotWindowsNames[WIN2_NDX_LeftRawIm]		= "win2 - original Left image"; 
 
-	plotWindowsNames[WIN3_NDX] = "win3 - background substruction output";
-	plotWindowsNames[3] = "win4 - filtered disperity";
+	plotWindowsNames[WIN3_NDX_BgSubtMask]		= "win3 - background substruction output";
+	plotWindowsNames[WIN4_NDX_DisparityMask]	= "win4 - filtered disperity";
 
-	plotWindowsNames[4] = "win5 - tracked object";
+	plotWindowsNames[WIN5_NDX_FeaturePoints]	= "win5 - selected feature points";
 
-	plotWindowsNames[5] = "win6 - depth mask";
+	//plotWindowsNames[5] = "win6 - depth mask";
 	//plotWindowsNames[5] = "win6 - target aquired Depth";
 	//plotWindowsNames[6] = "win7 - target aquired Depth Masked";
 
@@ -30,8 +30,8 @@ void myGUI_handler::show_raw_captures(Mat L_in, Mat R_in, long frameCounter)	//i
 	/// show raw images first
 	Mat tmpLeft = L_in.clone();
 	add_counterFrame(tmpLeft , &frameCounter ) ;
-	imshow(plotWindowsNames[0],	R_in	);
-	imshow(plotWindowsNames[1],	tmpLeft );
+	imshow(plotWindowsNames[WIN1_NDX_RightRawIm],	R_in	);
+	imshow(plotWindowsNames[WIN2_NDX_LeftRawIm],	tmpLeft );
 }
 
 void myGUI_handler::show_disparity_map(Mat sum_of_N_disparities, int avg_depth)
@@ -39,8 +39,18 @@ void myGUI_handler::show_disparity_map(Mat sum_of_N_disparities, int avg_depth)
 	Mat tmpIm = sum_of_N_disparities.clone();
 	add_distance_to_disparityIM(avg_depth, tmpIm);
 
-	imshow ( plotWindowsNames[WIN4_NDX], tmpIm );	 
+	imshow ( plotWindowsNames[WIN4_NDX_DisparityMask], tmpIm );	 
 
+}
+
+void myGUI_handler::close_BgSubt_win()
+{
+	destroyWindow( plotWindowsNames[WIN3_NDX_BgSubtMask] );
+}
+void myGUI_handler::close_Tracking_win()
+{
+	destroyWindow( plotWindowsNames[WIN4_NDX_DisparityMask] );
+	destroyWindow( plotWindowsNames[WIN5_NDX_FeaturePoints] ); 
 }
 
 // shows the 4 images of previous and current images and 
@@ -103,18 +113,9 @@ void myGUI_handler::dispFlowChanges(Mat & prevGrayROI, vector<Point2f> trackedFe
 }
 
 
-
-void myGUI_handler::draw_output_frames(String* WinNames, Mat* images)
-{
-	for (int i=0; i < NUM_OF_GUI_WINDOWS; i++)	//<= thumb_num ?
-	{
-		imshow( WinNames[i]	, images[i] );
-	}
-}
-
 // add graphic layer to the image - for showing circle and bounding box for the target tracking.
-void myGUI_handler::show_graphics_with_image(Mat & mask, Point MassCenter, double rCircle, Rect boundRect, 
-	double theta, double boundAreaRatio, int mask_status, int frame_counter)
+void myGUI_handler::show_BgSubt(Mat & mask, Point MassCenter, double rCircle, Rect boundRect, 
+	double theta, double boundAreaRatio, int mask_status, int frame_counter)	//TODO: add called_id to indicate in which window to dispay result
 {
 	String		StatusText ="";
 
@@ -136,15 +137,16 @@ void myGUI_handler::show_graphics_with_image(Mat & mask, Point MassCenter, doubl
 	StatusText  = "frame_counter= " + _intToString(frame_counter);
 	putText(mask, StatusText, Point(15, 65), FONT_HERSHEY_COMPLEX, 0.4, (210, 210, 220), 1);
 
-
-	///frame_counter++;
-	//if (frame_counter % 5)
-	//	cout << frame_counter << " : " << theta << endl;//Mat(p1) << endl;
-
-	imshow("Foreground debug", mask);
+	imshow( plotWindowsNames[WIN3_NDX_BgSubtMask] , mask);
 }
 
-
+void myGUI_handler::draw_output_frames(String* WinNames, Mat* images)
+{
+	for (int i=0; i < NUM_OF_GUI_WINDOWS; i++)	//<= thumb_num ?
+	{
+		imshow( WinNames[i]	, images[i] );
+	}
+}
 /////////////////////////////
 
 //int to string helper function
@@ -188,14 +190,8 @@ string myGUI_handler::_sysStatToString(StereoRobotApp::SYSTEM_STATUS val){
 	case StereoRobotApp::FOUND_SOME_MOVEMENT:
 		ss << "sys : MOVEMENT";
 		break;
-	case StereoRobotApp::FOUND_GOOD_TARGET:
+	case StereoRobotApp::TRACKING:
 		ss << "sys : GOOD TARGET";
-		break;
-	case StereoRobotApp::TRACKING_GOOD_QUALITY_TARGET:
-		ss << "sys : TRACKING_GOOD";
-		break;
-	case StereoRobotApp::TRACKING_LOW_QUALITY_TARGET:
-		ss << "sys : TRACKING_LOW";
 		break;
 	case StereoRobotApp::TARGET_IS_LOST:
 		ss << "sys : LOST";
@@ -227,7 +223,7 @@ void myGUI_handler::add_Cross_to_Image(int x, int y, bool addLabel, StereoRobotA
 		color = Scalar(100	, 155	, 110) ;	break;
 	case StereoRobotApp::FOUND_SOME_MOVEMENT:
 		color = Scalar(100	, 255	, 10) ;		break;
-	case StereoRobotApp::FOUND_GOOD_TARGET:
+	case StereoRobotApp::TRACKING:
 		color = Scalar(1	, 255	, 1) ;		break;
 	default:
 		color = Scalar(10	, 10	, 10) ;

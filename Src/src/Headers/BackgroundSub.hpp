@@ -9,16 +9,9 @@
 #include "opencv2/features2d/features2d.hpp"
 #include <stdio.h>
 
-//#include "opencv2/opencv.hpp"
-//#include "GUIFunctions.h"		// for using _intToString
-//#include "myGUI_handler.h"
 #include "StereoRobotApp.hpp"
 
 using namespace cv;
-
-//extern myGUI_handler	myGUI ;
-//extern StereoRobotApp::SYSTEM_STATUS	system_state ;
-///extern StereoRobotApp	myCApp;
 
 /*************************************************************************************/
 /******************************    Header section    *********************************/
@@ -44,10 +37,8 @@ public:
 	Point	get_foreground_center()		{ return MassCenter			; } ;
 	Mat		get_the_background_average(){ mog->getBackgroundImage(backgroundAvg) ; return backgroundAvg; } ;
 
-	 
 private:
 	
-	///int show_more_details(Mat frame) ;
 	int doMYbsManipulation( Mat & mask , Point *movementMassCenter);
 	 
 	String					StatusText	= "NAN";
@@ -63,7 +54,6 @@ private:
 	vector<vector<Point> >	contours;
 	vector<vector<Point> >	selected_shapes_contours;
 	int						area;
-	///Rect					rect;
     
 	cv::Ptr<BackgroundSubtractorMOG2> mog ;
 	Scalar					random_color;
@@ -82,7 +72,7 @@ private:
 	const bool				BackSubs_DetectShadows	= false;   // only for better run-time performance
 	const double			BackSubs_LearningRate	= -1.0;  //~-0.5~-0.7? -1
 
-	
+	//Target BgSubt_TargetMask;
 };
 /*************************************************************************************/
 /******************************end of Header section *********************************/

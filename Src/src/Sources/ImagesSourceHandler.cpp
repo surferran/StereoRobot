@@ -3,7 +3,7 @@
 #include "ImagesSourceHandler.h"
 #include <unistd.h>
 #else
-#include "..\Headers\ImagesSourceHandler.h"
+#include "ImagesSourceHandler.h"
 #endif
  
 
@@ -98,6 +98,10 @@ void ImagesSourceHandler::InitVideoCap()
 		else
 			bUserRecordRequest = false; //+error..
 	}
+
+	/* about 40degree for w/2 pixels .  get angle coefficient by that */
+	camFOV		=	40.0 * 1. / 57.3 ; // deg to rad conversion
+	camFOVpix	=	camFOV / (w/2);
 }
 
 
@@ -133,6 +137,17 @@ bool ImagesSourceHandler::GetFrames(Mat &rightFrame, Mat &leftFrame)	// can b re
 	return true;
 }
 
+bool ImagesSourceHandler::setStartingFrame(int initialFrameIndex)
+{
+	if (bRepeat_scenario_from_files) 
+	{		
+		vidL.set(CV_CAP_PROP_POS_FRAMES, initialFrameIndex);	
+		vidR.set(CV_CAP_PROP_POS_FRAMES, initialFrameIndex); 
+		return true;
+	}
+	else
+		return false;
+}
 
 ImagesSourceHandler :: ~ImagesSourceHandler()
 {

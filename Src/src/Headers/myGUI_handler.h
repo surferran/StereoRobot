@@ -17,9 +17,12 @@ public:
 	myGUI_handler();
 	~myGUI_handler(){};
 
+	void close_BgSubt_win();
+	void close_Tracking_win();
+
 	void draw_output_frames(String* WinNames, Mat* images);
 
-	void show_graphics_with_image(Mat & mask, Point MassCenter, double rCircle, Rect boundRect, 
+	void show_BgSubt(Mat & mask, Point MassCenter, double rCircle, Rect boundRect, 
 									double theta, double boundAreaRatio, int mask_status, int frame_counter);
 
 	void add_counterFrame(Mat &inImage, long * frameNum);
@@ -52,10 +55,11 @@ public:
 	Point	prevPt_WSHED;//(-1, -1);
 
 	enum {
-		WIN1_NDX = 0,
-		WIN2_NDX,
-		WIN3_NDX,
-		WIN4_NDX,
+		WIN1_NDX_RightRawIm = 0,
+		WIN2_NDX_LeftRawIm,
+		WIN3_NDX_BgSubtMask,
+		WIN4_NDX_DisparityMask,
+		WIN5_NDX_FeaturePoints,
 		NUM_OF_GUI_WINDOWS
 	};
 

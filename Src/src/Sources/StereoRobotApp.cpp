@@ -2,22 +2,20 @@
  *  StereoRobotApp.cpp  
  */
 
-#include "..\Headers\StereoRobotApp.hpp"
+#include "StereoRobotApp.hpp"
 
  /**************************************/
+
 #include "myGUI_handler.h"
 myGUI_handler		myGUI;
 
 ImagesSourceHandler myStereoCams; // thread for images capturing
 
-Target				first_target ;
+Target				tracked_target ;
 
-Tracker				tracker;
-Target::TargetState tmpTargStat;
+Tracker				tracker; 
 
-Depth_and_Disparity							localDisp;
-
-Depth_and_Disparity::rectification_outputs	disperity_struct;
+Depth_and_Disparity	localDisp;
 
 BackSubs			localBackSubs ;
 
@@ -52,6 +50,8 @@ StereoRobotApp::StereoRobotApp()
 	op_flags.proces_img_frame			=	false;
 	op_flags.draw_middle_x				=	true ;
 
+	initialUserFwdThrust_percent		=	50;	//[%]
+
 };
 
 
@@ -61,15 +61,15 @@ StereoRobotApp::~StereoRobotApp(){};
 
 void StereoRobotApp::appInitializations()
 {
-	op_flags.show_stereo=true;	// initialize and conduct stereo algo imidiatly when running.
+	op_flags.show_stereo	= true;	// initialize and conduct stereo algo imidiatly when running.
 
-	user_pressing	= 0;	// just optional.
-	got_1st_stable_bkgnd = false;
+	user_pressing			= 0;	// just optional.
+	got_1st_stable_bkgnd	= false;
 
 	w		= myStereoCams.GetRes().width;
 	h		= myStereoCams.GetRes().height;
 
-	localBackSubs.show_forgnd_and_bgnd_init(working_FRAMES_FPS); //vidL//with Left cam  
+	localBackSubs.show_forgnd_and_bgnd_init(working_FRAMES_FPS); 
 
 	/* clear points that are out of my desired ROI (center of image) */
 	//TODO:make 20 h , 30 w /// sizes are for after resize
@@ -81,6 +81,25 @@ void StereoRobotApp::appInitializations()
 	TopLeft		 = Point(frame_boundary_W_init		, frame_boundary	); 
 	LowRight	 = Point(w - frame_boundary_W_init	, h - frame_boundary);
 	BckgndSubROI = Rect(TopLeft, LowRight ); 
+
+	userFwdThrust_percent	=	50;
+}
+
+
+void StereoRobotApp::check_for_calibration_option()
+{
+#ifndef COMPILING_ON_ROBOT
+	if (op_flags.make_stereo_calibration)
+	{		
+		int argc; char* argv[6];
+		argc = 6;
+		argv[1] = "-w";  argv[2] = "8";
+		argv[3] = "-h";  argv[4] = "6";
+		argv[5] = "../run_inputs/stereo_calibration_images/stereo_calib.xml";
+		do_stereo_calib(argc, argv);
+		op_flags.make_stereo_calibration	=	false;
+	}
+#endif
 }
 
 void StereoRobotApp::appMainLoop()
@@ -88,18 +107,7 @@ void StereoRobotApp::appMainLoop()
 
 	while (1)		
 	{
-/*
-#ifndef COMPILING_ON_ROBOT
-		if (op_flags.make_stereo_calibration)
-		{		
-			argc = 6;
-			argv[1] = "-w";  argv[2] = "8";
-			argv[3] = "-h";  argv[4] = "6";
-			argv[5] = "../run_inputs/stereo_calibration_images/stereo_calib.xml";
-			do_stereo_calib(argc, argv);
-			op_flags.make_stereo_calibration	=	false;
-		}
-#endif*/
+		check_for_calibration_option();
 
 #ifndef COMPILING_ON_ROBOT
 		if(op_flags.show_stereo)
@@ -119,10 +127,10 @@ void StereoRobotApp::appMainLoop()
 			cv::cvtColor(right_im_color, right_im_gray , CV_BGR2GRAY);	//
 			cv::cvtColor(left_im_color , left_im_gray  , CV_BGR2GRAY);	// can include in GUI capture?
 
+			/* if testing recorded files - don't continue to read image frames in background. 
+			    until next deterministic loop request. (specially if stopping for debugging).*/
 			if (myStereoCams.GetUserRepeatFlag())
 			{
-				// if testing recorded files - don't continue to read image frames in background. 
-				// until next deterministic loop request. (specially if stopping for debugging).
 				myStereoCams.ToggleDisableFramesCapture();
 			}
 
@@ -137,132 +145,78 @@ void StereoRobotApp::appMainLoop()
 																								 //
 				if (localBackSubs.BgSubt_Status == BackSubs::STANDING_BY)
 					system_state = StereoRobotApp::STANDBY; 
-				else if (localBackSubs.BgSubt_Status == BackSubs::FOUND_MOVEMENT)
-						system_state = StereoRobotApp::FOUND_SOME_MOVEMENT;
+				else 
+					if (localBackSubs.BgSubt_Status == BackSubs::FOUND_MOVEMENT)
+					{
+						system_state	= StereoRobotApp::FOUND_SOME_MOVEMENT;
+						featTrackMask_fromBgSubt	= localBackSubs.get_foreground_mat(); 
+					}					
+			}
+			else
+			{
+				localBackSubs.show_forgnd_and_bgnd_init(working_FRAMES_FPS);
+				myGUI.close_BgSubt_win();  // TODO: just add red frame, and when operative set to green
 			}
 			
-			/************************disp************************/
-			if ( (system_state == FOUND_SOME_MOVEMENT) || (system_state == FOUND_GOOD_TARGET) )
+			if ( (system_state == FOUND_SOME_MOVEMENT) || (system_state == TRACKING) )
 			{
-				localDisp.calc_disperity(3, left_im_gray, right_im_gray, &current_disparity , &last_min_depth_of_ROI );  //2 , when 1 above
+				/************************disp************************/
+				localDisp.calc_disperity(3, left_im_gray, right_im_gray, &current_disparity , &last_min_depth_of_ROI ); // also filters
 
 				matQueue.populateNextElementInArray(current_disparity); 
 				matQueue.getSumElement(&sum_of_N_disparities);
 
 				doubleQueue.populateNextElementInArray(last_min_depth_of_ROI);
 				doubleQueue.getAvgElement(&avg_depth_of_ROI);
-			}
 
-			switch (system_state) 
-			{
-			case StereoRobotApp::FOUND_SOME_MOVEMENT:
-			case StereoRobotApp::FOUND_GOOD_TARGET:		///
-														
-														
+				featTrackMask_fromDisperity	=	sum_of_N_disparities.clone();		// sum of last 3 frames
+					 	//TODO: drive should be around D closer. and around ROI.  in tracker - dont drag FP that are not in D ROI ( or vrery far..)
+				threshold (featTrackMask_fromDisperity , featTrackMask_fromDisperity ,	1 ,	255,THRESH_BINARY);	// take all that is not zero 
+				effective_depth_measurement		=	avg_depth_of_ROI;		// rounded to [cm]
 			
 				/********************feat.tracker****************************/
-
-				int depth;		// rounded to [cm]
-								//
-				featTrackMask	= Mat::zeros(left_im_gray.size(), left_im_gray.type() ) ;
+				  
+				featTrackMask	= Mat::zeros(left_im_gray.size(), left_im_gray.type() ) ; 
 				if (system_state == StereoRobotApp::FOUND_SOME_MOVEMENT)
-					featTrackMask1	= localBackSubs.get_foreground_mat(); 
-				featTrackMask2	=	sum_of_N_disparities.clone();		// sum of last 3 frames
-																//TODO: drive should be around D closer. and around ROI.  in tracker - dont drag FP that are not in D ROI ( or vrery far..)
-				threshold (featTrackMask2 , featTrackMask2 ,	1 ,	255,THRESH_BINARY);		// take all that is not zero THRESH_TOZERO
-				depth			=	avg_depth_of_ROI;
-				//
-
-				if (system_state == StereoRobotApp::FOUND_SOME_MOVEMENT)
-					featTrackMask1.copyTo (featTrackMask, featTrackMask2 ) ;	// output is featTrackMask , by mask1 && mask2
+					featTrackMask_fromBgSubt.copyTo (featTrackMask, featTrackMask_fromDisperity ) ;	// output is featTrackMask , by mask1 && mask2
 				else
-					featTrackMask = featTrackMask2.clone(); // TODO:TODO: need to combine with previous FP ROI
+					featTrackMask = featTrackMask_fromDisperity.clone(); // TODO:TODO: need to combine with previous FP ROI
 
-															///featTrackMask = featTrackMask2.clone();
-															///threshold (featTrackMask , featTrackMask ,	1 ,	255,THRESH_BINARY);		// take all that is not zero THRESH_TOZERO
-
-															////////////////////////
-
-				first_target.calc_target_mask_properties(featTrackMask) ;
-				if (!first_target.check_target_mask_properties_option1())
-				{
-
-					if (myStereoCams.GetUserRepeatFlag())
-					{
-						// if testing recorded files - don't continue to read image frames in background. 
-						// until next deterministic loop request. (specially if stopping for debugging).
-						///	waitKey(0*loop_delay);
-						myStereoCams.ToggleDisableFramesCapture();
-						waitKey( loop_delay );
-					}
-					continue;
-				}
-/*
-				cv::cvtColor(left_im_color , left_im_gray  , CV_BGR2GRAY);
-				cv::cvtColor(right_im_color, right_im_gray , CV_BGR2GRAY);*/
-
-				///	mainImSeg(left_im_color);	// need to use the markers with depth ROI anti-mask as sure background.
+				//	mainImSeg(left_im_color);	// need to use the markers with depth ROI anti-mask as sure background.
 				// or use the inside use of distanceTransform to better to find the bigger object.
-
-				//// tmpROI is MASK in potential area of new target. 
-				tmpROI							=  Mat::zeros( left_im_gray.size() , left_im_gray.type() );
-				first_target.potential_target	= tmpROI.clone();
-
-				tmpROI( first_target.target_mask_prop.boundRect ) = 255;
-				// potential target is Trimmed area acording to ROI (from Depth or BgSubt)					
-				left_im_gray.copyTo(first_target.potential_target , tmpROI); 
 
 				trackerNotOff = false;
 				if ( tracker.Tracker_State != Tracker::TRACKER_OFF)
 					trackerNotOff = true;
-
-				/* *********** */	tracker.processImage(left_im_gray, first_target.potential_target, first_target.target_mask_prop.boundRect );// localBackSubs.get_foreground_boundRect() );
+ 
+				tracker.processImage(left_im_gray, &tracked_target) ;
 
 				if ( (trackerNotOff) && (tracker.Tracker_State == Tracker::TRACKER_OFF) )	//back from advanced mode to OFF
 				{
 					system_state	=	 StereoRobotApp::INITIALIZING ;
-					//TODO: init BackSubs.BgSubt_Status to init 
-					//TODO: close potential_target window
-					break ;
+					myGUI.close_Tracking_win();
+					//continue;	
 				}
 				if ( tracker.Tracker_State == Tracker::TRACKER_TRACKING )	//back from advanced mode to OFF
 				{
-					system_state	=	 StereoRobotApp::FOUND_GOOD_TARGET ; 
-					break ;
+					system_state	=	 StereoRobotApp::TRACKING ; 
+					//continue;	
 				}
 
-				// center is by MaskROI. not related to feature points.. TODO: fix that.
-				// more: empty mask - not affecting. need to cut feature points in trcker by mask. by phase of D only or using BGsubt.
-				circle(first_target.potential_target, corected_MassCenter, 4, Scalar(255, 155, 55 ), -1, 8, 0);
-				circle(first_target.potential_target, tracker.MassCenter,  4, Scalar(0  , 255, 255), -1, 4, 0);	//yellow point.
-
-				imshow(myGUI.plotWindowsNames[4], first_target.potential_target);//8
-																				 ////////
-
-																				 // check condition for GOOD_TRACKING.   
-				tmpTargStat = tracker.trackedTarget.check_target_mask_properties() ;
-				//if (tmpTargStat==Target::Target_present)
-				//	//system_state = TRACKING_GOOD_QUALITY_TARGET ;
-				//	system_state = StereoRobotApp::FOUND_GOOD_TARGET ;
-
-				/*	if (tracker.Tracker_State == Tracker::TRACKER_TRACKING)
-				system_state = StereoRobotApp::FOUND_GOOD_TARGET;
-				*/
-
-				// track forward
+				/******************** robot control section ****************************/
 
 				// TODO : add sliding bar to animate Thrust.
 				// TODO : use kalman filter for that phase. to make it smooth
-				if (system_state == StereoRobotApp::FOUND_GOOD_TARGET)
+				if (system_state == StereoRobotApp::TRACKING)
 				{
-					if ( (avg_depth_of_ROI > minDepth_toGoTo) && 
-						(avg_depth_of_ROI < maxDepth_toGoTo) ) // 5 as minimum depth to go to
+					if ( (effective_depth_measurement > minDepth_toGoTo) && 
+						 (effective_depth_measurement < maxDepth_toGoTo) ) // 5 as minimum depth to go to
 					{
-						//thrust_percent = 50; //make static somwhere
-						//angle = -45 /57.3;		 //-45deg
+						double alpha ;
+						alpha = tracked_target.target_estimated_dx * myStereoCams.camFOVpix ;
 						//double thrust_per = (avg_depth_of_ROI-Dmin)/(Dmax-Dmin);
-						double thrust_per = 100.0*(avg_depth_of_ROI-11)/(190-11)*5.0;
-						hardwareController.Forward(thrust_per,  0, 0);
+						double thrust_per = 100.0*(effective_depth_measurement-11)/(190-11)*5.0;
+						hardwareController.Forward(thrust_per,  0, 0.9);
 					}
 					else 
 					{
@@ -289,9 +243,7 @@ void StereoRobotApp::appMainLoop()
 
 				/************************************************/
 
-				myGUI.show_disparity_map(sum_of_N_disparities, avg_depth_of_ROI);
-				
-				break;
+				myGUI.show_disparity_map(sum_of_N_disparities, effective_depth_measurement);
 
 			}											
 
@@ -331,25 +283,26 @@ bool StereoRobotApp::wait_or_handle_user_input()
 		waitKey( loop_delay );
 	}
 	
-	double thrust_percent, angle;
+	//double thrust_percent, 
+	double angle;
 	switch (c) {
-	case StereoRobotApp::UNIX_KEY_UP:
-		thrust_percent = 50; //make static somwhere
+	case StereoRobotApp::UNIX_KEY_UP: 
 		angle = 0;			
-		hardwareController.Forward(thrust_percent, angle, 0);
+		hardwareController.Forward(userFwdThrust_percent, angle, 0);
+		if (userFwdThrust_percent <= 90)
+			userFwdThrust_percent += 10 ;
 		break;
 	case StereoRobotApp::UNIX_KEY_DOWN:
 		hardwareController.Stop();
+		userFwdThrust_percent	=	initialUserFwdThrust_percent;
 		break; 
-	case StereoRobotApp::UNIX_KEY_LEFT:
-		thrust_percent = 50; //make static somwhere
+	case StereoRobotApp::UNIX_KEY_LEFT: 
 		angle = -45 /57.3;		 //-45deg
-		hardwareController.Forward(thrust_percent, angle, 0.9);
+		hardwareController.Forward(userFwdThrust_percent, angle, 0.9);	// 0.9 is turnRateRatio
 		break;
-	case StereoRobotApp::UNIX_KEY_RIGHT:
-		thrust_percent = 50; //make static somwhere
+	case StereoRobotApp::UNIX_KEY_RIGHT: 
 		angle = 45 /57.3;		
-		hardwareController.Forward(thrust_percent, angle, 0.9);
+		hardwareController.Forward(userFwdThrust_percent, angle, 0.9);
 		break;
 	}
 

@@ -7,28 +7,33 @@
 #endif
 
 
-// TODO: return parameters of rCircle, boundRect, theta, frame_counter(of bkgSubs) (as part of class?)
-// calculate some parameters for the current possable target (frame foreground)
-void Target::calc_target_mask_properties(Mat image_mask) 
+// calculate some parameters for the current target mask
+void Target::set_target_mask_properties(Mat image_mask) 
 { 
+	rFullRef		=	sqrt( image_mask.size().area() / CV_PI );
+	minMaxLoc(image_mask, 0, &maxMat);
+	///rCircle_devider =	image_mask.size().area() * maxMat;
+	rCircle_devider =	 maxMat;
 	target_mask_prop.maskIm		=	image_mask;
+	target_mask_prop.boundRect	= boundingRect ( image_mask );
+	double dbgCheck = sqrt( target_mask_prop.boundRect.area() / CV_PI ) ;
+
 	m			= moments(image_mask, false);				// points moment 
 	target_mask_prop.MassCenter	= Point(m.m10/m.m00, m.m01/m.m00);	// mass_centers
-	target_mask_prop.rCircle	= sqrt(m.m00/3.14)/rCircle_devider ;				// estimated rounding circle for the object area
-	target_mask_prop.boundRect	= boundingRect ( image_mask );
-	target_mask_prop.theta		= 0.5 * atan2(2*m.m11, m.m20-m.m02) *   57.3;		//rad 2 deg
+	target_mask_prop.rCircle	= sqrt(m.m00 / CV_PI / rCircle_devider) ;	// estimated rounding circle for the object (area=pi*r^2 -> r=(area_val/pi/maxVal)^0.5)
+	target_mask_prop.theta		= 0.5 * atan2(2*m.m11, m.m20-m.m02) *   57.3;		//rad 2 deg    // ratio between x part to y part?!
+
+	target_mask_prop.image_mask_area		=	image_mask.size().area() ;
+	target_mask_prop.image_mask_size_width	=	image_mask.size().width  ;  
+	target_mask_prop.image_mask_size_height	=	image_mask.size().height ;  
 
 	// show in Percent, the relation between bounding rectangle area , and area of the image
-	double tmp1		= 100. * target_mask_prop.boundRect.area() ;
-	double tmp2		= (image_mask.size()).area() ; 
-	target_mask_prop.boundAreaRatio	= tmp1 / tmp2;
+	double tmp1		= target_mask_prop.boundRect.area() ;
+	target_mask_prop.boundAreaRatio	= 100. * tmp1 / target_mask_prop.image_mask_area;
 	 
-	target_mask_prop.image_mask_size_width	=  image_mask.size().width;  
 }
 
-// TODO: return parameters of rCircle, boundRect, theta, frame_counter(of bkgSubs) (as part of class?)
-// calculate some parameters for the current possable target (frame foreground)
-Target::TargetState	Target::check_target_mask_properties() 
+Target::TargetState	Target::check_target_mask_properties() //for which case?
 {  
 	Mat tmp4debug = target_mask_prop.maskIm ;
 
@@ -49,7 +54,7 @@ Target::TargetState	Target::check_target_mask_properties()
 	return Target_NA; 
 }
 
-bool	Target::check_target_mask_properties_option1() // option 1 - is for stage __
+bool	Target::check_target_mask_properties_for_good_initial_target() // option 1 - is for stage __
 {  
 	int w = target_mask_prop.image_mask_size_width;
 	int area = target_mask_prop.boundAreaRatio;

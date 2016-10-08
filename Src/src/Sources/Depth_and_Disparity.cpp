@@ -38,7 +38,7 @@ void Depth_and_Disparity::thread_loop_function() {
 	argc = 8;//11;
 
 	argv[3] = "-i";
-#ifdef COPMILING_ON_ROBOT
+#ifdef COMPILING_ON_ROBOT
 	argv[4] = "/root/RAN/StereoRobot/src/data/intrinsics.yml";
 	argv[5] = "-e";
 	argv[6] = "/root/RAN/StereoRobot/src/data/extrinsics.yml";
@@ -315,12 +315,13 @@ void Depth_and_Disparity::set_BM_params_options_2()
 void Depth_and_Disparity::set_BM_params_options_3()
 {   
 	///numberOfDisparities	=	  ((target_image_size.width/8) + 15) & -16;   //  /8..-> 48,   /8/4.. -> 16 disperities
-	numberOfDisparities	=	  ((target_image_size.width/8)*3 + 15) & -16;   // -> 128 disperities
+	//numberOfDisparities	=	  ((target_image_size.width/8)*3 + 15) & -16;   // -> 128 disperities
+	numberOfDisparities	=	  ((target_image_size.width/8)*3 - 15) & -16;   // -> 96 disperities, check also for 112..
 
 	bm->setPreFilterSize	( 41 );
 	bm->setPreFilterCap		( 31 );
 	bm->setBlockSize		( 41 );//SADWindowSize
-	bm->setMinDisparity		(-numberOfDisparities/2 );//-64
+	bm->setMinDisparity		(-numberOfDisparities/2 );// -56//-64 
 	bm->setNumDisparities	( numberOfDisparities );
 	bm->setTextureThreshold	( 10 );
 	bm->setUniquenessRatio	( 15 );
@@ -622,16 +623,25 @@ bool Depth_and_Disparity::calc_disperity(int desiredPhase, Mat left_im_gray, Mat
 
 		Scalar     mean;
 		Scalar     stddev;
-
-		meanStdDev ( filtered_disparity, mean, stddev );
+		Rect tmp = Rect(boundingRect(filtered_disparity));
+		Mat tmpMask = filtered_disparity;
+		///meanStdDev ( filtered_disparity, mean, stddev );
+		///meanStdDev ( filtered_disparity(tmp), mean, stddev );
+		meanStdDev ( filtered_disparity, mean, stddev , tmpMask);
 		uchar       mean_pxl = mean.val[0];
+		int         mean_val = mean.val[0];
 		uchar       stddev_pxl = stddev.val[0];
+		int         stddev_val = stddev.val[0];
 
+		int minDispToTake = mean_val - stddev_val * 2 ;	// furthest object
+		int maxDispToTake = max_disperity ;				// closest object
+
+		threshold (filtered_disparity , filtered_disparity ,	minDispToTake ,	max_disperity,THRESH_TOZERO);
 	}
 	
 	*disperity_out = filtered_disparity.clone() ;
 	
-	return true;	// set as SUCCESS system enum
+	return true;	// TODO: set as SUCCESS system enum
 }
 
 

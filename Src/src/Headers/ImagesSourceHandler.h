@@ -55,6 +55,8 @@ private:
 					h	=	240,//myCApp.working_FRAME_HIGHT ,
 					FPS	=	30;//myCApp.working_FRAMES_FPS;		// 30, or 15  -> capture_loop_dealy=33, or 67 [mS]
 
+	double			camFOV;
+
 	/* vars for input and output from/to files */ 
 	bool			bRepeat_scenario_from_files	 ; 	// true for input images from previously recorded files.
 	bool			bUserRecordRequest			 ;  //false;//false;	// true for record captured images to files.
@@ -96,8 +98,9 @@ public:
 	long GetRecievedFramesCounter() { return recievedFramesCounter; };
 	long GetUserRepeatFlag()		{ return bRepeat_scenario_from_files; };
 	bool ToggleDisableFramesCapture() { userDisableFramesCapture = !userDisableFramesCapture; return userDisableFramesCapture; };
-	
+	bool setStartingFrame(int initialFrameIndex);
 	//TODO: //void setRecordOption()
+	double camFOVpix;
 };
 
 #endif /* IMAGESSOURCEHANDLER_H_ */

@@ -1,4 +1,6 @@
 // file : Target.hpp
+// class for containing target properties and validation functions for each phase or stage.
+// the target is checked by the mask of it (binary description) 
 
 #pragma once
  
@@ -18,7 +20,7 @@ class Target
 public:
 
 	Target(){
-		inner_target_phases=0;
+		inner_target_phases	=	0;
 	};
 
 	 enum TargetState {
@@ -27,9 +29,9 @@ public:
 		Target_present
 	 };
 
-	void			calc_target_mask_properties(Mat image_mask); //BRG or Gray?
+	void			set_target_mask_properties(Mat image_mask); //Gray UINT8
 	TargetState		check_target_mask_properties(); 
-	bool			check_target_mask_properties_option1(); 
+	bool			check_target_mask_properties_for_good_initial_target(); 
 
 	/* foreground movement features */
 	struct target_mask_properties{
@@ -40,6 +42,8 @@ public:
 		double	theta ;				// estimated oriantation of bounding box. though not well feature
 		double	boundAreaRatio;		// boundRect.area/image.area
 		int		image_mask_size_width;
+		int		image_mask_size_height;
+		int		image_mask_area;
 	}
 	target_mask_prop;
 
@@ -73,7 +77,8 @@ private:
 	//		&& (2.*rCircle < w* 0.5) && (2.*rCircle > w * 0.1)
 
 	int		inner_target_phases ;	//0-init, 1-possible_move, 2-fit to good target, 3-was,but lost now.
-	 	
+	double	maxMat; 	
+	double  rFullRef;
 };
 /*************************************************************************************/
 /******************************end of Header section *********************************/

@@ -23,10 +23,6 @@ using namespace cv;
 
 /*******************************************************************************************/
 /*******************************************************************************************/
-///extern myGUI_handler myGUI; // thread for images displaying
-// maybe use in a different way such as :
-//global.h
-//extern int myVar;
 
 #define MANUAL_TESTINGS		false // true - to allow manual overides to steering (by arrow-keys), and selecting target (by mouse)
 
@@ -37,7 +33,6 @@ using namespace cv;
 // bounds in percent from image size
 #define MIN_MOVED_AREA_in_image 33//33//.0//23
 #define MAX_MOVED_AREA_in_image 90.0  //95
-//#define NUM_OF_PIXELS_IN_FRAME	(640.0*480.0)
 #define NUM_OF_PIXELS_IN_FRAME	(working_FRAME_WIDTH * working_FRAME_HIGHT)
 #define MIN_CURVE_AREA			MIN_MOVED_AREA_in_image/100.0*NUM_OF_PIXELS_IN_FRAME
 #define MAX_CURVE_AREA			MAX_MOVED_AREA_in_image/100.0*NUM_OF_PIXELS_IN_FRAME
@@ -51,13 +46,9 @@ using namespace cv;
 
 /*********  thread object  ********/
 #include "Depth_and_Disparity.hpp"		//set the disparity object (variables and functions)
-//Depth_and_Disparity localDisp;
 /**********************************/
 
 #include "frameFunctions.h"		// general definitions and functions. that's why it is first to include. 
-
-//StereoRobotApp::SYSTEM_STATUS	system_state = StereoRobotApp::INITIALIZING ;	//TODO: put under the main app OBJ
-
 
 #include "BackgroundSub.hpp"
 #include "RobotController.h"
@@ -66,7 +57,8 @@ using namespace cv;
 #include "FeatureTracker.hpp"
 #include "ImagesSourceHandler.h"
 /*********  GUI object  ********/
-//#include "myGUI_handler.h"
+//#include "myGUI_handler.h"			// cannot include here because will cause loop definitions.
+										// it is included in the .cpp file
 //extern myGUI_handler		myGUI;
 
 #ifdef COMPILING_ON_ROBOT
@@ -90,9 +82,10 @@ public:
 		INITIALIZING			=	0 ,		// Should show GRAY cross	 
 		STANDBY					=	1 ,		// Should show ORANGE cross
 		FOUND_SOME_MOVEMENT				,
-		FOUND_GOOD_TARGET				,
-		TRACKING_GOOD_QUALITY_TARGET	,		// Should show GREEN cross
-		TRACKING_LOW_QUALITY_TARGET		,
+		TRACKING,
+		//FOUND_GOOD_TARGET				,
+		//TRACKING_GOOD_QUALITY_TARGET	,		// Should show GREEN cross
+		//TRACKING_LOW_QUALITY_TARGET		,
 		TARGET_IS_LOST			// Should show RED cross	,	after 3 sec will turn to ORANGE (while stopping the robot)
 	};
 
@@ -135,13 +128,15 @@ public:
 	Operation_flags	op_flags; 
 
 	/* ******** application objects ******** */
-	/*Depth_and_Disparity localDisp;*/
 	SYSTEM_STATUS		system_state ; //= INITIALIZING ;	
 
 	void appInitializations();
 	void appMainLoop();
 
 private:
+
+
+	void check_for_calibration_option();
 
 	bool wait_or_handle_user_input();
 
@@ -156,27 +151,11 @@ private:
 
 	Mat		target_candidate_features;
 
-	///bool request_water_shed = false;
-
 	const int		loop_delay = 33 ; //[ms]	// need to fit the file recording value
 	char			user_pressing=0;	// just optional.
 
 	int				relative_counter =0;
-
-	///*  initiating images capturing  */
-	//ImagesSourceHandler myStereoCams; // thread for images capturing
-	//								  /*  ***************************  */
-
-									  /*  initiating createBackgroundSubtractorMOG2   */
-	/*BackSubs	localBackSubs ;*/
-	/*  *****************************************   */
-	/*  initiating target   */
-	//Target	first_target ;
-	/*  *****************************************   */
-	//const int target_lost_timeout_counter  = 2* loop_delay ; // [~sec]//counter to simulate delay of about 2 sec. (depend on loop inner delay)
-	//int		  target_lost_time_counter = 0 ;   // stopper to timeout
-	
-	/*Tracker		tracker;*/
+	 
 	Rect		BckgndSubROI;
 	Rect		TrackingROI;
 
@@ -184,15 +163,15 @@ private:
 				depthAvg;
 	int			depthAvgNdx = 0;
 
-	bool	got_1st_stable_bkgnd ;
-/*
-	Depth_and_Disparity::rectification_outputs disperity_struct;*/
+	bool	got_1st_stable_bkgnd ; 
+
 	Mat		current_disparity = Mat();
 	Mat		sum_of_N_disparities = Mat();
 	Mat		modified_disperity_mat;
 	Scalar	avg_disperity_S;
 	double	avg_disperity;
-	double	avg_depth_of_ROI	= 0 ;
+	double	avg_depth_of_ROI	= 0 ,
+			effective_depth_measurement = 0;
 	double	last_min_depth_of_ROI	= 0 ;
 
 	Point	movementMassCenter, corected_MassCenter;
@@ -205,18 +184,18 @@ private:
 	myCQueue<Mat>		matQueue;
 	myCQueue<double>	doubleQueue;					
 
-	Mat featTrackMask1, 
-		featTrackMask2,
+	Mat featTrackMask_fromBgSubt, 
+		featTrackMask_fromDisperity,
 		featTrackMask;		//M1 & M2 -> M
 
-	Mat					tmpROI;/*
-	Target::TargetState tmpTargStat;*/
+	Mat					tmpROI; 
 	bool				trackerNotOff;
 
 	int w		,
-		h		;
-		//waitSec ;
+		h		; 
 
+	int userFwdThrust_percent,
+		initialUserFwdThrust_percent;
 
 };
 

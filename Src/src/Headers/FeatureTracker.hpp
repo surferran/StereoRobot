@@ -23,12 +23,13 @@ const int		Nreads = 10;
 
 class Tracker {
 private:
-    vector<Point2f> trackedFeatures; 
+    vector<Point2f> trackedFeatures,
+					trackedFeaturesBack; 
     Mat             prevGrayROI;
 
 	struct frameProperties{
 		Mat				grayImage;
-		vector<Point2f> goodFeatures; 
+		vector<Point2f> goodFeaturesCoor; 
 		Rect			relevantROI;	//  bounding the calculated feature points. 
 		//-								//	using for next image searching area for features-flow.
 	};
@@ -46,6 +47,10 @@ private:
 	int		minFlowSuccessRate_toTRACK; // percent . from previous frame to the new one.
 	int		minFlowSuccessRate_toLEARN; // percent . from previous frame to the new one.
 
+	void consider_duplicates();
+	void set_featurePnts_into_image(Point *temp, Mat &targetMask);
+
+	void display_fPoint_4debug(vector<Point2f> newFlowFeatures);
 
 public:
 	Target			trackedTarget;	//for use at outside (calling)functions
@@ -74,10 +79,10 @@ public:
 	float			mid_level_percent			= 1.25;		//	1/1.25=80%
 	Size			flowSearchWinSize			=	Size(21,11);	//size(w,h)
 
-	int		alphaSlider       = 0;
-	int		alphaSlider2      = 0;
-	char	TrackbarName[50]  = "StatusSum";
-	char	TrackbarName2[50] = "StatusSumPercent";
+	//int		alphaSlider       = 0;
+	//int		alphaSlider2      = 0;
+	///char	TrackbarName[50]  = "StatusSum";
+	///char	TrackbarName2[50] = "StatusSumPercent";
 
 	int		alphaSlider_max		=	100;
 
@@ -90,7 +95,8 @@ public:
 	~Tracker();
 
 	// both imgTarget, imgROI should be of the same size.
-	void processImage(Mat inGray, Mat imgTarget,  Rect Brect);
+	//void processImage(Mat inGray, Mat imgTarget,  Rect Brect);
+	void processImage(Mat inputGrayIm, Target *currentTargetMask) ;
 };
 
 #endif  // FEATURETRACKER_H
