@@ -19,7 +19,7 @@ int main(int argc, char** argv)
 	myCApp.appInitializations();
 
 	// part just for easier debug when reading from avi file.
-	///myStereoCams.setStartingFrame( 250 );
+	///	myStereoCams.setStartingFrame( 35 );
 
 	myCApp.appMainLoop();
 

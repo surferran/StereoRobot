@@ -16,15 +16,15 @@ extern StereoRobotApp::SYSTEM_STATUS	system_state ;
 Tracker::Tracker() 
 {
 	/* for the good features to track function */
-	GFTFquality			=	0.01;
-	GFTFminDistance		=	10.0;
+	GFTFquality			=	0.005;//	0.01;
+	GFTFminDistance		=	6;//10.0;
 	/* threshold conditions for going through track stages */
-	minFlowSuccessRate_toLEARN	=	90;
-	minROIareaRatio_toLEARN		=	10;
-	minFPsize_toLEARN			=	3;
+	minFlowSuccessRate_toLEARN	=	60;//90;
+	minROIareaRatio_toLEARN		=	 5;
+	minFPsize_toLEARN			=	10;
 	minFlowSuccessRate_toTRACK	=	30;
 	minROIareaRatio_toTRACK		=	 5;
-	minFPsize_toTRACK			=	 5;
+	minFPsize_toTRACK			=	 7;
 }
 
 Tracker::~Tracker() 
@@ -58,16 +58,18 @@ void Tracker::consider_duplicates()
 }
 void Tracker::set_featurePnts_into_image(Point *returnMassCenter, Mat &targetMask)
 {
+	//TODO: cut by last tmpROI !!
+
 	/* calc center of points, and trackErr.x (bearing will be atan(x/D) )  */
-	m	= moments(trackedFeatures,false);					// points moment 
+	///m	= moments(trackedFeatures,false);					// points moment 
 	Mat tmp2 = Mat::zeros(currentImProp.grayImage.size(), CV_8U);
 	for (int i = 0; i < trackedFeatures.size(); ++i) {
 		{
 			int xx = trackedFeatures[i].x;
 			int yy = trackedFeatures[i].y;
-			if ( (xx<tmp2.size().width) &&
-				(yy<tmp2.size().height) &&
-				(xx>0 && yy>0) 
+			if ( (xx < tmp2.size().width) &&
+				 (yy < tmp2.size().height) &&
+				 (xx > 0) && (yy > 0) 
 				)
 			{
 				auto ptr = tmp2.ptr<uchar>(yy) ;
@@ -76,8 +78,7 @@ void Tracker::set_featurePnts_into_image(Point *returnMassCenter, Mat &targetMas
 		}
 	}
 	m	= moments(tmp2,false); 
-	m	= moments(tmp2,true); 
-	//MassCenter	= Point(m.m10/m.m00, m.m01/m.m00);	// mass_centers
+	///m	= moments(tmp2,true);	//trit binary image - all 0 or 1. i need with 255 values..
 	*returnMassCenter	= Point(m.m10/m.m00, m.m01/m.m00);	// mass_centers
 	targetMask = tmp2;
 													// ..tmp2 Mat can be showm as an image. for debug..
@@ -99,18 +100,19 @@ void Tracker::processImage(Mat inputGrayIm, Target *targetMask)
 					newFlowFeaturesBack;  
 	Target			currentTargetMask = *targetMask;
 
-	//trackedTarget
-
-	// tmpROI is MASK in potential area of new target. 
-	// potential target is Trimmed area according to ROI (from Depth or BgSubt)	
-	Mat tmpROI	=  Mat::zeros( inputGrayIm.size() , inputGrayIm.type() );
-	tmpROI( currentTargetMask.target_mask_prop.boundRect )	= 255;				
-	inputGrayIm.copyTo(currentTargetMask.potential_target , tmpROI);
-
 	currentImProp.grayImage		= inputGrayIm.clone(); 
 	currentImProp.relevantROI	= currentTargetMask.target_mask_prop.boundRect ;  //Brect;	
 	currentMask					= currentTargetMask.target_mask_prop.maskIm.clone();
-	
+
+	// tmpROI is MASK in potential area of new target. 
+	// potential target is Trimmed area according to ROI (from Depth or BgSubt)	
+	Mat tmpROI							=  Mat::zeros( currentImProp.grayImage.size() , currentImProp.grayImage.type() );
+	tmpROI( currentImProp.relevantROI )	= 255;				
+	inputGrayIm.copyTo(currentTargetMask.potential_target , tmpROI);
+
+	int an=2;	//an=1->kernel of 3
+	Mat element = getStructuringElement(MORPH_ELLIPSE, Size(an*2+1, an*2+1), Point(an, an) );							
+	dilate		(currentMask,	currentMask, element); 
 	goodFeaturesToTrack(currentImProp.grayImage, currentImProp.goodFeaturesCoor, 
 							num_of_maxCornersFeatures, GFTFquality, GFTFminDistance, currentMask );  
 	
@@ -153,10 +155,31 @@ void Tracker::processImage(Mat inputGrayIm, Target *targetMask)
 	int features_vec_size ,i ;
 	trackedFeatures.clear();
 
+	/* roi adjustment */
+	Rect	roi = currentImProp.relevantROI ;
+	double	roi_extraction_factor = 0.1 ;		 // a fraction addition to limits
+	roi.x      *= 1. - roi_extraction_factor ;
+	roi.y      *= 1. - roi_extraction_factor ; 
+	if (roi.x < 0) roi.x = 0;
+	if (roi.y < 0) roi.y = 0;
+	//	assuming original given ROI is within image limits.
+	if ( ( roi.x + roi.width )*(1. + roi_extraction_factor) < currentImProp.grayImage.size().width )
+		roi.width  *= 1. + roi_extraction_factor ;
+	if ( ( roi.y + roi.height )*(1. + roi_extraction_factor) < currentImProp.grayImage.size().height )
+		roi.height  *= 1. + roi_extraction_factor ;
+
 	features_vec_size = newFlowFeatures.size() ; 
 	for ( i = 0; i < features_vec_size ; ++i) { 
 		if (flow_output_status[i])
-			trackedFeatures.push_back(newFlowFeatures[i]);
+		{
+			/* check also for staying in the ROI of the given mask (or near) */
+			int xx   = newFlowFeatures[i].x;
+			int yy   = newFlowFeatures[i].y;
+			if ( ( roi.x <= xx ) && ( xx <= (roi.x+roi.width) ) &&
+				 ( roi.y <= yy ) && ( yy <= (roi.y+roi.height) )
+				)
+				trackedFeatures.push_back(newFlowFeatures[i]);
+		}
 	} 
 
 	// option for checking backwards flow
@@ -192,7 +215,7 @@ void Tracker::processImage(Mat inputGrayIm, Target *targetMask)
 		}
 	}
 
-	/******************************************/
+	/*******************got trackedFeatures that are checked ***********************/
 
 	if ( Tracker_State == TRACKER_LEARNING)
 	{
@@ -227,7 +250,7 @@ void Tracker::processImage(Mat inputGrayIm, Target *targetMask)
 	trackedTarget.set_target_mask_properties(tmp2) ; 
 	//trackedTarget.target_estimated_distance	=	
 	trackedTarget.target_estimated_dx	=	trackedTarget.target_mask_prop.MassCenter.x - 
-												trackedTarget.target_mask_prop.image_mask_size_width;
+												trackedTarget.target_mask_prop.image_mask_size_width / 2.;
 	//////
 	display_fPoint_4debug(newFlowFeatures);
 

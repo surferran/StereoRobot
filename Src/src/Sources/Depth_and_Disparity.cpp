@@ -631,7 +631,7 @@ bool Depth_and_Disparity::calc_disperity(int desiredPhase, Mat left_im_gray, Mat
 		uchar       stddev_pxl = stddev.val[0];
 		int         stddev_val = stddev.val[0];
 
-		int minDispToTake = mean_val - stddev_val * 2 ;	// furthest object
+		int minDispToTake = mean_val - stddev_val * 1; //2 ;	// furthest object
 		int maxDispToTake = max_disperity ;				// closest object
 
 		threshold (filtered_disparity , filtered_disparity ,	minDispToTake ,	max_disperity,THRESH_TOZERO);

@@ -190,7 +190,7 @@ void StereoRobotApp::appMainLoop()
 					trackerNotOff = true;
 
 				tracked_target.set_target_mask_properties(featTrackMask);
-				tracker.processImage(left_im_gray, &tracked_target) ;
+				tracker.processImage(left_im_gray, &tracked_target) ;	//tracked_target is IN/OUT object
 
 				if ( (trackerNotOff) && (tracker.Tracker_State == Tracker::TRACKER_OFF) )	//back from advanced mode to OFF
 				{
@@ -216,8 +216,8 @@ void StereoRobotApp::appMainLoop()
 						double alpha ;
 						alpha = tracked_target.target_estimated_dx * myStereoCams.camFOVpix ;
 						//double thrust_per = (avg_depth_of_ROI-Dmin)/(Dmax-Dmin);
-						double thrust_per = 100.0*(effective_depth_measurement-11)/(190-11)*5.0;
-						hardwareController.Forward(thrust_per,  0, 0.9);
+						double thrust_per = 100.0*(effective_depth_measurement-11)/(190-11);
+						hardwareController.Forward(thrust_per,  alpha , 0.9);
 					}
 					else 
 					{

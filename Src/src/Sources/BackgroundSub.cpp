@@ -99,9 +99,9 @@ int BackSubs::show_forgnd_and_bgnd_init(int fpsIN)
 	/* apply background subtraction and manipulate the resultant frame */
 void BackSubs::find_forgnd(Mat frame, Point *movementMassCenter)  
 {
-	Mat bgSubIn;// = frame.clone();
+	Mat bgSubIn = frame.clone();
 
-	medianBlur	(frame,	bgSubIn,	3); // new
+	medianBlur	(bgSubIn,	bgSubIn,	3); // new
 
 	mog->apply(bgSubIn,foreground, BackSubs_LearningRate);	 
 	/* open:  dst = open( src, element)   = dilate( erode( src, element ) ) */
