@@ -79,10 +79,8 @@ public:
 	float			mid_level_percent			= 1.25;		//	1/1.25=80%
 	Size			flowSearchWinSize			=	Size(21,11);	//size(w,h)
 
-	//int		alphaSlider       = 0;
-	//int		alphaSlider2      = 0;
-	///char	TrackbarName[50]  = "StatusSum";
-	///char	TrackbarName2[50] = "StatusSumPercent";
+	int		alphaSlider       = 0;
+	int		alphaSlider2      = 0;
 
 	int		alphaSlider_max		=	100;
 

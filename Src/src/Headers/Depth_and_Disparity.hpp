@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "..\Headers\StereoRobotApp.hpp"
+#include "StereoRobotApp.hpp"
 
 #include "opencv2/calib3d/calib3d.hpp"
 #include "opencv2/imgproc/imgproc.hpp"

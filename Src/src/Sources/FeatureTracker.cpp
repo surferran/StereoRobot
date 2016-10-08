@@ -21,7 +21,7 @@ Tracker::Tracker()
 	/* threshold conditions for going through track stages */
 	minFlowSuccessRate_toLEARN	=	90;
 	minROIareaRatio_toLEARN		=	10;
-	minFPsize_toLEARN			=	30;
+	minFPsize_toLEARN			=	3;
 	minFlowSuccessRate_toTRACK	=	30;
 	minROIareaRatio_toTRACK		=	 5;
 	minFPsize_toTRACK			=	 5;

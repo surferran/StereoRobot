@@ -5,9 +5,6 @@
 #include "StereoRobotApp.hpp"
 
 #include "opencv2/opencv.hpp" 
- 
-
-///extern StereoRobotApp myCApp;
 
 using namespace cv;
 

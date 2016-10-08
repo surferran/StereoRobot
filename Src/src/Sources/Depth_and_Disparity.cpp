@@ -2,8 +2,6 @@
  *  Depth_and_Disparity.cpp 
  */
 
-////#define COPMILING_ON_ROBOT
-
 #ifdef COMPILING_ON_ROBOT
 #include "Depth_and_Disparity.hpp"
 #else

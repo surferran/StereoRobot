@@ -188,7 +188,8 @@ void StereoRobotApp::appMainLoop()
 				trackerNotOff = false;
 				if ( tracker.Tracker_State != Tracker::TRACKER_OFF)
 					trackerNotOff = true;
- 
+
+				tracked_target.set_target_mask_properties(featTrackMask);
 				tracker.processImage(left_im_gray, &tracked_target) ;
 
 				if ( (trackerNotOff) && (tracker.Tracker_State == Tracker::TRACKER_OFF) )	//back from advanced mode to OFF

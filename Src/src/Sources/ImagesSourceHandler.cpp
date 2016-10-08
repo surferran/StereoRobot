@@ -1,9 +1,7 @@
 
+#include "ImagesSourceHandler.h"
 #ifdef COMPILING_ON_ROBOT
-#include "ImagesSourceHandler.h"
 #include <unistd.h>
-#else
-#include "ImagesSourceHandler.h"
 #endif
  
 
@@ -44,9 +42,11 @@ void ImagesSourceHandler::CaptureFromCam() {
 
 void ImagesSourceHandler::InitVideoCap() 
 { 
-	w	=	myCApp.working_FRAME_WIDTH ;	// desired resolution for the images
-	h	=	myCApp.working_FRAME_HIGHT ;
-	FPS	=	myCApp.working_FRAMES_FPS;		// 30, or 15  -> capture_loop_dealy=33, or 67 [mS]
+	StereoRobotApp obj;
+
+	w	=	obj.working_FRAME_WIDTH ;	// desired resolution for the images
+	h	=	obj.working_FRAME_HIGHT ;
+	FPS	=	obj.working_FRAMES_FPS;		// 30, or 15  -> capture_loop_dealy=33, or 67 [mS]
 
 	bRepeat_scenario_from_files	=	true;//false;//true;//true;//false; 
 	bUserRecordRequest			=	false;//true;//false;true;//
