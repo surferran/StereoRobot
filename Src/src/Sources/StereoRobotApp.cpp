@@ -197,7 +197,6 @@ void StereoRobotApp::appMainLoop()
 					system_state	=	 StereoRobotApp::INITIALIZING ;
 					localBackSubs.show_forgnd_and_bgnd_init(0,true);
 					myGUI.close_Tracking_win();
-					//continue;	
 				}
 				if ( tracker.Tracker_State == Tracker::TRACKER_TRACKING )	//back from advanced mode to OFF
 				{
@@ -211,13 +210,14 @@ void StereoRobotApp::appMainLoop()
 				// TODO : use kalman filter for that phase. to make it smooth
 				if (system_state == StereoRobotApp::TRACKING)
 				{
+					double alpha =0;
+					double thrust_per=0;
 					if ( (effective_depth_measurement > minDepth_toGoTo) && 
 						 (effective_depth_measurement < maxDepth_toGoTo) ) // 5 as minimum depth to go to
 					{
-						double alpha ;
 						alpha = tracked_target.target_estimated_dx * myStereoCams.camFOVpix ;
 						//double thrust_per = (avg_depth_of_ROI-Dmin)/(Dmax-Dmin);
-						double thrust_per = 100.0*(effective_depth_measurement-11)/(190-11);
+						thrust_per = 100.0*(effective_depth_measurement-11)/(190-11);
 						hardwareController.Forward(thrust_per,  alpha , 0.9);
 					}
 					else 
@@ -233,7 +233,7 @@ void StereoRobotApp::appMainLoop()
 						///	add_Cross_to_Image(tracker.TrkErrX  ,  left_im_color.size().height/2  , 
 						targetCenter	=	tracker.MassCenter;
 						myGUI.add_Cross_to_Image(targetCenter.x  ,  targetCenter.y  , 
-							false, system_state , left_im_color); //	changes input image. but it is last in the flow cycle.
+							true, system_state , left_im_color); //	changes input image. but it is last in the flow cycle.
 					}
 
 				}

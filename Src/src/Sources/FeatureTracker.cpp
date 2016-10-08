@@ -261,7 +261,8 @@ void Tracker::processImage(Mat inputGrayIm, Target *targetMask)
 	prevImProp.grayImage		= currentImProp.grayImage;
 	prevImProp.relevantROI		= Rect();//boundingRect(trackedFeatures);	//this one is just for reference. not useful
 
-	targetMask = &trackedTarget;
+	//targetMask = &trackedTarget;
+	*targetMask = trackedTarget;
 
 	return;
 

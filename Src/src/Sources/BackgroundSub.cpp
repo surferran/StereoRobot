@@ -39,7 +39,7 @@ int BackSubs::doMYbsManipulation( Mat & mask , Point *movementMassCenter)
 	if (cycles_number_after_lost>0)
 	{ 
 		/* up to 10 cycles from lost - be more flexible with conditions */
-		rCircleFromLost_factor = 15 * (10- cycles_number_after_lost) ; 
+		rCircleFromLost_factor = 7./6. * (10- cycles_number_after_lost) ; 
 		cycles_number_after_lost++;
 		if ( rCircleFromLost_factor < 1 ) // end this conditioning
 		{ 
@@ -91,6 +91,7 @@ int BackSubs::show_forgnd_and_bgnd_init(int fpsIN, bool lostFlag)
 {
 	StatusText	= "NAN"; 
 	mog			= createBackgroundSubtractorMOG2(BackSubs_History , BackSubs_Threshould , BackSubs_DetectShadows);
+	stable_bkgnd_phase = 0;
 
 	if (fpsIN>0)
 		fps = fpsIN;

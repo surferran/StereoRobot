@@ -41,9 +41,9 @@ private:
 	
 	int doMYbsManipulation( Mat & mask , Point *movementMassCenter);
 	 
-	String					StatusText	= "NAN";
+	String					StatusText	;
 
-	int						stable_bkgnd_phase = 0; 
+	int						stable_bkgnd_phase ; 
 
 	int						fps;
 	Mat						frame, foreground, image;	// inner vars for class functions.
