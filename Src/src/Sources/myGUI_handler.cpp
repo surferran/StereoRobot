@@ -249,7 +249,8 @@ void myGUI_handler::add_Cross_to_Image(int x, int y, bool addLabel, StereoRobotA
 	if (addLabel)
 		putText(cameraFeed,"Tracking object at (" + _intToString(x)+","+_intToString(y)+")",
 			Point(x/20+1,y/20+20),1,0.51,Scalar(255,0,0),1);
-	//add_sysStatus_to_Image()
+	//alpha is..
+	
 }
 void myGUI_handler::add_sysStatus_to_Image(StereoRobotApp::SYSTEM_STATUS sys_stat, Mat &cameraFeed) 
 {

@@ -139,7 +139,8 @@ void StereoRobotApp::appMainLoop()
 			myGUI.show_raw_captures(left_im_color, right_im_color, myStereoCams.GetFrameCycleCounter(), system_state);
 
 			/************************bgSubt************************/
-			if ( (system_state == INITIALIZING) || (system_state == STANDBY) || (system_state == FOUND_SOME_MOVEMENT) )
+			if ( (system_state == INITIALIZING) || (system_state == STANDBY) 
+				|| (system_state == FOUND_SOME_MOVEMENT) || (system_state == TARGET_IS_LOST) )
 			{
 				localBackSubs.find_forgnd( left_im_color(BckgndSubROI) , &movementMassCenter ) ; //// synthesize target by movement
 																								 //
@@ -194,7 +195,7 @@ void StereoRobotApp::appMainLoop()
 
 				if ( (trackerNotOff) && (tracker.Tracker_State == Tracker::TRACKER_OFF) )	//back from advanced mode to OFF
 				{
-					system_state	=	 StereoRobotApp::INITIALIZING ;
+					system_state	=	 StereoRobotApp::TARGET_IS_LOST ;
 					localBackSubs.show_forgnd_and_bgnd_init(0,true);
 					myGUI.close_Tracking_win();
 				}
@@ -217,7 +218,7 @@ void StereoRobotApp::appMainLoop()
 					{
 						alpha = tracked_target.target_estimated_dx * myStereoCams.camFOVpix ;
 						//double thrust_per = (avg_depth_of_ROI-Dmin)/(Dmax-Dmin);
-						thrust_per = 100.0*(effective_depth_measurement-11)/(190-11);
+						thrust_per = 100.0*(effective_depth_measurement-11)/(190-11);						
 						hardwareController.Forward(thrust_per,  alpha , 0.9);
 					}
 					else 
@@ -265,6 +266,7 @@ void StereoRobotApp::appMainLoop()
 			break;
 	}
 
+	hardwareController.Stop();
 }
 
 bool StereoRobotApp::wait_or_handle_user_input()

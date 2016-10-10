@@ -32,14 +32,16 @@ void RobotController::Forward(double thrust_percent, double angle, double turn_r
 	const double	l_ref = MAX_HW_SPEED;   //10.0;
 	if ((thrust_percent>10) && (thrust_percent<50))	//elevate the values
 		thrust_percent=50;
-		if (thrust_percent>100)
-			thrust_percent=100;
-	double			Tcommon			= MAX_HW_SPEED * thrust_percent/100 * (1 - turn_ratio) ;
+	if (thrust_percent>100)
+		thrust_percent=100;
+	double			Tcommon			= thrust_percent/100. * (1 - turn_ratio) ;
 	double			delta_thrust	= l_ref * (angle) * turn_ratio ;    // tan() also option.//sin()
 	double			thrustR, thrustL;
-	int min_thrust = 5; //[%]
+	int min_thrust = 5 * MAX_HW_SPEED; //[%]
 
-
+	if ((Tcommon>10) && (Tcommon<50))	//elevate the values
+		Tcommon=50;
+	Tcommon=MAX_HW_SPEED * Tcommon;
 
 	if (delta_thrust > 0)
 	{

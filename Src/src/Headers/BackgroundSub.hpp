@@ -25,7 +25,8 @@ public:
 	enum BgSubt_STATE {
 		INITIALIZING	=	0,
 		STANDING_BY		=	1,
-		FOUND_MOVEMENT	=	2
+		FOUND_MOVEMENT	=	2,
+		RECOVER_FROM_LOST = 3
 	} BgSubt_Status ;
 
 	int		show_forgnd_and_bgnd_init(int fps, bool lost); 
@@ -39,7 +40,7 @@ public:
 
 private:
 	
-	int doMYbsManipulation( Mat & mask , Point *movementMassCenter);
+	int checkBgSubt_MaskResult( Mat & mask , Point *movementMassCenter);
 	 
 	String					StatusText	;
 

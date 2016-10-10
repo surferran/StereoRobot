@@ -116,11 +116,18 @@ void Tracker::processImage(Mat inputGrayIm, Target *targetMask)
 	dilate		(currentMask,	currentMask, element); 
 	goodFeaturesToTrack(currentImProp.grayImage, currentImProp.goodFeaturesCoor, 
 							num_of_maxCornersFeatures, GFTFquality, GFTFminDistance, currentMask );  
-	
+
+	if (currentImProp.goodFeaturesCoor.size() <= 1)
+	{
+		Tracker_State == TRACKER_OFF;
+		return;
+	}
+
 	if (Tracker_State == TRACKER_OFF)
 	{
 		learnTRKcounter	= 0;
-		if (currentImProp.goodFeaturesCoor.size() > minFPsize_toLEARN){
+		if (currentImProp.goodFeaturesCoor.size() > minFPsize_toLEARN)
+		{
 			//  verify anough feature points found. and ROI in relevant size for possible target.
 			double tmpArea1 = (double) currentImProp.relevantROI.area();
 			double tmpArea2 = (double) currentImProp.grayImage.size().area();
