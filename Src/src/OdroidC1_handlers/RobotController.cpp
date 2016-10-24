@@ -24,37 +24,49 @@ void RobotController::basicMove(const int leftSpeed,const int rightSpeed){
 //				negative is to the left.
 //	thrust_percent - 0~100
 //	angle - [rad]
-// turn_ratio - 0 (go straight with minor turn) to 1 (full turn, with only side-effect forward)
-void RobotController::Forward(double thrust_percent, double angle, double turn_ratio)  // TODO: add turn_rate_ratio option
+void RobotController::Forward(double thrust_percent, double angle)
 {
-	const double	action_dt		= 0.05;//0.01 ; // [sec]
-	///double			angle_turn_rate = angle / action_dt ;
-	const double	l_ref = MAX_HW_SPEED;   //10.0;
-	if ((thrust_percent>10) && (thrust_percent<50))	//elevate the values
-		thrust_percent=50;
+	//const int minimumCommonThrust 	= 50;   	// similar to initialUserFwdThrust_percent in mainApp
+	const int minThrust 			= 30;
+	const double minAngleToReact 	= 0.05;
+	const double	l_ref 			= MAX_HW_SPEED;   //10.0;
+	double			thrustR, thrustL;
+
+	if ((angle>0) && (angle <  minAngleToReact))
+			angle = 0;
+	if ((angle<0) && (angle > -minAngleToReact))
+			angle = 0;
+
+	if ((thrust_percent>3) && (thrust_percent<minThrust))	//elevate the values
+		thrust_percent=minThrust;
 	if (thrust_percent>100)
 		thrust_percent=100;
-	double			Tcommon			= thrust_percent/100. * (1 - turn_ratio) ;
-	double			delta_thrust	= l_ref * (angle) * turn_ratio ;    // tan() also option.//sin()
-	double			thrustR, thrustL;
-	int min_thrust = 5 * MAX_HW_SPEED; //[%]
+	double			Tcommon			= thrust_percent ;///* (1 - turn_ratio) ;
+	double 			tmp4dbg 		= (angle) ;///* turn_ratio ;				// it 'shouldn't' be above 1
+	double			delta_thrust	= l_ref * tmp4dbg ; ///* (angle) * turn_ratio ;    // tan() also option.//sin()
 
-	if ((Tcommon>10) && (Tcommon<50))	//elevate the values
-		Tcommon=50;
-	Tcommon=MAX_HW_SPEED * Tcommon;
+	int 	min_TotalThrust 		= 5./100. * MAX_HW_SPEED; //[%] to fraction
+
+///	if ((Tcommon> (minimumCommonThrust * 0.3) ) && (Tcommon < minimumCommonThrust))	//elevate the values
+	///	Tcommon = minimumCommonThrust ;
+	Tcommon *= 1/100.0 * MAX_HW_SPEED;  //[%] to [fraction]
 
 	if (delta_thrust > 0)
 	{
-		if (delta_thrust + Tcommon < min_thrust)
+		if (delta_thrust + Tcommon < min_TotalThrust)
 			{ Stop(); return; }
+		if (delta_thrust + Tcommon > MAX_HW_SPEED)
+			Tcommon = MAX_HW_SPEED - delta_thrust ;
 		thrustL = Tcommon + delta_thrust;
-		thrustR = Tcommon ;
+		thrustR = Tcommon - delta_thrust;
 	}
 	else
 	{
-		if (-delta_thrust + Tcommon < min_thrust)
+		if (-delta_thrust + Tcommon < min_TotalThrust)
 			{ Stop(); return; }
-		thrustL = Tcommon ;
+		if (-delta_thrust + Tcommon > MAX_HW_SPEED)
+			Tcommon = MAX_HW_SPEED + delta_thrust ;
+		thrustL = Tcommon + delta_thrust;
 		thrustR = Tcommon - delta_thrust;	
 	}
 	basicMove(thrustL, thrustR);

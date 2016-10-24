@@ -33,9 +33,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\src\Headers\Target.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\Headers\BackgroundSub.hpp">
       <Filter>Header Files\algorithms</Filter>
     </ClInclude>
@@ -66,6 +63,9 @@
     <ClInclude Include="..\src\Headers\Depth_and_Disparity.hpp">
       <Filter>Header Files\algorithms</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\Headers\Target.hpp">
+      <Filter>Header Files\general</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\MainFile.cpp" />
@@ -74,9 +74,6 @@
     </ClCompile>
     <ClCompile Include="..\src\OdroidC1_handlers\RobotController.cpp">
       <Filter>Source Files\hardware</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\Sources\Target.cpp">
-      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\Sources\BackgroundSub.cpp">
       <Filter>Source Files\algorithms</Filter>
@@ -98,6 +95,9 @@
     </ClCompile>
     <ClCompile Include="..\src\Sources\Depth_and_Disparity.cpp">
       <Filter>Source Files\algorithms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Sources\Target.cpp">
+      <Filter>Source Files\general</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

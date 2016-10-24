@@ -36,7 +36,7 @@ public:
   RobotController();
   ~RobotController();
   
-  void Forward(double thrust_percent, double angle, double turn_ratio);
+  void Forward(double thrust_percent, double angle);
   // void Reverse();	//not supported by Hardware.
   void Stop();
 #else
@@ -44,7 +44,7 @@ public:
   RobotController(){};
   ~RobotController(){};
 
-  void Forward(double thrust_percent, double angle, double turn_ratio){};
+  void Forward(double thrust_percent, double angle){};
   // void Reverse();	//not supported by Hardware.
   void Stop(){};
 #endif

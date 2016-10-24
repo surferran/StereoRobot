@@ -50,9 +50,10 @@ private:
 	void consider_duplicates();
 	void set_featurePnts_into_image(Point *temp, Mat &targetMask);
 
-	void display_fPoint_4debug(vector<Point2f> newFlowFeatures);
-
 public:
+
+	void display_allFPoints(bool forDebug, vector<Point2f> newFlowFeatures);
+
 	Target			trackedTarget;	//for use at outside (calling)functions
 
 	Rect			TrackerROI; 
@@ -94,7 +95,7 @@ public:
 
 	// both imgTarget, imgROI should be of the same size.
 	//void processImage(Mat inGray, Mat imgTarget,  Rect Brect);
-	void processImage(Mat inputGrayIm, Target *currentTargetMask) ;
+	void processImage(Mat inputGrayIm, Target *currentTarget) ;
 };
 
 #endif  // FEATURETRACKER_H

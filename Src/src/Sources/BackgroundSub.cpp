@@ -9,7 +9,7 @@ extern myGUI_handler	myGUI;
 /******************************    the class functions section    *********************************/
 /*************************************************************************************/
 
-// TODO: move this funtion to Target module. set and check .
+// TODO: move this funtion to Target module. set and check . !
 int BackSubs::checkBgSubt_MaskResult( Mat & mask , Point *movementMassCenter)
 { 
 	/* inner calculation vars */ 
@@ -27,6 +27,10 @@ int BackSubs::checkBgSubt_MaskResult( Mat & mask , Point *movementMassCenter)
 	double tmp2		= (mask.size()).area() ; 
 	boundAreaRatio	= tmp1 / tmp2;
 	mask_status		= int(boundAreaRatio);
+
+	double c2r		=	100.*m.m00 /255.0 / boundRect.area() ;	// circle area , divided by, rect.area // circle to rectangle
+
+	myGUI.show_BgSubt(mask, MassCenter, rCircle, boundRect, theta, boundAreaRatio, c2r/*mask_status*/ , frame_counter);
 
 	int rCircleFromLost_factor = 1;
 	if  (BgSubt_Status == RECOVER_FROM_LOST) ///will pass over the INIT phase
@@ -58,21 +62,20 @@ int BackSubs::checkBgSubt_MaskResult( Mat & mask , Point *movementMassCenter)
 	if (stable_bkgnd_phase==0)
 		return 0;
 
-	myGUI.show_BgSubt(mask, MassCenter, rCircle, boundRect, theta, boundAreaRatio, mask_status , frame_counter);
-
-	//TODO: make this condition more clear to read and understand
+	/* check condition for good potential target */
 	int w =  mask.size().width;
-	int w_band = 40;
-	if ( ///(boundRect.width < w) && 
+
+	double w_ratio_diff = 0.05;///0.2 // 0.05 is the must minimum
+
+	if ( ///(c2r > 22) &&
 		(stable_bkgnd_phase==1) 
 		&& (2.*rCircle < w* 0.9) && (2.*rCircle > w * 0.1)  			
 	   )
 	{
-		if ( (MassCenter.x > w * 0.2 ) && (MassCenter.x < w * 0.8 ) 
-			 && ( boundAreaRatio > 10 )	//15
+		if ( (MassCenter.x > w * (w_ratio_diff) ) && (MassCenter.x < w * (1 - w_ratio_diff) ) 
+				&& ( boundAreaRatio > 5 )	&& ( boundAreaRatio < 95 )	//15
 		   )
 			BgSubt_Status = FOUND_MOVEMENT	;
-			//mask_status = 222;		// treated as Good potential Target
 	} 
 
 	*movementMassCenter = MassCenter;
@@ -107,6 +110,7 @@ int BackSubs::show_forgnd_and_bgnd_init(int fpsIN, bool lostFlag)
 		cycles_number_after_lost++;
 		BgSubt_Status	=	RECOVER_FROM_LOST;
 	}
+	foreground = Mat();
 
 	return 0;
 }
@@ -124,7 +128,8 @@ void BackSubs::find_forgnd(Mat frame, Point *movementMassCenter)
 		cycles_number_after_lost++;
  
 	/* wait for at least # initial frames, after reset or lost */
-	if (frame_counter <= init_frames_number)  return ;
+	if (frame_counter <= init_frames_number)
+		return ;
 
 	/* start manipulating and checking result */
 	/* open:  dst = open( src, element)   = dilate( erode( src, element ) ) */

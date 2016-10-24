@@ -103,7 +103,7 @@ int Depth_and_Disparity::stereo_match_and_disparity_init(int argc, char** argv, 
 
 	target_image_size		=	img_size;
 
-	last_disparity_min_depth= 0;
+	last_disparity_depth= 0;
 
     for( int i = 1+2; i < argc; i++ )
     {
@@ -480,11 +480,11 @@ int Depth_and_Disparity::do_stereo_match(Mat imgR, Mat imgL , Mat& disp8 )
         imwrite(disparity_filename, disp8);
 
 	{
-		Mat xyz_again;
 		///http://stackoverflow.com/questions/27374970/q-matrix-for-the-reprojectimageto3d-function-in-opencv
 ///#ifndef COMPILING_ON_ROBOT
 		if (1==2)		
 		{
+			Mat xyz_again;
 			///Q.at<double>(3,2) = Q.at<double>(3,2)       ;////10.0;
 			reprojectImageTo3D(disp, xyz_again, Q, true); 
 			Vec3f point_middle = xyz_again.at<Vec3f>(xyz_again.rows/2, xyz_again.cols/2);
@@ -573,6 +573,7 @@ void Depth_and_Disparity::convert_disperity_Mat_to_depth(Mat in_disp, Mat & out_
 */
 //bool Depth_and_Disparity::calc_disperity(int desiredPhase, Mat in_left_clr, Mat in_right_clr, 
 bool Depth_and_Disparity::calc_disperity(int desiredPhase, Mat left_im_gray, Mat right_im_gray, 
+											Mat BgMask , Target *previousTarget,
 											Mat *disperity_out, double *min_depth_of_ROI)
 {
 	//Mat						left_im_gray, right_im_gray;
@@ -605,7 +606,24 @@ bool Depth_and_Disparity::calc_disperity(int desiredPhase, Mat left_im_gray, Mat
 	{
 		/* calculate average depth for the ROI of the target */ 
 		Mat tmpma = last_result_of_disparity;
-		threshold (last_result_of_disparity , filtered_disparity ,	minDisparityToCut ,	255,THRESH_TOZERO);		 //15,35,50
+		if ( ! BgMask.empty() )
+		{
+			filtered_disparity =	Mat();
+			last_result_of_disparity.copyTo(filtered_disparity , BgMask);
+			threshold (filtered_disparity , filtered_disparity ,	minDisparityToCut ,	255,THRESH_TOZERO);	
+		}
+		else 
+			/* no additional mask */
+			if ((*previousTarget).target_object_prop.relevant_disparity > -999)
+			{
+				threshold (last_result_of_disparity , filtered_disparity ,	
+					(*previousTarget).target_object_prop.relevant_disparity * (1-0.1) ,	
+					(*previousTarget).target_object_prop.relevant_disparity * (1+0.1),
+					THRESH_TOZERO);	//.15??	
+			}
+			else
+			/* loose the far away objects (small disparities) */
+			threshold (last_result_of_disparity , filtered_disparity ,	minDisparityToCut ,	255,THRESH_TOZERO);	
 
 		int an=3;	//an=1->kernel of 3
 		Mat element = getStructuringElement(MORPH_RECT, Size(an*2+1, an*2+1), Point(an, an) );
@@ -614,15 +632,15 @@ bool Depth_and_Disparity::calc_disperity(int desiredPhase, Mat left_im_gray, Mat
 		dilate		(filtered_disparity,	filtered_disparity, element); 
 
 		//max disperity into avg_disp var
-		minMaxLoc(filtered_disparity, 0, &max_disperity ); 
-		convert_disperity_value_to_depth(max_disperity , *min_depth_of_ROI);	
-		last_disparity_min_depth	= *min_depth_of_ROI;
+	//	minMaxLoc(filtered_disparity, 0, &max_disperity ); 
+	//	convert_disperity_value_to_depth(max_disperity , *min_depth_of_ROI);	
+	//	last_disparity_min_depth	= *min_depth_of_ROI;
 
 
 		Scalar     mean;
 		Scalar     stddev;
-		Rect tmp = Rect(boundingRect(filtered_disparity));
-		Mat tmpMask = filtered_disparity;
+		Rect tmp = boundingRect(filtered_disparity);
+		Mat  tmpMask = filtered_disparity;
 		///meanStdDev ( filtered_disparity, mean, stddev );
 		///meanStdDev ( filtered_disparity(tmp), mean, stddev );
 		meanStdDev ( filtered_disparity, mean, stddev , tmpMask);
@@ -632,9 +650,15 @@ bool Depth_and_Disparity::calc_disperity(int desiredPhase, Mat left_im_gray, Mat
 		int         stddev_val = stddev.val[0];
 
 		int minDispToTake = mean_val - stddev_val * 1; //2 ;	// furthest object
-		int maxDispToTake = max_disperity ;				// closest object
+		//int maxDispToTake = max_disperity ;						// closest  object
 
-		threshold (filtered_disparity , filtered_disparity ,	minDispToTake ,	max_disperity,THRESH_TOZERO);
+		convert_disperity_value_to_depth(mean_val , *min_depth_of_ROI);	
+		last_disparity_depth	= *min_depth_of_ROI;
+
+		/* filter far or close objects then the target itself (mean) */
+		threshold (filtered_disparity , filtered_disparity ,	minDispToTake ,	255/*max_disperity*/,THRESH_TOZERO);
+		/* set partial data for current target */
+		(*previousTarget).target_object_prop.relevant_disparity = mean_val;
 	}
 	
 	*disperity_out = filtered_disparity.clone() ;
@@ -646,5 +670,5 @@ bool Depth_and_Disparity::calc_disperity(int desiredPhase, Mat left_im_gray, Mat
 void Depth_and_Disparity::get_filtered_disparity(Mat &dispOut, int *avg_Depth)
 {
 	dispOut		= filtered_disparity.clone();
-	*avg_Depth	= (int)last_disparity_min_depth;
+	*avg_Depth	= (int)last_disparity_depth;
 }

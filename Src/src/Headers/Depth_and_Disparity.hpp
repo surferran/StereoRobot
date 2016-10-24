@@ -14,6 +14,8 @@
 
 #include <stdio.h>
 
+#include "Target.hpp"
+
 using namespace cv;
 
 #include <thread>
@@ -36,7 +38,9 @@ public:
 	Depth_and_Disparity();
 	~Depth_and_Disparity();
 
-	bool calc_disperity(int desiredPhase , Mat in_left, Mat in_right, Mat *disperity_out, double *avg_depth);
+	bool calc_disperity(int desiredPhase , Mat in_left, Mat in_right, 
+							Mat BgMask , Target *previousTarget,
+							Mat *disperity_out, double *avg_depth);
 
 	void set_disparity_input(Mat inR, Mat inL, long frameCycleCounter);
 	bool get_rectified_and_disparity(Mat& disp_output, rectification_outputs& rectification_vars);
@@ -124,7 +128,7 @@ private:
 
 	Mat						last_result_of_disparity,
 							filtered_disparity;
-	double					last_disparity_min_depth;
+	double					last_disparity_depth;
 	rectification_outputs	last_result_of_disparity_struct;
 
 	int						minDisparityToCut;

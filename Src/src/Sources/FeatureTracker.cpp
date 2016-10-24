@@ -24,7 +24,7 @@ Tracker::Tracker()
 	minROIareaRatio_toLEARN		=	 5;
 	minFPsize_toLEARN			=	10;
 	minFlowSuccessRate_toTRACK	=	30;
-	minROIareaRatio_toTRACK		=	 5;//1.5
+	minROIareaRatio_toTRACK		=	 3;//5;//1.5
 	minFPsize_toTRACK			=	 7;
 }
 
@@ -87,7 +87,7 @@ void Tracker::set_featurePnts_into_image(Point *returnMassCenter, Mat &targetMas
 /////////////////////////////
 
 //void Tracker::processImage(Mat inputGrayIm, Mat newImageMask, Rect Brect) //need mask and need image?.
-void Tracker::processImage(Mat inputGrayIm, Target *targetMask) 
+void Tracker::processImage(Mat inputGrayIm, Target *mainTarget) 
 {
 	// newImageMask is a mask from BGSubs & depth
 	// Brect - is boundingRect ( newImageMask );
@@ -99,17 +99,17 @@ void Tracker::processImage(Mat inputGrayIm, Target *targetMask)
 	double			tmpRatio;
 	vector<Point2f> newFlowFeatures,
 					newFlowFeaturesBack;  
-	Target			currentTargetMask = *targetMask;
+	Target			currentTarget = *mainTarget;
 
 	currentImProp.grayImage		= inputGrayIm.clone(); 
-	currentImProp.relevantROI	= currentTargetMask.target_mask_prop.boundRect ;  //Brect;	
-	currentMask					= currentTargetMask.target_mask_prop.maskIm.clone();
+	currentImProp.relevantROI	= currentTarget.target_mask_prop.boundRect ;  //Brect;	
+	currentMask					= currentTarget.target_mask_prop.maskIm.clone();
 
 	// tmpROI is MASK in potential area of new target. 
 	// potential target is Trimmed area according to ROI (from Depth or BgSubt)	
 	Mat tmpROI							=  Mat::zeros( currentImProp.grayImage.size() , currentImProp.grayImage.type() );
 	tmpROI( currentImProp.relevantROI )	= 255;				
-	inputGrayIm.copyTo(currentTargetMask.potential_target , tmpROI);
+	inputGrayIm.copyTo(currentTarget.potential_target , tmpROI);
 
 	int an=2;	//an=1->kernel of 3
 	Mat element = getStructuringElement(MORPH_ELLIPSE, Size(an*2+1, an*2+1), Point(an, an) );							
@@ -230,11 +230,12 @@ void Tracker::processImage(Mat inputGrayIm, Target *targetMask)
 		if ( successRate > minFlowSuccessRate_toLEARN )
 		{
 			learnTRKcounter++;
-			if (learnTRKcounter > 3)
+			if (learnTRKcounter > 1)	// 1 as minCycleFromLearnToTrack
 				Tracker_State = TRACKER_TRACKING;
 		}
 		else
-			;	//TODO: need to check how many gapped frames (with not enough features)
+			learnTRKcounter = 0;
+			//;	//TODO: need to check how many gapped frames (with not enough features)
 	}
 	else // state is TRACKER_TRACKING:
 	{
@@ -254,40 +255,46 @@ void Tracker::processImage(Mat inputGrayIm, Target *targetMask)
 	///consider_duplicates();
 
 	Mat tmp2;
+	/* embed 'trackedFeatures' into matrix tmp2 */
 	set_featurePnts_into_image(&MassCenter, tmp2);		
 	// set target calculated properties, by resultant faeture points mask. 
+
+	trackedTarget  = *mainTarget ;///
 	trackedTarget.set_target_mask_properties(tmp2) ; 
-	//trackedTarget.target_estimated_distance	=	
-	trackedTarget.target_estimated_dx	=	trackedTarget.target_mask_prop.MassCenter.x - 
-												trackedTarget.target_mask_prop.image_mask_size_width / 2.;
-	//////
-	display_fPoint_4debug(newFlowFeatures);
+	//	trackedTarget.target_object_prop.target_estimated_distance	=	0;//
+	trackedTarget.target_object_prop.target_estimated_dx	=	trackedTarget.target_mask_prop.MassCenter.x - 
+																 trackedTarget.target_mask_prop.image_mask_size_width / 2.;
+#ifndef COMPILING_ON_ROBOT
+	display_allFPoints(true, newFlowFeatures);
+#endif
 
 	// set data for next cycle loop
 	prevImProp.goodFeaturesCoor	= trackedFeatures; ; 
 	prevImProp.grayImage		= currentImProp.grayImage;
 	prevImProp.relevantROI		= Rect();//boundingRect(trackedFeatures);	//this one is just for reference. not useful
-
-	//targetMask = &trackedTarget;
-	*targetMask = trackedTarget;
+	 
+	*mainTarget = trackedTarget;
 
 	return;
 
 }
 
-void Tracker::display_fPoint_4debug(vector<Point2f> newFlowFeatures)
+void Tracker::display_allFPoints(bool forDebug, vector<Point2f> newFlowFeatures)
 {
 	Mat tmpIM = trackedTarget.target_mask_prop.maskIm.clone();//  newImageMask.clone();
 
 	cv::cvtColor(tmpIM , tmpIM  , CV_GRAY2BGR);
 	int r	= 3;
 	int i;
-	for(  i = 0; i < currentImProp.goodFeaturesCoor.size(); i++ )
-	{ circle( tmpIM, currentImProp.goodFeaturesCoor[i], r, 	Scalar(10, 100, 255), -1, 8, 0 );//orange
-	}	
-	for(  i = 0; i < newFlowFeatures.size(); i++ )
-	{ circle( tmpIM, newFlowFeatures[i], r, 				Scalar(10, 255, 255), -1, 8, 0 );//yellow
-	}	
+	if (forDebug)
+	{
+		for(  i = 0; i < currentImProp.goodFeaturesCoor.size(); i++ )
+		{ circle( tmpIM, currentImProp.goodFeaturesCoor[i], r, 	Scalar(10, 100, 255), -1, 8, 0 );//orange
+		}	
+		for(  i = 0; i < newFlowFeatures.size(); i++ )
+		{ circle( tmpIM, newFlowFeatures[i], r, 				Scalar(10, 255, 255), -1, 8, 0 );//yellow
+		}	
+	}
 	r=2;
 	for(  i = 0; i < trackedFeatures.size(); i++ )
 	{ circle( tmpIM, trackedFeatures[i], r, 				Scalar(255, 100, 255), -1, 8, 0 );//pink

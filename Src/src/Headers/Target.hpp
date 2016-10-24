@@ -21,6 +21,7 @@ public:
 
 	Target(){
 		inner_target_phases	=	0;
+		target_object_prop.relevant_disparity	=	-999;
 	};
 
 	 enum TargetState {
@@ -35,21 +36,26 @@ public:
 
 	/* foreground movement features */
 	struct target_mask_properties{
-		Mat		maskIm;
-		Point	MassCenter ;	// (x,y) [pix]
+		Mat		maskIm;				// the mask itself
+		int		image_mask_size_width;
+		int		image_mask_size_height;
+		int		image_mask_area;
+		Point	MassCenter ;		// (x,y) [pix]
 		double	rCircle;			// estimated rounding circle for the object area
 		Rect	boundRect;
 		double	theta ;				// estimated oriantation of bounding box. though not well feature
 		double	boundAreaRatio;		// boundRect.area/image.area
-		int		image_mask_size_width;
-		int		image_mask_size_height;
-		int		image_mask_area;
-	}
-	target_mask_prop;
+	};
+	target_mask_properties	target_mask_prop;
 
-	/* target center mass properties */
-	int		target_estimated_distance ; //	[cm]
-	int		target_estimated_dx;		//	[pix]
+	/* target object center of mass (CM) properties */
+	struct target_object_properties
+	{
+		int		relevant_disparity;			//  [pix]
+		int		target_estimated_distance ; //	depth [cm]
+		int		target_estimated_dx;		//	~bearing [pix]
+	};
+	target_object_properties target_object_prop;
 
 	Mat		potential_target;
 

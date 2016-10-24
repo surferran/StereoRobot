@@ -16,7 +16,7 @@ myGUI_handler::myGUI_handler()
 
 	plotWindowsNames[WIN5_NDX_FeaturePoints]	= "win5 - selected feature points";
 
-	//plotWindowsNames[5] = "win6 - depth mask";
+	plotWindowsNames[WIN6_NDX_FPinptMask] = "win6 - FP input mask";
 	//plotWindowsNames[5] = "win6 - target aquired Depth";
 	//plotWindowsNames[6] = "win7 - target aquired Depth Masked";
 
@@ -24,6 +24,11 @@ myGUI_handler::myGUI_handler()
 
 }
 
+
+void myGUI_handler::printFPinputMask(Mat featTrackMask)
+{
+	imshow(plotWindowsNames[WIN6_NDX_FPinptMask],	featTrackMask	);
+}
 
 void myGUI_handler::show_raw_captures(Mat L_in, Mat R_in, long frameCounter, StereoRobotApp::SYSTEM_STATUS sys_stat )	//inputs in colour
 {
@@ -52,6 +57,7 @@ void myGUI_handler::close_Tracking_win()
 {
 	destroyWindow( plotWindowsNames[WIN4_NDX_DisparityMask] );
 	destroyWindow( plotWindowsNames[WIN5_NDX_FeaturePoints] ); 
+	destroyWindow( plotWindowsNames[WIN6_NDX_FPinptMask]    );
 }
 
 // shows the 4 images of previous and current images and 
@@ -210,7 +216,8 @@ string myGUI_handler::_sysStatToString(StereoRobotApp::SYSTEM_STATUS val){
 add sign of cross on the x,y point, on the delivered image.
 usually to show Target location, or image center.
 */
-void myGUI_handler::add_Cross_to_Image(int x, int y, bool addLabel, StereoRobotApp::SYSTEM_STATUS sys_stat, Mat &cameraFeed)   
+void myGUI_handler::add_Cross_to_Image(int x, int y, bool addLabel, StereoRobotApp::SYSTEM_STATUS sys_stat, Mat &cameraFeed,
+		Rect targetBounding)
 {
 	Scalar	color	=	Scalar(0,255,0) ;
 	int		xMid	=	cameraFeed.size().width/2  , 
@@ -250,6 +257,7 @@ void myGUI_handler::add_Cross_to_Image(int x, int y, bool addLabel, StereoRobotA
 		putText(cameraFeed,"Tracking object at (" + _intToString(x)+","+_intToString(y)+")",
 			Point(x/20+1,y/20+20),1,0.51,Scalar(255,0,0),1);
 	//alpha is..
+	rectangle(cameraFeed, targetBounding, Scalar(255,0,0) );
 	
 }
 void myGUI_handler::add_sysStatus_to_Image(StereoRobotApp::SYSTEM_STATUS sys_stat, Mat &cameraFeed) 

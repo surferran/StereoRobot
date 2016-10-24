@@ -30,7 +30,7 @@ StereoRobotApp::StereoRobotApp()
 	frame_boundary_W_init	=	0;
 	frame_boundary			=	0;
 
-	minDepth_toGoTo			=	15;	//[cm]
+	minDepth_toGoTo			=	25;	//[cm]
 	maxDepth_toGoTo			=	300;//[cm]
 
 	op_flags.make_stereo_calibration	=	false;
@@ -82,7 +82,7 @@ void StereoRobotApp::appInitializations()
 	LowRight	 = Point(w - frame_boundary_W_init	, h - frame_boundary);
 	BckgndSubROI = Rect(TopLeft, LowRight ); 
 
-	userFwdThrust_percent	=	50;
+	userFwdThrust_percent	=	initialUserFwdThrust_percent;
 }
 
 
@@ -138,7 +138,7 @@ void StereoRobotApp::appMainLoop()
 
 			myGUI.show_raw_captures(left_im_color, right_im_color, myStereoCams.GetFrameCycleCounter(), system_state);
 
-			/************************bgSubt************************/
+			/************************bgSubt************************/ 
 			if ( (system_state == INITIALIZING) || (system_state == STANDBY) 
 				|| (system_state == FOUND_SOME_MOVEMENT) || (system_state == TARGET_IS_LOST) )
 			{
@@ -156,13 +156,15 @@ void StereoRobotApp::appMainLoop()
 			else
 			{
 				localBackSubs.show_forgnd_and_bgnd_init(working_FRAMES_FPS, false);
+				featTrackMask_fromBgSubt	= localBackSubs.get_foreground_mat();	// return empty Mat for this phase
 				myGUI.close_BgSubt_win();  // TODO: just add red frame, and when operative set to green
 			}
 			
 			if ( (system_state == FOUND_SOME_MOVEMENT) || (system_state == TRACKING) )
 			{
 				/************************disp************************/
-				localDisp.calc_disperity(3, left_im_gray, right_im_gray, &current_disparity , &last_min_depth_of_ROI ); // also filters
+				localDisp.calc_disperity(3, left_im_gray, right_im_gray, featTrackMask_fromBgSubt, &tracked_target,
+											&current_disparity , &last_min_depth_of_ROI ); // also filters
 
 				matQueue.populateNextElementInArray(current_disparity); 
 				matQueue.getSumElement(&sum_of_N_disparities);
@@ -174,7 +176,12 @@ void StereoRobotApp::appMainLoop()
 					 	//TODO: drive should be around D closer. and around ROI.  in tracker - dont drag FP that are not in D ROI ( or vrery far..)
 				threshold (featTrackMask_fromDisperity , featTrackMask_fromDisperity ,	1 ,	255,THRESH_BINARY);	// take all that is not zero 
 				effective_depth_measurement		=	avg_depth_of_ROI;		// rounded to [cm]
-			
+
+				myGUI.show_disparity_map(sum_of_N_disparities, effective_depth_measurement);
+
+			//	tracked_target.target_object_prop.relevant_disparity =  take current or average??
+				tracked_target.target_object_prop.target_estimated_distance = effective_depth_measurement; // taking the average
+
 				/********************feat.tracker****************************/
 				  
 				featTrackMask	= Mat::zeros(left_im_gray.size(), left_im_gray.type() ) ; 
@@ -183,6 +190,7 @@ void StereoRobotApp::appMainLoop()
 				else
 					featTrackMask = featTrackMask_fromDisperity.clone(); // TODO:TODO: need to combine with previous FP ROI
 
+				myGUI.printFPinputMask(featTrackMask);
 				//	mainImSeg(left_im_color);	// need to use the markers with depth ROI anti-mask as sure background.
 				// or use the inside use of distanceTransform to better to find the bigger object.
 
@@ -192,6 +200,11 @@ void StereoRobotApp::appMainLoop()
 
 				tracked_target.set_target_mask_properties(featTrackMask);
 				tracker.processImage(left_im_gray, &tracked_target) ;	//tracked_target is IN/OUT object
+
+#ifdef COMPILING_ON_ROBOT
+			///	vector<Point2f> stam;
+			///	tracker.display_allFPoints(false, stam);	// false for debug prints
+#endif
 
 				if ( (trackerNotOff) && (tracker.Tracker_State == Tracker::TRACKER_OFF) )	//back from advanced mode to OFF
 				{
@@ -216,10 +229,11 @@ void StereoRobotApp::appMainLoop()
 					if ( (effective_depth_measurement > minDepth_toGoTo) && 
 						 (effective_depth_measurement < maxDepth_toGoTo) ) // 5 as minimum depth to go to
 					{
-						alpha = tracked_target.target_estimated_dx * myStereoCams.camFOVpix ;
+						///alpha = tracked_target.target_estimated_dx * myStereoCams.camFOVpix ;
+						alpha = (double) tracked_target.target_object_prop.target_estimated_dx / w ;
 						//double thrust_per = (avg_depth_of_ROI-Dmin)/(Dmax-Dmin);
-						thrust_per = 100.0*(effective_depth_measurement-11)/(190-11);						
-						hardwareController.Forward(thrust_per,  alpha , 0.9);
+						thrust_per = 100.0*(effective_depth_measurement-minDepth_toGoTo)/(maxDepth_toGoTo-minDepth_toGoTo);
+						hardwareController.Forward(thrust_per,  alpha);
 					}
 					else 
 					{
@@ -234,7 +248,8 @@ void StereoRobotApp::appMainLoop()
 						///	add_Cross_to_Image(tracker.TrkErrX  ,  left_im_color.size().height/2  , 
 						targetCenter	=	tracker.MassCenter;
 						myGUI.add_Cross_to_Image(targetCenter.x  ,  targetCenter.y  , 
-							true, system_state , left_im_color); //	changes input image. but it is last in the flow cycle.
+							true, system_state , left_im_color,
+							tracker.trackedTarget.target_mask_prop.boundRect); //	changes input image. but it is last in the flow cycle.
 					}
 
 				}
@@ -245,8 +260,6 @@ void StereoRobotApp::appMainLoop()
 
 
 				/************************************************/
-
-				myGUI.show_disparity_map(sum_of_N_disparities, effective_depth_measurement);
 
 			}											
 
@@ -282,7 +295,7 @@ bool StereoRobotApp::wait_or_handle_user_input()
 
 	if (myStereoCams.GetUserRepeatFlag())
 	{
-		waitKey(0*loop_delay);
+		c = waitKey(0*loop_delay);
 		myStereoCams.ToggleDisableFramesCapture();
 		waitKey( loop_delay );
 	}
@@ -292,7 +305,7 @@ bool StereoRobotApp::wait_or_handle_user_input()
 	switch (c) {
 	case StereoRobotApp::UNIX_KEY_UP: 
 		angle = 0;			
-		hardwareController.Forward(userFwdThrust_percent, angle, 0);
+		hardwareController.Forward(userFwdThrust_percent, angle);
 		if (userFwdThrust_percent <= 90)
 			userFwdThrust_percent += 10 ;
 		break;
@@ -302,11 +315,11 @@ bool StereoRobotApp::wait_or_handle_user_input()
 		break; 
 	case StereoRobotApp::UNIX_KEY_LEFT: 
 		angle = -45 /57.3;		 //-45deg
-		hardwareController.Forward(userFwdThrust_percent, angle, 0.9);	// 0.9 is turnRateRatio
+		hardwareController.Forward(userFwdThrust_percent, angle);	// 0.9 is turnRateRatio
 		break;
 	case StereoRobotApp::UNIX_KEY_RIGHT: 
 		angle = 45 /57.3;		
-		hardwareController.Forward(userFwdThrust_percent, angle, 0.9);
+		hardwareController.Forward(userFwdThrust_percent, angle);
 		break;
 	}
 

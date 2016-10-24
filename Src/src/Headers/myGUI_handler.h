@@ -27,7 +27,7 @@ public:
 
 	void add_counterFrame(Mat &inImage, long * frameNum);
 
-	void add_Cross_to_Image(int x, int y, bool addLabel, StereoRobotApp::SYSTEM_STATUS sys_stat, Mat &cameraFeed);
+	void add_Cross_to_Image(int x, int y, bool addLabel, StereoRobotApp::SYSTEM_STATUS sys_stat, Mat &cameraFeed, Rect bound);
 	void add_sysStatus_to_Image(StereoRobotApp::SYSTEM_STATUS sys_stat, Mat &cameraFeed);
 
 	void add_distance_to_disparityIM(double dist, Mat &ImFeed);
@@ -41,6 +41,8 @@ public:
 
 	void show_raw_captures(Mat L_in, Mat R_in, long frameCounter, StereoRobotApp::SYSTEM_STATUS sys_stat);
 	void show_disparity_map(Mat sum_of_disp, int avg_depth);
+
+	void printFPinputMask(Mat featTrackMask);
 
 	static const int	thumb_num = 10;	
 	String				plotWindowsNames[thumb_num];
@@ -61,6 +63,7 @@ public:
 		WIN3_NDX_BgSubtMask,
 		WIN4_NDX_DisparityMask,
 		WIN5_NDX_FeaturePoints,
+		WIN6_NDX_FPinptMask,
 		NUM_OF_GUI_WINDOWS
 	};
 

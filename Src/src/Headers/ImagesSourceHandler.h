@@ -13,7 +13,7 @@ using namespace cv;
 #include <atomic>
 
 ///
-////#define RUN_ON_LAPTOP__MONO 
+#define RUN_ON_LAPTOP__MONO 
 
 #ifdef COMPILING_ON_ROBOT
 #define ACTIVE_CAMS_NUM			2 

@@ -52,8 +52,8 @@ void ImagesSourceHandler::InitVideoCap()
 	bRepeat_scenario_from_files	=	false;//true;//true;//false; 
 	bUserRecordRequest			=	true;//false;true;//
 #else
-	bRepeat_scenario_from_files	=	true;//false;//true;//true;//false; 
-	bUserRecordRequest			=	false;//true;//false;true;//
+	bRepeat_scenario_from_files	=	true;//true;
+	bUserRecordRequest			=	false;
 #endif
 
 	strcpy(inout_file_nameR , "../vidR.avi");
@@ -106,8 +106,8 @@ void ImagesSourceHandler::InitVideoCap()
 	}
 
 	/* about 40degree for w/2 pixels .  get angle coefficient by that */
-	camFOV		=	40.0 * 1. / 57.3 ; // deg to rad conversion
-	camFOVpix	=	camFOV / (w/2);
+	camFOV		=	42.0 * 1. / 57.3 ; // deg to rad conversion
+	camFOVpix	=	camFOV / w;			// get crude relation angle to dx pixels
 }
 
 
