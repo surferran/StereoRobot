@@ -61,8 +61,6 @@ using namespace cv;
 										// it is included in the .cpp file
 //extern myGUI_handler		myGUI;
 
-///#include "Target.hpp"
-
 #ifdef COMPILING_ON_ROBOT
 										////#include "OdroidC1_handlers/RobotController.h"
 #include <unistd.h>

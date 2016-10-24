@@ -33,7 +33,7 @@ int BackSubs::checkBgSubt_MaskResult( Mat & mask , Point *movementMassCenter)
 	myGUI.show_BgSubt(mask, MassCenter, rCircle, boundRect, theta, boundAreaRatio, c2r/*mask_status*/ , frame_counter);
 
 	int rCircleFromLost_factor = 1;
-	if  (BgSubt_Status == RECOVER_FROM_LOST) ///will pass over the INIT phase
+	if  (BgSubt_Status == BG_RECOVER_FROM_LOST) ///will pass over the INIT phase
 	{ 
 		/* up to 10 cycles from lost - be more flexible with conditions */
 		rCircleFromLost_factor = 7./6. * (10- cycles_number_after_lost) ; 
@@ -43,19 +43,19 @@ int BackSubs::checkBgSubt_MaskResult( Mat & mask , Point *movementMassCenter)
 			rCircleFromLost_factor		= 1;
 			cycles_number_after_lost	= 0;
 			stable_bkgnd_phase			= 1;
-			BgSubt_Status				= STANDING_BY;
+			BgSubt_Status				= BG_STANDING_BY;
 		}
 		if ( rCircle < 5 * rCircleFromLost_factor )	
 		{
 			stable_bkgnd_phase	= 1;
-			BgSubt_Status		= STANDING_BY;
+			BgSubt_Status		= BG_STANDING_BY;
 		}
 	}
 	else
-	if ( (BgSubt_Status == StereoRobotApp::INITIALIZING) && ( rCircle < 5 ) ) 
+	if ( (BgSubt_Status == BG_INITIALIZING) && ( rCircle < 5 ) ) 
 	{ 
 		stable_bkgnd_phase	= 1;
-		BgSubt_Status		= STANDING_BY;
+		BgSubt_Status		= BG_STANDING_BY;
 		return mask_status;
 	}
 
@@ -75,7 +75,7 @@ int BackSubs::checkBgSubt_MaskResult( Mat & mask , Point *movementMassCenter)
 		if ( (MassCenter.x > w * (w_ratio_diff) ) && (MassCenter.x < w * (1 - w_ratio_diff) ) 
 				&& ( boundAreaRatio > 5 )	&& ( boundAreaRatio < 95 )	//15
 		   )
-			BgSubt_Status = FOUND_MOVEMENT	;
+			BgSubt_Status = BG_FOUND_MOVEMENT	;
 	} 
 
 	*movementMassCenter = MassCenter;
@@ -86,7 +86,7 @@ int BackSubs::checkBgSubt_MaskResult( Mat & mask , Point *movementMassCenter)
 
 BackSubs::BackSubs()
 {
-	BgSubt_Status = INITIALIZING ;
+	BgSubt_Status = BG_INITIALIZING ;
 }
 
 int BackSubs::show_forgnd_and_bgnd_init(int fpsIN, bool lostFlag)
@@ -102,13 +102,13 @@ int BackSubs::show_forgnd_and_bgnd_init(int fpsIN, bool lostFlag)
 	else
 		loopWait=1000/fps; // 1000/30=33; 1000/15=67
 
-	BgSubt_Status		=	INITIALIZING ;
+	BgSubt_Status		=	BG_INITIALIZING ;
 	frame_counter		=	0;
 	init_frames_number	=	2;	 
 	cycles_number_after_lost	= 0;
 	if (lostFlag) {
 		cycles_number_after_lost++;
-		BgSubt_Status	=	RECOVER_FROM_LOST;
+		BgSubt_Status	=	BG_RECOVER_FROM_LOST;
 	}
 	foreground = Mat();
 
@@ -124,7 +124,7 @@ void BackSubs::find_forgnd(Mat frame, Point *movementMassCenter)
 	mog->apply(bgSubIn,foreground, BackSubs_LearningRate);	
 
 	frame_counter++;
-	if (BgSubt_Status == RECOVER_FROM_LOST)	
+	if (BgSubt_Status == BG_RECOVER_FROM_LOST)	
 		cycles_number_after_lost++;
  
 	/* wait for at least # initial frames, after reset or lost */

@@ -23,10 +23,10 @@ public:
 	BackSubs();
 
 	enum BgSubt_STATE {
-		INITIALIZING	=	0,
-		STANDING_BY		=	1,
-		FOUND_MOVEMENT	=	2,
-		RECOVER_FROM_LOST = 3
+		BG_INITIALIZING	=	0,
+		BG_STANDING_BY		=	1,
+		BG_FOUND_MOVEMENT	=	2,
+		BG_RECOVER_FROM_LOST = 3
 	} BgSubt_Status ;
 
 	int		show_forgnd_and_bgnd_init(int fps, bool lost); 
@@ -71,8 +71,11 @@ private:
 	double	theta ;				// estimated oriantation of bounding box. though not well feature
 
 	/* initializing parameters for the Background_Subtractor algorithm */
-	const int				BackSubs_History		= 300;///60;//120;			//by example: 300 ,32, true
-	const double			BackSubs_Threshould		= 32;///16.0;	
+	// history - higher is longet 'study'
+	// threshould - higher is more restricting (better sureness about not being background)
+	// learnRate - (-1) is automatic, 
+	const int				BackSubs_History		= 120;////300;///60;//120;			//by example: 300 ,32, true
+	const double			BackSubs_Threshould		= 40;///32;///16.0;	
 	const bool				BackSubs_DetectShadows	= false;   // only for better run-time performance
 	const double			BackSubs_LearningRate	= -1.0;  //~-0.5~-0.7? -1
 

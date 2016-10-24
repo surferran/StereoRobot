@@ -144,10 +144,10 @@ void StereoRobotApp::appMainLoop()
 			{
 				localBackSubs.find_forgnd( left_im_color(BckgndSubROI) , &movementMassCenter ) ; //// synthesize target by movement
 																								 //
-				if (localBackSubs.BgSubt_Status == BackSubs::STANDING_BY)
+				if (localBackSubs.BgSubt_Status == BackSubs::BG_STANDING_BY)
 					system_state = StereoRobotApp::STANDBY; 
 				else 
-					if (localBackSubs.BgSubt_Status == BackSubs::FOUND_MOVEMENT)
+					if (localBackSubs.BgSubt_Status == BackSubs::BG_FOUND_MOVEMENT)
 					{
 						system_state	= StereoRobotApp::FOUND_SOME_MOVEMENT;
 						featTrackMask_fromBgSubt	= localBackSubs.get_foreground_mat(); 

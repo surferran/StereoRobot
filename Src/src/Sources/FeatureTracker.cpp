@@ -119,7 +119,7 @@ void Tracker::processImage(Mat inputGrayIm, Target *mainTarget)
 
 	if (currentImProp.goodFeaturesCoor.size() <= 1)
 	{
-		Tracker_State == TRACKER_OFF;
+		Tracker_State = TRACKER_OFF;
 		return;
 	}
 

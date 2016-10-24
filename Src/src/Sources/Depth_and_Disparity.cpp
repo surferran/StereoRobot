@@ -324,7 +324,7 @@ void Depth_and_Disparity::set_BM_params_options_3()
 	bm->setTextureThreshold	( 10 );
 	bm->setUniquenessRatio	( 15 );
 
-	minDisparityToCut		=	15;		// for the threshold cut	//20 for 2.5m
+	minDisparityToCut		=	11;//15;		// for the threshold cut	//20 for 2.5m
 										//35 is for about 140cm // 18 about 4 meters, 12 about 5m
 
 	/*bm->setROI1(roi1);
