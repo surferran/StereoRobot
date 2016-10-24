@@ -96,9 +96,10 @@ public:
 	  	UNIX_KEY_LEFT		= 65361,
 	  	UNIX_KEY_RIGHT		= 65363
 	};
-	  int	working_FRAME_WIDTH	= 320 /1 ;// 640;// 160;
-	  int	working_FRAME_HIGHT	= 240 /1 ;// 480;// 120;
-	  int	working_FRAMES_FPS  = 15;		// HW can support 15 or 30 fps. practically,with alg.calculations it can be up to 10fps.
+	  int	working_FRAME_WIDTH	;
+	  int	working_FRAME_HIGHT	;
+	  int	working_FRAMES_FPS  ;		// HW can support 15 or 30 fps. practically,with alg.calculations it can be up to 10fps.
+	  int	myResizeScaleFactor;		// for resizing the captured image. 1 is nominal case.
 
 	  int	minDepth_toGoTo;
 	  int	maxDepth_toGoTo;

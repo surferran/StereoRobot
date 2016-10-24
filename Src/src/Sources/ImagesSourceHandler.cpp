@@ -26,6 +26,11 @@ void ImagesSourceHandler::CaptureFromCam() {
 				right=left; 
 			//TODO: //captureTimeTag = .. 
 
+			//resize(left, left, Size(), capturing_resize_factor, capturing_resize_factor);
+			//resize(right, right, Size(), capturing_resize_factor, capturing_resize_factor);
+			resize(left , left , Size(w,h) );//, capturing_resize_factor, capturing_resize_factor);
+			resize(right, right, Size(w,h) );//, capturing_resize_factor, capturing_resize_factor);
+
 			inputFrameCycleCounter++; //TODO: condition with non empty frames?!
 
 			/*if (bUserRecordRequest)	// moved to recieving function
@@ -47,6 +52,7 @@ void ImagesSourceHandler::InitVideoCap()
 	w	=	obj.working_FRAME_WIDTH ;	// desired resolution for the images
 	h	=	obj.working_FRAME_HIGHT ;
 	FPS	=	obj.working_FRAMES_FPS;		// 30, or 15  -> capture_loop_dealy=33, or 67 [mS]
+	capturing_resize_factor = 1. / obj.myResizeScaleFactor;
 
 #ifdef COMPILING_ON_ROBOT
 	bRepeat_scenario_from_files	=	false;//true;//true;//false; 
@@ -108,6 +114,8 @@ void ImagesSourceHandler::InitVideoCap()
 	/* about 40degree for w/2 pixels .  get angle coefficient by that */
 	camFOV		=	42.0 * 1. / 57.3 ; // deg to rad conversion
 	camFOVpix	=	camFOV / w;			// get crude relation angle to dx pixels
+
+	///capturing_resize_factor = 0.5;//1; //1 - nominal
 }
 
 

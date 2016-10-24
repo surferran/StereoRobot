@@ -48,9 +48,9 @@ private:
 	VideoCapture	vidR,		// handles the Hardware right camera
 					vidL;		// handles the Hardware left camera
 
-	/*const */int	w	=	320,//myCApp.working_FRAME_WIDTH ,		// desired resolution for the images
-					h	=	240,//myCApp.working_FRAME_HIGHT ,
-					FPS	=	30;//myCApp.working_FRAMES_FPS;		// 30, or 15  -> capture_loop_dealy=33, or 67 [mS]
+	/*const */int	w	,
+					h	,
+					FPS	;
 
 	double			camFOV;
 
@@ -97,7 +97,8 @@ public:
 	bool ToggleDisableFramesCapture() { userDisableFramesCapture = !userDisableFramesCapture; return userDisableFramesCapture; };
 	bool setStartingFrame(int initialFrameIndex);
 	//TODO: //void setRecordOption()
-	double camFOVpix;
+	double	camFOVpix;
+	float	capturing_resize_factor;
 };
 
 #endif /* IMAGESSOURCEHANDLER_H_ */

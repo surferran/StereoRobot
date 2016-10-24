@@ -224,7 +224,7 @@ int Depth_and_Disparity::stereo_match_and_disparity_init(int argc, char** argv, 
 				Left camera as img1 , 
 				Right camera as img2
 		*/
-		stereoRectify( M1, D1, M2, D2, img_size, R, T, R1, R2, P1, P2, Q, CALIB_ZERO_DISPARITY, -1, img_size, &roi1, &roi2 );
+		stereoRectify( M1, D1, M2, D2, img_size, R, T, R1, R2, P1, P2, Q, CALIB_ZERO_DISPARITY, -1, img_size, &roi1, &roi2 );	//TODO:might re-check given size different from 1 used in calibration.
 
 		initUndistortRectifyMap(M1, D1, R1, P1, img_size, CV_16SC2, map11, map12);
 		initUndistortRectifyMap(M2, D2, R2, P2, img_size, CV_16SC2, map21, map22);

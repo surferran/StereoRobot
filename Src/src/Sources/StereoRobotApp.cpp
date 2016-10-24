@@ -24,8 +24,10 @@ BackSubs			localBackSubs ;
 /* class initiation */
 StereoRobotApp::StereoRobotApp()
 { 
-	working_FRAME_WIDTH		=	320 /1 ;// 640;// 160;
-	working_FRAME_HIGHT		=	240 /1 ;// 480;// 120;
+	myResizeScaleFactor		=	1;// 1 for nominal
+	working_FRAME_WIDTH		=	320 /myResizeScaleFactor ;// 640;// 160;
+	working_FRAME_HIGHT		=	240 /myResizeScaleFactor ;// 480;// 120;
+	working_FRAMES_FPS		=	15;
 
 	frame_boundary_W_init	=	0;
 	frame_boundary			=	0;

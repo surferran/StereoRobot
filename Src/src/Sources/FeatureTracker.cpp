@@ -105,6 +105,12 @@ void Tracker::processImage(Mat inputGrayIm, Target *mainTarget)
 	currentImProp.relevantROI	= currentTarget.target_mask_prop.boundRect ;  //Brect;	
 	currentMask					= currentTarget.target_mask_prop.maskIm.clone();
 
+	if (currentTarget.target_mask_prop.boundAreaRatio==0)	//TODO:can put this condition earlier in the main app loop 
+	{
+		Tracker_State = TRACKER_OFF;
+		return;
+	}
+
 	// tmpROI is MASK in potential area of new target. 
 	// potential target is Trimmed area according to ROI (from Depth or BgSubt)	
 	Mat tmpROI							=  Mat::zeros( currentImProp.grayImage.size() , currentImProp.grayImage.type() );
