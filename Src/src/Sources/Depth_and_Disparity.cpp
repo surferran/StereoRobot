@@ -617,7 +617,7 @@ bool Depth_and_Disparity::calc_disperity(int desiredPhase, Mat left_im_gray, Mat
 			if ((*previousTarget).target_object_prop.relevant_disparity > -999)
 			{
 				threshold (last_result_of_disparity , filtered_disparity ,	
-					(*previousTarget).target_object_prop.relevant_disparity * (1-0.1) ,	
+					(*previousTarget).target_object_prop.relevant_disparity * (1-0.1) ,	// TODO: check changing to 0.3 or other.. !
 					(*previousTarget).target_object_prop.relevant_disparity * (1+0.1),
 					THRESH_TOZERO);	//.15??	
 			}
