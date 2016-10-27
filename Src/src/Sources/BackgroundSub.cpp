@@ -52,7 +52,8 @@ int BackSubs::checkBgSubt_MaskResult( Mat & mask , Point *movementMassCenter)
 		}
 	}
 	else
-	if ( (BgSubt_Status == BG_INITIALIZING) && ( rCircle < 5 ) ) 
+	if ( (BgSubt_Status == BG_INITIALIZING) && 
+		  (( rCircle < 5 ) || (frame_counter > 10)) ) 
 	{ 
 		stable_bkgnd_phase	= 1;
 		BgSubt_Status		= BG_STANDING_BY;
@@ -128,7 +129,7 @@ void BackSubs::find_forgnd(Mat frame, Point *movementMassCenter)
 		cycles_number_after_lost++;
  
 	/* wait for at least # initial frames, after reset or lost */
-	if (frame_counter <= init_frames_number)
+	if (frame_counter < init_frames_number)
 		return ;
 
 	/* start manipulating and checking result */
@@ -140,6 +141,9 @@ void BackSubs::find_forgnd(Mat frame, Point *movementMassCenter)
 
 	middle_tmp_frame = foreground.clone();
 
-	checkBgSubt_MaskResult(middle_tmp_frame, movementMassCenter);	//also prints. to screen
+#ifndef COMPILING_ON_ROBOT
+	myGUI.showContours(middle_tmp_frame);
+#endif
 
+	checkBgSubt_MaskResult(middle_tmp_frame, movementMassCenter);	//also prints. to screen
 }

@@ -26,10 +26,9 @@ void ImagesSourceHandler::CaptureFromCam() {
 				right=left; 
 			//TODO: //captureTimeTag = .. 
 
-			//resize(left, left, Size(), capturing_resize_factor, capturing_resize_factor);
-			//resize(right, right, Size(), capturing_resize_factor, capturing_resize_factor);
-			resize(left , left , Size(w,h) );//, capturing_resize_factor, capturing_resize_factor);
-			resize(right, right, Size(w,h) );//, capturing_resize_factor, capturing_resize_factor);
+			// only in userRepeateScenario:
+			//resize(left , left , Size(w/2,h/2) );//, capturing_resize_factor, capturing_resize_factor);
+		//resize(right, right, Size(w/2,h/2) );//, capturing_resize_factor, capturing_resize_factor);
 
 			inputFrameCycleCounter++; //TODO: condition with non empty frames?!
 
@@ -52,10 +51,9 @@ void ImagesSourceHandler::InitVideoCap()
 	w	=	obj.working_FRAME_WIDTH ;	// desired resolution for the images
 	h	=	obj.working_FRAME_HIGHT ;
 	FPS	=	obj.working_FRAMES_FPS;		// 30, or 15  -> capture_loop_dealy=33, or 67 [mS]
-	capturing_resize_factor = 1. / obj.myResizeScaleFactor;
 
 #ifdef COMPILING_ON_ROBOT
-	bRepeat_scenario_from_files	=	false;//true;//true;//false; 
+	bRepeat_scenario_from_files	=	false;
 	bUserRecordRequest			=	true;//false;true;//
 #else
 	bRepeat_scenario_from_files	=	true;//true;
@@ -80,17 +78,31 @@ void ImagesSourceHandler::InitVideoCap()
 	}
 	
 	/* checks */
-	if(!vidL.isOpened())	throw cv::Exception(1, "Cannot open right camera/file \n" , "", "", 30);///std::exception(errMsg2.str().c_str());
+	if(!vidL.isOpened())	throw cv::Exception(1, "Cannot open left camera/file \n" , "", "", 30);///std::exception(errMsg2.str().c_str());
 	if (ACTIVE_CAMS_NUM==2)
 		if(!vidR.isOpened())	throw cv::Exception(); //std::exception(errMsg1.str().c_str()); //throw cv::Exception();
 	
 	/* settings */
-	if (!bRepeat_scenario_from_files) {
-		vidL.set(CAP_PROP_FRAME_WIDTH, w);	vidL.set(CAP_PROP_FRAME_HEIGHT, h); vidL.set(CAP_PROP_FPS, FPS); 
-		if (ACTIVE_CAMS_NUM==2){
-			vidR.set(CAP_PROP_FRAME_WIDTH, w);	vidR.set(CAP_PROP_FRAME_HEIGHT, h);  vidR.set(CAP_PROP_FPS, FPS); }
+	if (w>=160)	// camera canot capture in smaller resolution
+	{
+		if (!bRepeat_scenario_from_files) {
+			vidL.set(CAP_PROP_FRAME_WIDTH, w);	vidL.set(CAP_PROP_FRAME_HEIGHT, h); vidL.set(CAP_PROP_FPS, FPS);
+			if (ACTIVE_CAMS_NUM==2){
+				vidR.set(CAP_PROP_FRAME_WIDTH, w);	vidR.set(CAP_PROP_FRAME_HEIGHT, h);  vidR.set(CAP_PROP_FPS, FPS); }
+		}
+		else; //TODO: update FPS from recorded files. (although it should be the same as the last setting that recorded.
 	}
-	else; //TODO: update FPS from recorded files. (although it should be the same as the last setting that recorded.
+	else
+	{
+		if (!bRepeat_scenario_from_files)
+		{
+			vidL.set(CAP_PROP_FRAME_WIDTH, 160);	vidL.set(CAP_PROP_FRAME_HEIGHT, 120); vidL.set(CAP_PROP_FPS, 30);
+			if (ACTIVE_CAMS_NUM==2){
+				vidR.set(CAP_PROP_FRAME_WIDTH, 160);	vidR.set(CAP_PROP_FRAME_HEIGHT, 120);  vidR.set(CAP_PROP_FPS, 30); }
+		}
+		else;
+	}
+	//}
 
 	/* option for videos recording to files */
 	if (bUserRecordRequest)
@@ -98,8 +110,8 @@ void ImagesSourceHandler::InitVideoCap()
 		if (!bRepeat_scenario_from_files)		// cannot record to files while also images are input from same files
 		{
 			//init files to record to
-			outFileR.open(inout_file_nameR, codec, FPS/2, Size(w,h), true);
-			outFileL.open(inout_file_nameL, codec, FPS/2, Size(w,h), true);
+			outFileR.open(inout_file_nameR, codec, FPS, Size(w,h), true);
+			outFileL.open(inout_file_nameL, codec, FPS, Size(w,h), true);
 
 			if (!outFileR.isOpened() || !outFileL.isOpened()) {
 				throw cv::Exception(); 
@@ -114,8 +126,6 @@ void ImagesSourceHandler::InitVideoCap()
 	/* about 40degree for w/2 pixels .  get angle coefficient by that */
 	camFOV		=	42.0 * 1. / 57.3 ; // deg to rad conversion
 	camFOVpix	=	camFOV / w;			// get crude relation angle to dx pixels
-
-	///capturing_resize_factor = 0.5;//1; //1 - nominal
 }
 
 
@@ -135,6 +145,12 @@ bool ImagesSourceHandler::GetFrames(Mat &rightFrame, Mat &leftFrame)	// can b re
 	/* else : */
 
 	recievedFramesCounter++;
+
+	if  (w<160)
+	{
+		resize(leftFrame , leftFrame , Size(w,h) );
+		resize(rightFrame, rightFrame, Size(w,h) );
+	}
 
 	if (bUserRecordRequest)		
 		{

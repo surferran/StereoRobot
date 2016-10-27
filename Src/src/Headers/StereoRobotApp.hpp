@@ -198,6 +198,9 @@ private:
 	int userFwdThrust_percent,
 		initialUserFwdThrust_percent;
 
+	int MovementNoTrackCycles,
+		MovementNoTrackCycles_Allowed;
+
 };
 
 extern StereoRobotApp myCApp;

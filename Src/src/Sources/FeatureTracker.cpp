@@ -23,7 +23,7 @@ Tracker::Tracker()
 	minFlowSuccessRate_toLEARN	=	60;//90;
 	minROIareaRatio_toLEARN		=	 5;
 	minFPsize_toLEARN			=	10;
-	minFlowSuccessRate_toTRACK	=	30;
+	minFlowSuccessRate_toTRACK	=	20;//30 //new..
 	minROIareaRatio_toTRACK		=	 3;//5;//1.5
 	minFPsize_toTRACK			=	 7;
 }
@@ -104,7 +104,7 @@ void Tracker::processImage(Mat inputGrayIm, Target *mainTarget)
 	currentImProp.grayImage		= inputGrayIm.clone(); 
 	currentImProp.relevantROI	= currentTarget.target_mask_prop.boundRect ;  //Brect;	
 	currentMask					= currentTarget.target_mask_prop.maskIm.clone();
-
+	/* verify if empty (all black) mask */
 	if (currentTarget.target_mask_prop.boundAreaRatio==0)	//TODO:can put this condition earlier in the main app loop 
 	{
 		Tracker_State = TRACKER_OFF;
@@ -115,17 +115,20 @@ void Tracker::processImage(Mat inputGrayIm, Target *mainTarget)
 	// potential target is Trimmed area according to ROI (from Depth or BgSubt)	
 	Mat tmpROI							=  Mat::zeros( currentImProp.grayImage.size() , currentImProp.grayImage.type() );
 	tmpROI( currentImProp.relevantROI )	= 255;				
-	inputGrayIm.copyTo(currentTarget.potential_target , tmpROI);
+	inputGrayIm.copyTo(currentTarget.potential_target , tmpROI);	//not used..
 
 	int an=2;	//an=1->kernel of 3
-	Mat element = getStructuringElement(MORPH_ELLIPSE, Size(an*2+1, an*2+1), Point(an, an) );							
-	dilate		(currentMask,	currentMask, element); 
+	Mat element = getStructuringElement(MORPH_ELLIPSE, Size(an*2+1, an*2+1), Point(an, an) );
+	currentMask = tmpROI;   // take the rectangle , not just the real insides		//new addition! 10:59
+	dilate		(currentMask,	currentMask, element);  // inflate the region to search in 
 	goodFeaturesToTrack(currentImProp.grayImage, currentImProp.goodFeaturesCoor, 
 							num_of_maxCornersFeatures, GFTFquality, GFTFminDistance, currentMask );  
 
-	if (currentImProp.goodFeaturesCoor.size() <= 1)
+	if ( (currentImProp.goodFeaturesCoor.size() <= 1) ||
+			(prevImProp.goodFeaturesCoor.size() <= 1) )
 	{
-		Tracker_State = TRACKER_OFF;
+		Tracker_State 	= TRACKER_OFF;
+		prevImProp		= currentImProp ;
 		return;
 	}
 
@@ -214,26 +217,41 @@ void Tracker::processImage(Mat inputGrayIm, Target *mainTarget)
 
 	// measure the flow calculation success rate 
 
-	int 	diffSizesBack 	= newFlowFeatures.size() - newFlowFeaturesBack.size() ;	//before screening
+	//int 	diffSizesBack 	= newFlowFeatures.size() - newFlowFeaturesBack.size() ;	//before screening
 	//int 	diffSizesBack2 	= trackedFeatures.size() - trackedFeaturesBack.size() ;	//after screening
 
 	int 	diffSizes 	= newFlowFeatures.size() - trackedFeatures.size() ;
 	double 	successRate = (1. - (double)diffSizes / (double)newFlowFeatures.size()) * 100.0 ;  //[%]
 
 	// when LEARNING : add 'blindly' the current image feature points. for the new current ROI.
-	if (Tracker_State == TRACKER_LEARNING)	
+	//if (Tracker_State == TRACKER_LEARNING)	
+	//{
+	//	if ( trackedFeatures.size() >= minFPsize_toLEARN )
+	//	{
+	//		features_vec_size = currentImProp.goodFeaturesCoor.size()  ;
+	//		for ( i = 0; i < features_vec_size ; ++i) { 
+	//			trackedFeatures.push_back(currentImProp.goodFeaturesCoor[i]);
+	//		}
+	//	}
+	//	else
+	//		;//error//break learning, go back stdby..  TODO..
+	//}
+
+	if ( ( (Tracker_State == TRACKER_LEARNING) && ( trackedFeatures.size() >= minFPsize_toLEARN ) )
+		 ||
+	 	 ( (Tracker_State == TRACKER_TRACKING) && ( trackedFeatures.size() < 7*minFPsize_toTRACK ) // 3*7 to 100 ->~ 49
+			 && ( trackedFeatures.size() > minFPsize_toTRACK ) ) )
 	{
 		features_vec_size = currentImProp.goodFeaturesCoor.size()  ;
 		for ( i = 0; i < features_vec_size ; ++i) { 
 			trackedFeatures.push_back(currentImProp.goodFeaturesCoor[i]);
 		}
 	}
-
 	/*******************got trackedFeatures that are checked ***********************/
 
 	if ( Tracker_State == TRACKER_LEARNING)
 	{
-		if ( successRate > minFlowSuccessRate_toLEARN )
+		if ( ( successRate > minFlowSuccessRate_toLEARN ) && ( trackedFeatures.size() >= minFPsize_toLEARN ) )
 		{
 			learnTRKcounter++;
 			if (learnTRKcounter > 1)	// 1 as minCycleFromLearnToTrack
@@ -270,9 +288,9 @@ void Tracker::processImage(Mat inputGrayIm, Target *mainTarget)
 	//	trackedTarget.target_object_prop.target_estimated_distance	=	0;//
 	trackedTarget.target_object_prop.target_estimated_dx	=	trackedTarget.target_mask_prop.MassCenter.x - 
 																 trackedTarget.target_mask_prop.image_mask_size_width / 2.;
-#ifndef COMPILING_ON_ROBOT
+////#ifndef COMPILING_ON_ROBOT
 	display_allFPoints(true, newFlowFeatures);
-#endif
+//#endif
 
 	// set data for next cycle loop
 	prevImProp.goodFeaturesCoor	= trackedFeatures; ; 
@@ -306,6 +324,8 @@ void Tracker::display_allFPoints(bool forDebug, vector<Point2f> newFlowFeatures)
 	{ circle( tmpIM, trackedFeatures[i], r, 				Scalar(255, 100, 255), -1, 8, 0 );//pink
 	}	
 	
+	// TODO: add tmpIM the successRate (add variable to the header)  new 11:02
+
 	imshow ( myGUI.plotWindowsNames[myGUI_handler::WIN5_NDX_FeaturePoints]	, tmpIM);
 }
 

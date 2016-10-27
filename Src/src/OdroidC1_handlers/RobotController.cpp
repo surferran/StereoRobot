@@ -27,9 +27,10 @@ void RobotController::basicMove(const int leftSpeed,const int rightSpeed){
 void RobotController::Forward(double thrust_percent, double angle)
 {
 	//const int minimumCommonThrust 	= 50;   	// similar to initialUserFwdThrust_percent in mainApp
-	const int minThrust 			= 75;//50;
-	const double minAngleToReact 	= 0.03;//0.05;
-	const double	l_ref 			= MAX_HW_SPEED;   //10.0;
+	const int 		minThrust 			= 20;//30;
+	const double 	minAngleToReact 	= 0.01;//0.03;
+	const double	l_ref 				= MAX_HW_SPEED;   //10.0;
+	const int 		maxDeltaThrust		= 50; //MAX_HW_SPEED*50/800 ~16%?
 	double			thrustR, thrustL;
 
 	if ((angle>0) && (angle <  minAngleToReact))
@@ -46,6 +47,11 @@ void RobotController::Forward(double thrust_percent, double angle)
 	double			delta_thrust	= l_ref * tmp4dbg ; ///* (angle) * turn_ratio ;    // tan() also option.//sin()
 
 	int 	min_TotalThrust 		= 5./100. * MAX_HW_SPEED; //[%] to fraction
+
+	if ((delta_thrust>0) && (delta_thrust>maxDeltaThrust))
+		delta_thrust = maxDeltaThrust;
+	if ((delta_thrust<0) && (delta_thrust<-maxDeltaThrust))
+		delta_thrust = -maxDeltaThrust;
 
 ///	if ((Tcommon> (minimumCommonThrust * 0.3) ) && (Tcommon < minimumCommonThrust))	//elevate the values
 	///	Tcommon = minimumCommonThrust ;

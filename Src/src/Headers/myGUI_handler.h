@@ -24,7 +24,7 @@ public:
 
 	void show_BgSubt(Mat & mask, Point MassCenter, double rCircle, Rect boundRect, 
 									double theta, double boundAreaRatio, int mask_status, int frame_counter);
-
+	void showContours(Mat aBw);
 	void add_counterFrame(Mat &inImage, long * frameNum);
 
 	void add_Cross_to_Image(int x, int y, bool addLabel, StereoRobotApp::SYSTEM_STATUS sys_stat, Mat &cameraFeed, Rect bound);

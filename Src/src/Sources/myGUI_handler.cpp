@@ -12,7 +12,7 @@ myGUI_handler::myGUI_handler()
 	plotWindowsNames[WIN2_NDX_LeftRawIm]		= "win2 - original Left image"; 
 
 	plotWindowsNames[WIN3_NDX_BgSubtMask]		= "win3 - background substruction output";
-	plotWindowsNames[WIN4_NDX_DisparityMask]	= "win4 - filtered disperity";
+	plotWindowsNames[WIN4_NDX_DisparityMask]	= "win4 - raw disperity";
 
 	plotWindowsNames[WIN5_NDX_FeaturePoints]	= "win5 - selected feature points";
 
@@ -402,10 +402,10 @@ void makeContours(Mat aBw){
 		Scalar color;
 
 		//color = Scalar( rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255) );
-		color = Scalar (2,2,2);
+		color = Scalar (200,200,200);
 		drawContours(aBw, contours, cIdx , color );
 
-		color = Scalar (2,2,2);
+		color = Scalar (112,112,112);
 		//color = Scalar( rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255) );
 		drawContours(aBw, hullP   , cIdx , color );
 
@@ -415,6 +415,11 @@ void makeContours(Mat aBw){
 
 		imshow("hull results", aBw);
 	}
+}
+
+void  myGUI_handler::showContours(Mat aBw)
+{
+ makeContours(aBw.clone());
 }
 
 void myGUI_handler::add_counterFrame(Mat &inImage, long * frameNum)

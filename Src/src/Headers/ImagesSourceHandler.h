@@ -13,7 +13,7 @@ using namespace cv;
 #include <atomic>
 
 ///
-#define RUN_ON_LAPTOP__MONO 
+////#define RUN_ON_LAPTOP__MONO 
 
 #ifdef COMPILING_ON_ROBOT
 #define ACTIVE_CAMS_NUM			2 
@@ -98,7 +98,6 @@ public:
 	bool setStartingFrame(int initialFrameIndex);
 	//TODO: //void setRecordOption()
 	double	camFOVpix;
-	float	capturing_resize_factor;
 };
 
 #endif /* IMAGESSOURCEHANDLER_H_ */

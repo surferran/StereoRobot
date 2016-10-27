@@ -224,7 +224,8 @@ int Depth_and_Disparity::stereo_match_and_disparity_init(int argc, char** argv, 
 				Left camera as img1 , 
 				Right camera as img2
 		*/
-		stereoRectify( M1, D1, M2, D2, img_size, R, T, R1, R2, P1, P2, Q, CALIB_ZERO_DISPARITY, -1, img_size, &roi1, &roi2 );	//TODO:might re-check given size different from 1 used in calibration.
+		Size img_ORG_size = Size(320,240); // the images size when calibrated the cameras
+		stereoRectify( M1, D1, M2, D2, img_ORG_size, R, T, R1, R2, P1, P2, Q, CALIB_ZERO_DISPARITY, -1, img_size, &roi1, &roi2 );
 
 		initUndistortRectifyMap(M1, D1, R1, P1, img_size, CV_16SC2, map11, map12);
 		initUndistortRectifyMap(M2, D2, R2, P2, img_size, CV_16SC2, map21, map22);
@@ -314,17 +315,17 @@ void Depth_and_Disparity::set_BM_params_options_3()
 {   
 	///numberOfDisparities	=	  ((target_image_size.width/8) + 15) & -16;   //  /8..-> 48,   /8/4.. -> 16 disperities
 	//numberOfDisparities	=	  ((target_image_size.width/8)*3 + 15) & -16;   // -> 128 disperities
-	numberOfDisparities	=	  ((target_image_size.width/8)*3 - 15) & -16;   // -> 96 disperities, check also for 112..
-
-	bm->setPreFilterSize	( 41 );
+	numberOfDisparities	=	  ((target_image_size.width/8)*3 - 15) & -16;   // -> 96 disperities, relevant for 320x240
+	///numberOfDisparities = 48;// good for small resolution of 80x60
+	bm->setPreFilterSize	( 35 ); //41
 	bm->setPreFilterCap		( 31 );
-	bm->setBlockSize		( 41 );//SADWindowSize
-	bm->setMinDisparity		(-numberOfDisparities/2 );// -56//-64 
+	bm->setBlockSize		( 35 );//SADWindowSize //41
+	bm->setMinDisparity		(-numberOfDisparities/2 );
 	bm->setNumDisparities	( numberOfDisparities );
 	bm->setTextureThreshold	( 10 );
 	bm->setUniquenessRatio	( 15 );
 
-	minDisparityToCut		=	11;//15;		// for the threshold cut	//20 for 2.5m
+	minDisparityToCut		=	17;		// for the threshold cut	//20 for 2.5m
 										//35 is for about 140cm // 18 about 4 meters, 12 about 5m
 
 	/*bm->setROI1(roi1);
@@ -576,15 +577,11 @@ bool Depth_and_Disparity::calc_disperity(int desiredPhase, Mat left_im_gray, Mat
 											Mat BgMask , Target *previousTarget,
 											Mat *disperity_out, double *min_depth_of_ROI)
 {
-	//Mat						left_im_gray, right_im_gray;
-	double					max_disperity;
+	double		max_disperity;
+	const double allowed_disp_delta_between_cycles = 0.1 ; //10[%]
 
 	if ( ! (desiredPhase==2) )		//calculate the new disparity for new inputs
 	{
-		///* sends gray images */
-		//cv::cvtColor(in_left_clr , left_im_gray  , CV_BGR2GRAY);
-		//cv::cvtColor(in_right_clr, right_im_gray , CV_BGR2GRAY);
-
 		// delivers new input , when the process is waiting (not in calculation process)
 		set_disparity_input(right_im_gray,left_im_gray, /*myStereoCams.GetFrameCycleCounter()*/ 1 );  
 
@@ -600,7 +597,7 @@ bool Depth_and_Disparity::calc_disperity(int desiredPhase, Mat left_im_gray, Mat
 		}
 	}
 	// continue to give the filtered disparity (for the new or the last calculated)
-
+	Mat *myDebug = &filtered_disparity;
 	/* if output is ready from disparity calculation , it returns true */
 	//if ( localDisp.get_rectified_and_disparity(disp_temporary, disperity_struct) )  
 	{
@@ -617,17 +614,17 @@ bool Depth_and_Disparity::calc_disperity(int desiredPhase, Mat left_im_gray, Mat
 			if ((*previousTarget).target_object_prop.relevant_disparity > -999)
 			{
 				threshold (last_result_of_disparity , filtered_disparity ,	
-					(*previousTarget).target_object_prop.relevant_disparity * (1-0.1) ,	// TODO: check changing to 0.3 or other.. !
-					(*previousTarget).target_object_prop.relevant_disparity * (1+0.1),
+					(*previousTarget).target_object_prop.relevant_disparity * (1-allowed_disp_delta_between_cycles) ,	
+					(*previousTarget).target_object_prop.relevant_disparity * (1+allowed_disp_delta_between_cycles),
 					THRESH_TOZERO);	//.15??	
 			}
 			else
 			/* loose the far away objects (small disparities) */
 			threshold (last_result_of_disparity , filtered_disparity ,	minDisparityToCut ,	255,THRESH_TOZERO);	
 
-		int an=3;	//an=1->kernel of 3
+		int an=1;	//an=1->kernel of 3
 		Mat element = getStructuringElement(MORPH_RECT, Size(an*2+1, an*2+1), Point(an, an) );
-		medianBlur	(filtered_disparity,	filtered_disparity,	9);//9//3
+		medianBlur	(filtered_disparity,	filtered_disparity,	an*3);
 		erode		(filtered_disparity ,	filtered_disparity, element);									
 		dilate		(filtered_disparity,	filtered_disparity, element); 
 
@@ -644,16 +641,21 @@ bool Depth_and_Disparity::calc_disperity(int desiredPhase, Mat left_im_gray, Mat
 		///meanStdDev ( filtered_disparity, mean, stddev );
 		///meanStdDev ( filtered_disparity(tmp), mean, stddev );
 		meanStdDev ( filtered_disparity, mean, stddev , tmpMask);
-		uchar       mean_pxl = mean.val[0];
+		//uchar       mean_pxl = mean.val[0];
 		int         mean_val = mean.val[0];
-		uchar       stddev_pxl = stddev.val[0];
+		//uchar       stddev_pxl = stddev.val[0];
 		int         stddev_val = stddev.val[0];
 
-		int minDispToTake = mean_val - stddev_val * 1; //2 ;	// furthest object
+		int minDispToTake = mean_val - stddev_val * 1 ;
+		if (minDispToTake > mean_val * (1-allowed_disp_delta_between_cycles/2.) ) 
+			minDispToTake = mean_val * (1-allowed_disp_delta_between_cycles/2.) ; //minimum for case of ~zero std ;	// furthest object
 		//int maxDispToTake = max_disperity ;						// closest  object
 
 		convert_disperity_value_to_depth(mean_val , *min_depth_of_ROI);	
 		last_disparity_depth	= *min_depth_of_ROI;
+
+		tmpMask = Mat();
+		convert_disperity_Mat_to_depth(filtered_disparity, tmpMask) ; //4debug
 
 		/* filter far or close objects then the target itself (mean) */
 		threshold (filtered_disparity , filtered_disparity ,	minDispToTake ,	255/*max_disperity*/,THRESH_TOZERO);

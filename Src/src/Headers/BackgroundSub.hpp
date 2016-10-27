@@ -74,8 +74,8 @@ private:
 	// history - higher is longet 'study'
 	// threshould - higher is more restricting (better sureness about not being background)
 	// learnRate - (-1) is automatic, 
-	const int				BackSubs_History		= 120;////300;///60;//120;			//by example: 300 ,32, true
-	const double			BackSubs_Threshould		= 40;///32;///16.0;	
+	const int				BackSubs_History		= 280;///120;////300;///60;//120;			//by example: 300 ,32, true
+	const double			BackSubs_Threshould		= 25;//40;///32;///16.0;
 	const bool				BackSubs_DetectShadows	= false;   // only for better run-time performance
 	const double			BackSubs_LearningRate	= -1.0;  //~-0.5~-0.7? -1
 

@@ -24,10 +24,11 @@ BackSubs			localBackSubs ;
 /* class initiation */
 StereoRobotApp::StereoRobotApp()
 { 
-	myResizeScaleFactor		=	1;// 1 for nominal
-	working_FRAME_WIDTH		=	320 /myResizeScaleFactor ;// 640;// 160;
-	working_FRAME_HIGHT		=	240 /myResizeScaleFactor ;// 480;// 120;
-	working_FRAMES_FPS		=	15;
+
+	working_FRAME_WIDTH		=	320 ;	working_FRAME_HIGHT		=	240 ;	working_FRAMES_FPS		=	15;
+	///working_FRAME_WIDTH		=	160 ;	working_FRAME_HIGHT		=	120 ;	working_FRAMES_FPS		=	15;
+	///working_FRAME_WIDTH		=	160 ;	working_FRAME_HIGHT		=	120 ;	working_FRAMES_FPS		=	30;
+	///working_FRAME_WIDTH		=	 80 ;	working_FRAME_HIGHT		=	 60 ;	working_FRAMES_FPS		=	30;
 
 	frame_boundary_W_init	=	0;
 	frame_boundary			=	0;
@@ -85,6 +86,9 @@ void StereoRobotApp::appInitializations()
 	BckgndSubROI = Rect(TopLeft, LowRight ); 
 
 	userFwdThrust_percent	=	initialUserFwdThrust_percent;
+	MovementNoTrackCycles	=	0;
+	MovementNoTrackCycles_Allowed = 15;	//15 for 320x240, constraign that up to 15 cycle from movement to lock on target
+										// otherwise - probobly no valid target
 }
 
 
@@ -165,8 +169,12 @@ void StereoRobotApp::appMainLoop()
 			if ( (system_state == FOUND_SOME_MOVEMENT) || (system_state == TRACKING) )
 			{
 				/************************disp************************/
-				localDisp.calc_disperity(3, left_im_gray, right_im_gray, featTrackMask_fromBgSubt, &tracked_target,
-											&current_disparity , &last_min_depth_of_ROI ); // also filters
+				localDisp.calc_disperity(1, left_im_gray, right_im_gray, featTrackMask_fromBgSubt, &tracked_target,
+											&current_disparity , &last_min_depth_of_ROI ); // 3-also filters
+				myGUI.show_disparity_map(current_disparity, last_min_depth_of_ROI); //newly added
+
+				localDisp.calc_disperity(2, left_im_gray, right_im_gray, featTrackMask_fromBgSubt, &tracked_target,
+											&current_disparity , &last_min_depth_of_ROI ); // als
 
 				matQueue.populateNextElementInArray(current_disparity); 
 				matQueue.getSumElement(&sum_of_N_disparities);
@@ -179,7 +187,7 @@ void StereoRobotApp::appMainLoop()
 				threshold (featTrackMask_fromDisperity , featTrackMask_fromDisperity ,	1 ,	255,THRESH_BINARY);	// take all that is not zero 
 				effective_depth_measurement		=	avg_depth_of_ROI;		// rounded to [cm]
 
-				myGUI.show_disparity_map(sum_of_N_disparities, effective_depth_measurement);
+				//myGUI.show_disparity_map(sum_of_N_disparities, effective_depth_measurement);
 
 			//	tracked_target.target_object_prop.relevant_disparity =  take current or average??
 				tracked_target.target_object_prop.target_estimated_distance = effective_depth_measurement; // taking the average
@@ -188,7 +196,11 @@ void StereoRobotApp::appMainLoop()
 				  
 				featTrackMask	= Mat::zeros(left_im_gray.size(), left_im_gray.type() ) ; 
 				if (system_state == StereoRobotApp::FOUND_SOME_MOVEMENT)
-					featTrackMask_fromBgSubt.copyTo (featTrackMask, featTrackMask_fromDisperity ) ;	// output is featTrackMask , by mask1 && mask2
+				{
+					//featTrackMask_fromBgSubt.copyTo (featTrackMask, featTrackMask_fromDisperity ) ;	// output is featTrackMask , by mask1 && mask2
+					featTrackMask = featTrackMask_fromDisperity.clone(); // combine with BgSubt already in disp
+					MovementNoTrackCycles++;
+				}
 				else
 					featTrackMask = featTrackMask_fromDisperity.clone(); // TODO:TODO: need to combine with previous FP ROI
 
@@ -220,6 +232,13 @@ void StereoRobotApp::appMainLoop()
 					//continue;	
 				}
 
+				if (MovementNoTrackCycles > MovementNoTrackCycles_Allowed)
+				{
+					MovementNoTrackCycles = 0;
+					system_state = StereoRobotApp::STANDBY; 
+					localBackSubs.show_forgnd_and_bgnd_init(0,false);
+					myGUI.close_Tracking_win();
+				}
 				/******************** robot control section ****************************/
 
 				// TODO : add sliding bar to animate Thrust.
