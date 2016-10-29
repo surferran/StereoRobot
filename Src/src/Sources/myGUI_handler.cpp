@@ -7,7 +7,6 @@
 
 myGUI_handler::myGUI_handler()
 {
-
 	plotWindowsNames[WIN1_NDX_RightRawIm]		= "win1 - original Right image";
 	plotWindowsNames[WIN2_NDX_LeftRawIm]		= "win2 - original Left image"; 
 
@@ -16,14 +15,80 @@ myGUI_handler::myGUI_handler()
 
 	plotWindowsNames[WIN5_NDX_FeaturePoints]	= "win5 - selected feature points";
 
-	plotWindowsNames[WIN6_NDX_FPinptMask] = "win6 - FP input mask";
-	//plotWindowsNames[5] = "win6 - target aquired Depth";
-	//plotWindowsNames[6] = "win7 - target aquired Depth Masked";
+	plotWindowsNames[WIN6_NDX_FPinptMask]		= "win6 - FP input mask";
+	plotWindowsNames[WIN7_NDX_ExternalRecord]	= "win7 - external record view";
 
-	//plotWindowsNames[8] = "win9 - potential learned target";
+#ifdef COMPILING_ON_ROBOT
+
+	bUseExternalRecordedFile	=	false;	 
+	bSHOW_as_demo_movie_flow    =	false;
+#else
+	bUseExternalRecordedFile			=	true;	// true - for preparing the demonstration final video
+	bSHOW_as_demo_movie_flow			=	false;
+	framesOffset_InternalFromExternal	=	17; // [frames of internal recording] 0 is default.
+	if(bUseExternalRecordedFile)
+		bSHOW_as_demo_movie_flow    =	true;	// true - for setting all view as flow as possible to record for presentation delivery.
+
+	if (bUseExternalRecordedFile)
+		openExternalViewer();
+#endif
 
 }
 
+void myGUI_handler::openExternalViewer()
+{
+	strcpy(externalView_RecordFileName , "../external view 20161028_175315___.mp4");
+	
+	externalView_RecordFile.open(externalView_RecordFileName);
+	if(!externalView_RecordFile.isOpened())	
+		throw cv::Exception(1, "Cannot open external video record file \n" , "", "", 30);
+
+	//externalView_RecordFile.set(CAP_PROP_POS_MSEC, 0);//5750) ;	// calibration value between external to internal stereo recordings.
+	//externalView_RecordFile.set(CAP_PROP_POS_FRAMES, 1);
+}
+
+void rot90(cv::Mat &matImage, int rotflag){
+	/**/// copy from : http://stackoverflow.com/questions/15043152/rotate-opencv-matrix-by-90-180-270-degrees
+
+	//1=CW, 2=CCW, 3=180
+	if (rotflag == 1){
+		transpose(matImage, matImage);  
+		flip(matImage, matImage,1); //transpose+flip(1)=CW
+	} else if (rotflag == 2) {
+		transpose(matImage, matImage);  
+		flip(matImage, matImage,0); //transpose+flip(0)=CCW     
+	} else if (rotflag ==3){
+		flip(matImage, matImage,-1);    //flip(-1)=180          
+	} else if (rotflag != 0){ //if not 0,1,2,3:
+		cout  << "Unknown rotation flag(" << rotflag << ")" << endl;
+	}
+}
+
+void myGUI_handler::showExternalVideoFrame(int w, int h)
+{
+	if (framesOffset_InternalFromExternal>0)
+	{
+		framesOffset_InternalFromExternal--;
+		return;
+	}
+
+	Mat newFrame;
+	static long externalFrameCounter = 0;
+
+	int recordingFpsRatio			= (int)11;//30/2.7;
+
+	for (int i=0; i<recordingFpsRatio; i++)
+	{	// redisplay : when internal record FPS is 15 and external is 30 FPS
+		externalView_RecordFile >> newFrame;
+		externalFrameCounter++;
+
+		resize(newFrame , newFrame , Size(w,h) );
+		rot90(newFrame,1);
+		add_counterFrame(newFrame, &externalFrameCounter);
+		imshow(plotWindowsNames[WIN7_NDX_ExternalRecord], newFrame) ;
+	}
+	////
+}
 
 void myGUI_handler::printFPinputMask(Mat featTrackMask)
 {
@@ -40,24 +105,30 @@ void myGUI_handler::show_raw_captures(Mat L_in, Mat R_in, long frameCounter, Ste
 	imshow(plotWindowsNames[WIN2_NDX_LeftRawIm],	tmpLeft );
 }
 
-void myGUI_handler::show_disparity_map(Mat sum_of_N_disparities, int avg_depth)
+void myGUI_handler::show_disparity_map(Mat sum_of_N_disparities, int avg_depth, int dbgNdx)
 {
 	Mat tmpIm = sum_of_N_disparities.clone();
 	add_distance_to_disparityIM(avg_depth, tmpIm);
 
-	imshow ( plotWindowsNames[WIN4_NDX_DisparityMask], tmpIm );	 
+	imshow ( plotWindowsNames[WIN4_NDX_DisparityMask] + _intToString(dbgNdx), tmpIm );	 
 
 }
 
 void myGUI_handler::close_BgSubt_win()
 {
+	//prevent useless cpu load on handling the display windows
+#ifndef COMPILING_ON_ROBOT
 	destroyWindow( plotWindowsNames[WIN3_NDX_BgSubtMask] );
+#endif
 }
 void myGUI_handler::close_Tracking_win()
 {
+	//prevent useless cpu load on handling the display windows
+#ifndef COMPILING_ON_ROBOT
 	destroyWindow( plotWindowsNames[WIN4_NDX_DisparityMask] );
 	destroyWindow( plotWindowsNames[WIN5_NDX_FeaturePoints] ); 
 	destroyWindow( plotWindowsNames[WIN6_NDX_FPinptMask]    );
+#endif
 }
 
 // shows the 4 images of previous and current images and 
@@ -419,7 +490,8 @@ void makeContours(Mat aBw){
 
 void  myGUI_handler::showContours(Mat aBw)
 {
- makeContours(aBw.clone());
+	if (!bSHOW_as_demo_movie_flow)
+		makeContours(aBw.clone());
 }
 
 void myGUI_handler::add_counterFrame(Mat &inImage, long * frameNum)

@@ -171,10 +171,15 @@ void StereoRobotApp::appMainLoop()
 				/************************disp************************/
 				localDisp.calc_disperity(1, left_im_gray, right_im_gray, featTrackMask_fromBgSubt, &tracked_target,
 											&current_disparity , &last_min_depth_of_ROI ); // 3-also filters
-				myGUI.show_disparity_map(current_disparity, last_min_depth_of_ROI); //newly added
+
+				if (!myGUI.bSHOW_as_demo_movie_flow)
+					myGUI.show_disparity_map(current_disparity, last_min_depth_of_ROI, 3); //newly added
 
 				localDisp.calc_disperity(2, left_im_gray, right_im_gray, featTrackMask_fromBgSubt, &tracked_target,
 											&current_disparity , &last_min_depth_of_ROI ); // als
+				
+				if (!myGUI.bSHOW_as_demo_movie_flow)
+					myGUI.show_disparity_map(current_disparity, last_min_depth_of_ROI, 2); //newly added
 
 				matQueue.populateNextElementInArray(current_disparity); 
 				matQueue.getSumElement(&sum_of_N_disparities);
@@ -183,6 +188,7 @@ void StereoRobotApp::appMainLoop()
 				doubleQueue.getAvgElement(&avg_depth_of_ROI);
 
 				featTrackMask_fromDisperity	=	sum_of_N_disparities.clone();		// sum of last 3 frames
+				myGUI.show_disparity_map(featTrackMask_fromDisperity, avg_depth_of_ROI, 1); //newly added
 					 	//TODO: drive should be around D closer. and around ROI.  in tracker - dont drag FP that are not in D ROI ( or vrery far..)
 				threshold (featTrackMask_fromDisperity , featTrackMask_fromDisperity ,	1 ,	255,THRESH_BINARY);	// take all that is not zero 
 				effective_depth_measurement		=	avg_depth_of_ROI;		// rounded to [cm]
@@ -289,6 +295,11 @@ void StereoRobotApp::appMainLoop()
 
 			myGUI.show_raw_captures(left_im_color, right_im_color, myStereoCams.GetFrameCycleCounter(), system_state);
 
+			if (myGUI.bUseExternalRecordedFile)
+			{
+				myGUI.showExternalVideoFrame(myStereoCams.GetRes().width, myStereoCams.GetRes().height);
+			}
+
 			////////////* end of graphics section *///////////////
 		}
 
@@ -316,7 +327,11 @@ bool StereoRobotApp::wait_or_handle_user_input()
 
 	if (myStereoCams.GetUserRepeatFlag())
 	{
-		c = waitKey(0*loop_delay);
+		if (!myGUI.bSHOW_as_demo_movie_flow)
+			c = waitKey(0*loop_delay);
+		else	;
+		//	waitKey( 10 );//extra waiting time for the user to check all display windows
+
 		myStereoCams.ToggleDisableFramesCapture();
 		waitKey( loop_delay );
 	}

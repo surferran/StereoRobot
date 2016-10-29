@@ -1,2 +1,0 @@
-1. https://github.com/abhi-kumar/OPENCV_MISC
-2. https://github.com/Myzhar/simple-opencv-kalman-tracker

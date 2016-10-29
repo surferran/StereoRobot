@@ -14,7 +14,7 @@
 using namespace std;
 
 #define FREQ			1000
-#define MAX_HW_SPEED	600//800
+#define MAX_HW_SPEED	700//800
 
 //#define PORT_PIN_1 13  // for the wiringPi library
 //#define PORT_PIN_2 14  // -"-

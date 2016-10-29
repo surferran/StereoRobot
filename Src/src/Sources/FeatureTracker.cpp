@@ -5,9 +5,9 @@
 #include "..\Headers\FeatureTracker.hpp"
 #include "..\Headers\myGUI_handler.h"
 #include "..\Headers\Target.hpp"
-
-#include "..\imporeted_raw_code_examples/MatchTemplate_Demo.cpp"
-#include "..\imporeted_raw_code_examples/detect_blob.cpp"
+//
+//#include "..\imporeted_raw_code_examples/MatchTemplate_Demo.cpp"
+//#include "..\imporeted_raw_code_examples/detect_blob.cpp"
 #endif
 
 
@@ -93,6 +93,7 @@ void Tracker::processImage(Mat inputGrayIm, Target *mainTarget)
 	// Brect - is boundingRect ( newImageMask );
 
 	static int		learnTRKcounter		=	0;
+	static int 		trackGapFrameCounter = 0;	// added new
 	vector<uchar>	flow_output_status; 
 	vector<float>	flow_output_errors;
 	Mat				currentMask;
@@ -107,7 +108,10 @@ void Tracker::processImage(Mat inputGrayIm, Target *mainTarget)
 	/* verify if empty (all black) mask */
 	if (currentTarget.target_mask_prop.boundAreaRatio==0)	//TODO:can put this condition earlier in the main app loop 
 	{
-		Tracker_State = TRACKER_OFF;
+		trackGapFrameCounter++;				// TODO: if above 5 - define low quality target. - make yellow frame for the display..
+		if (trackGapFrameCounter > 25)	
+			Tracker_State = TRACKER_OFF;
+		//trackGapFrameCounter = 0;
 		return;
 	}
 
@@ -127,7 +131,10 @@ void Tracker::processImage(Mat inputGrayIm, Target *mainTarget)
 	if ( (currentImProp.goodFeaturesCoor.size() <= 1) ||
 			(prevImProp.goodFeaturesCoor.size() <= 1) )
 	{
-		Tracker_State 	= TRACKER_OFF;
+		trackGapFrameCounter++;
+		if (trackGapFrameCounter > 25)
+			Tracker_State 	= TRACKER_OFF;
+		//trackGapFrameCounter = 0;
 		prevImProp		= currentImProp ;
 		return;
 	}
@@ -135,6 +142,7 @@ void Tracker::processImage(Mat inputGrayIm, Target *mainTarget)
 	if (Tracker_State == TRACKER_OFF)
 	{
 		learnTRKcounter	= 0;
+		trackGapFrameCounter = 0;
 		if (currentImProp.goodFeaturesCoor.size() > minFPsize_toLEARN)
 		{
 			//  verify anough feature points found. and ROI in relevant size for possible target.
@@ -270,10 +278,16 @@ void Tracker::processImage(Mat inputGrayIm, Target *mainTarget)
 				|| (trackedFeatures.size() < minFPsize_toTRACK) 
 				|| (tmpRatio < minROIareaRatio_toTRACK) )
 		{
-			Tracker_State	= TRACKER_OFF;	// TODO: also cout a message?
+			trackGapFrameCounter++;
+			if (trackGapFrameCounter > 25)
+			{
+				Tracker_State	= TRACKER_OFF;	// optional TODO: also cout a message?
+			}
 			prevImProp		= currentImProp ;	// this maybe not needed
 			return ;
 		}
+		else
+			trackGapFrameCounter = 0;
 	}
 
 	///consider_duplicates();

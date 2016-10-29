@@ -30,7 +30,7 @@ void RobotController::Forward(double thrust_percent, double angle)
 	const int 		minThrust 			= 20;//30;
 	const double 	minAngleToReact 	= 0.01;//0.03;
 	const double	l_ref 				= MAX_HW_SPEED;   //10.0;
-	const int 		maxDeltaThrust		= 95;//50 //MAX_HW_SPEED*50/800 ~16%?
+	const int 		maxDeltaThrust		= 150;//50 //MAX_HW_SPEED*50/800 ~16%?
 	double			thrustR, thrustL;
 
 	if ((angle>0) && (angle <  minAngleToReact))
@@ -63,7 +63,7 @@ void RobotController::Forward(double thrust_percent, double angle)
 			{ Stop(); return; }
 		if (delta_thrust + Tcommon > MAX_HW_SPEED)
 			Tcommon = MAX_HW_SPEED - delta_thrust ;
-		thrustL = Tcommon + delta_thrust;
+		thrustL = Tcommon ;//+ delta_thrust;
 		thrustR = Tcommon - delta_thrust;
 	}
 	else
@@ -73,7 +73,7 @@ void RobotController::Forward(double thrust_percent, double angle)
 		if (-delta_thrust + Tcommon > MAX_HW_SPEED)
 			Tcommon = MAX_HW_SPEED + delta_thrust ;
 		thrustL = Tcommon + delta_thrust;
-		thrustR = Tcommon - delta_thrust;	
+		thrustR = Tcommon ;//- delta_thrust;
 	}
 	basicMove(thrustL, thrustR);
 

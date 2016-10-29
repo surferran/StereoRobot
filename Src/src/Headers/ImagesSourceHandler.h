@@ -47,7 +47,7 @@ private:
 	/* the image source and its properties */
 	VideoCapture	vidR,		// handles the Hardware right camera
 					vidL;		// handles the Hardware left camera
-
+	
 	/*const */int	w	,
 					h	,
 					FPS	;

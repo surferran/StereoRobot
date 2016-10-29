@@ -69,6 +69,8 @@ void ImagesSourceHandler::InitVideoCap()
 	{
 		vidL.open(inout_file_nameL);
 		vidR.open(inout_file_nameR);
+		//vidL.set(CAP_PROP_POS_FRAMES, 30);	// (affecting the algorithm by the init conditions. it is not good like that.)
+		//vidR.set(CAP_PROP_POS_FRAMES, 30);
 	}
 	else
 	{
@@ -78,7 +80,7 @@ void ImagesSourceHandler::InitVideoCap()
 	}
 	
 	/* checks */
-	if(!vidL.isOpened())	throw cv::Exception(1, "Cannot open left camera/file \n" , "", "", 30);///std::exception(errMsg2.str().c_str());
+	if(!vidL.isOpened())	throw cv::Exception(1, "Cannot open left camera/file \n" , "", "", 30);//81///std::exception(errMsg2.str().c_str());
 	if (ACTIVE_CAMS_NUM==2)
 		if(!vidR.isOpened())	throw cv::Exception(); //std::exception(errMsg1.str().c_str()); //throw cv::Exception();
 	

@@ -597,7 +597,7 @@ bool Depth_and_Disparity::calc_disperity(int desiredPhase, Mat left_im_gray, Mat
 		}
 	}
 	// continue to give the filtered disparity (for the new or the last calculated)
-	Mat *myDebug = &filtered_disparity;
+
 	/* if output is ready from disparity calculation , it returns true */
 	//if ( localDisp.get_rectified_and_disparity(disp_temporary, disperity_struct) )  
 	{
@@ -653,10 +653,7 @@ bool Depth_and_Disparity::calc_disperity(int desiredPhase, Mat left_im_gray, Mat
 
 		convert_disperity_value_to_depth(mean_val , *min_depth_of_ROI);	
 		last_disparity_depth	= *min_depth_of_ROI;
-#ifndef COMPILING_ON_ROBOT
-		tmpMask = Mat();
-		convert_disperity_Mat_to_depth(filtered_disparity, tmpMask) ; //4debug
-#endif
+
 		/* filter far or close objects then the target itself (mean) */
 		threshold (filtered_disparity , filtered_disparity ,	minDispToTake ,	255/*max_disperity*/,THRESH_TOZERO);
 		/* set partial data for current target */

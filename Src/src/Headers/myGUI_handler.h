@@ -40,7 +40,7 @@ public:
 	void onMouseWSHED( int event, int x, int y, int flags, void* );
 
 	void show_raw_captures(Mat L_in, Mat R_in, long frameCounter, StereoRobotApp::SYSTEM_STATUS sys_stat);
-	void show_disparity_map(Mat sum_of_disp, int avg_depth);
+	void show_disparity_map(Mat sum_of_disp, int avg_depth, int dbgNdx);
 
 	void printFPinputMask(Mat featTrackMask);
 
@@ -64,8 +64,18 @@ public:
 		WIN4_NDX_DisparityMask,
 		WIN5_NDX_FeaturePoints,
 		WIN6_NDX_FPinptMask,
+		WIN7_NDX_ExternalRecord,
 		NUM_OF_GUI_WINDOWS
 	};
+
+	/* variables to handle EXTERNAL RECORD file(s) */
+	VideoCapture	externalView_RecordFile; 
+	char			externalView_RecordFileName[150] ; //external view 20161028_175315___.mp4
+	bool			bUseExternalRecordedFile;
+	bool			bSHOW_as_demo_movie_flow ;	
+	int				framesOffset_InternalFromExternal;	// if the internal recording started before the external.
+	void openExternalViewer();
+	void showExternalVideoFrame(int w, int h);
 
 private:
 		//TODO: change those to overloading or use template
