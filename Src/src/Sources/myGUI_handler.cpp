@@ -25,7 +25,7 @@ myGUI_handler::myGUI_handler()
 #else
 	bUseExternalRecordedFile			=	true;	// true - for preparing the demonstration final video
 	bSHOW_as_demo_movie_flow			=	false;
-	framesOffset_InternalFromExternal	=	17; // [frames of internal recording] 0 is default.
+	framesOffset_InternalFromExternal	=	16; // [frames of internal recording] 0 is default.
 	if(bUseExternalRecordedFile)
 		bSHOW_as_demo_movie_flow    =	true;	// true - for setting all view as flow as possible to record for presentation delivery.
 
