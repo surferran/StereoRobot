@@ -7,6 +7,8 @@
 
 #include "opencv2/opencv.hpp"
 
+using namespace cv;	//ran
+
 #include <stdio.h>
 #include <stdarg.h>
 
@@ -108,7 +110,7 @@ void cvShowManyImages(char* title, int nArgs, ...) {
     }
     else if (nArgs == 7 || nArgs == 8) {
         w = 4; h = 2;
-        size = 200;
+        size = 300;//200; - ran change from original
     }
     else {
         w = 4; h = 3;
@@ -167,9 +169,26 @@ void cvShowManyImages(char* title, int nArgs, ...) {
     cvNamedWindow( title, 1 );
     cvShowImage( title, DispImage);
 
-	///RAN
-  ///  cvWaitKey();
-  ///  cvDestroyWindow(title);
+	////
+	static VideoWriter		demoOutFile;
+	char			demo_file_name[150];
+	int				codec					=  CV_FOURCC('M', 'J', 'P', 'G');
+	int				FPS						=	3; //[hz]
+	strcpy(demo_file_name , "../demo_output.avi");
+	int				resW						=	DispImage->width;
+	int				resH						=	DispImage->height;
+
+	if (!demoOutFile.isOpened())
+		demoOutFile.open(demo_file_name, codec, FPS, Size(resW,resH), true); 
+
+	if (!demoOutFile.isOpened()) 
+		throw cv::Exception(); 
+
+	Mat				outMat; 
+	
+	outMat = cvarrToMat(DispImage);
+	demoOutFile.write(outMat);
+	////
 
     // End the number of arguments
     va_end(args);

@@ -339,7 +339,8 @@ void Tracker::display_allFPoints(bool forDebug, vector<Point2f> newFlowFeatures)
 	}	
 	
 	// TODO: add tmpIM the successRate (add variable to the header)  new 11:02
-
-	imshow ( myGUI.plotWindowsNames[myGUI_handler::WIN5_NDX_FeaturePoints]	, tmpIM);
+	myGUI.plotImages[myGUI_handler::WIN5_NDX_FeaturePoints]	=	tmpIM;
+	if (!myGUI.bSHOW_as_demo_movie_flow)
+		imshow ( myGUI.plotWindowsNames[myGUI_handler::WIN5_NDX_FeaturePoints]	, tmpIM);
 }
 

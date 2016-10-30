@@ -1,0 +1,23 @@
+Published on Oct 29, 2016
+
+showing software output for trial recorded input.
+input resolution is 320x240 (at 15FPS).
+so the process speed is not fast. hence the person walks a bit slow.
+
+output images from above left to the lower right:
+1. left input image
+2. right input image
+3. recorded video from another beholder of the scenario (by mobile phone)
+4. background subtraction mask result
+5. disparity mask result
+6. combined mask for the feature tracker
+7. feature tracker result, as feature points: yellow - flow result orange - current image GoodFeatures to Track pink - filtered used feature points
+
+the whole scene took 1:11 minutes in realtime.
+
+-notice the BackgroundSubt. image freezes after few seconds - after movement identification this module is not active anymore.
+only if loosing the target and going back to standby mode.
+the(fuzzy) text in that image is some statistics for the BgSubt. mask. not important for this video demonstration.
+-note the disparity mask is actually the sum of 3 last measurements. the disparity is filtered for getting an average one, which is converted to depth.
+-the forward speed of the robot is depended on the distance from the target. notice that towards the end of the scenario the robot accelerates, until getting close to the person and then really slows down.
+- you can notice the person going from side to side , relevant to the robots' cameras, and the disparity mask moving as well in the image to the relevant side. the robot then proceeds to that direction. for faster speed a kalman filter use is recommended in order to help to smooth the drive and steering.

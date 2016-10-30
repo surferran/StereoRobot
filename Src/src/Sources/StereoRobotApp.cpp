@@ -110,9 +110,13 @@ void StereoRobotApp::check_for_calibration_option()
 
 void StereoRobotApp::appMainLoop()
 {
+	int64 tMain = getTickCount(); 
 
 	while (1)		
 	{
+
+		tMain = getTickCount();
+
 		check_for_calibration_option();
 
 #ifndef COMPILING_ON_ROBOT
@@ -192,8 +196,6 @@ void StereoRobotApp::appMainLoop()
 					 	//TODO: drive should be around D closer. and around ROI.  in tracker - dont drag FP that are not in D ROI ( or vrery far..)
 				threshold (featTrackMask_fromDisperity , featTrackMask_fromDisperity ,	1 ,	255,THRESH_BINARY);	// take all that is not zero 
 				effective_depth_measurement		=	avg_depth_of_ROI;		// rounded to [cm]
-
-				//myGUI.show_disparity_map(sum_of_N_disparities, effective_depth_measurement);
 
 			//	tracked_target.target_object_prop.relevant_disparity =  take current or average??
 				tracked_target.target_object_prop.target_estimated_distance = effective_depth_measurement; // taking the average
@@ -287,7 +289,6 @@ void StereoRobotApp::appMainLoop()
 
 
 				/************************************************/
-
 			}											
 
 			// move to broadcast from outside. // separate the graphic layer to only when track is on.
@@ -298,6 +299,42 @@ void StereoRobotApp::appMainLoop()
 			if (myGUI.bUseExternalRecordedFile)
 			{
 				myGUI.showExternalVideoFrame(myStereoCams.GetRes().width, myStereoCams.GetRes().height);
+
+				if (myGUI.bSHOW_as_demo_movie_flow)
+				{ 
+					Mat tmp =Mat();
+
+					IplImage mat_arr[myGUI_handler::NUM_OF_GUI_WINDOWS];
+					IplImage *mat_arrP[myGUI_handler::NUM_OF_GUI_WINDOWS];
+
+					for (int i=0; i< myGUI_handler::NUM_OF_GUI_WINDOWS; i++)
+					{  
+						if ((i==2) || (i==3) || (i==5) )
+						{ 
+						vector<Mat> tmp_channels;
+							tmp_channels.push_back(myGUI.plotImages[i]);
+							tmp_channels.push_back(myGUI.plotImages[i]);
+							tmp_channels.push_back(myGUI.plotImages[i]);
+							merge(tmp_channels, tmp);
+							mat_arr[i] = (IplImage)tmp;
+
+						}
+						else
+							mat_arr[i] = (IplImage)myGUI.plotImages[i];
+						mat_arrP[i] = cvCloneImage(&mat_arr[i]); 
+					}
+
+					cvShowManyImages(
+						"all images" ,	myGUI.NUM_OF_GUI_WINDOWS , 						
+											mat_arrP[myGUI_handler::WIN2_NDX_LeftRawIm],					
+											mat_arrP[myGUI_handler::WIN1_NDX_RightRawIm],
+											mat_arrP[myGUI_handler::WIN7_NDX_ExternalRecord],
+											mat_arrP[myGUI_handler::WIN3_NDX_BgSubtMask],
+											mat_arrP[myGUI_handler::WIN4_NDX_DisparityMask],
+											mat_arrP[myGUI_handler::WIN6_NDX_FPinptMask],
+											mat_arrP[myGUI_handler::WIN5_NDX_FeaturePoints]
+					);
+				}
 			}
 
 			////////////* end of graphics section *///////////////
@@ -307,6 +344,9 @@ void StereoRobotApp::appMainLoop()
 		///////////////////////user response handling////////////////////////
 		/////////////////////////////////////////////////////////////////////
 		
+		tMain = getTickCount() - tMain;
+		printf("main cycle Time elapsed: %fms\n\n", tMain*1000/getTickFrequency());
+
 		if (wait_or_handle_user_input())
 			break;
 	}
@@ -329,8 +369,8 @@ bool StereoRobotApp::wait_or_handle_user_input()
 	{
 		if (!myGUI.bSHOW_as_demo_movie_flow)
 			c = waitKey(0*loop_delay);
-		else	;
-		//	waitKey( 10 );//extra waiting time for the user to check all display windows
+		else	
+			waitKey( 100 );//extra waiting time for the user to check all display windows
 
 		myStereoCams.ToggleDisableFramesCapture();
 		waitKey( loop_delay );

@@ -19,13 +19,12 @@ myGUI_handler::myGUI_handler()
 	plotWindowsNames[WIN7_NDX_ExternalRecord]	= "win7 - external record view";
 
 #ifdef COMPILING_ON_ROBOT
-
 	bUseExternalRecordedFile	=	false;	 
 	bSHOW_as_demo_movie_flow    =	false;
 #else
 	bUseExternalRecordedFile			=	true;	// true - for preparing the demonstration final video
 	bSHOW_as_demo_movie_flow			=	false;
-	framesOffset_InternalFromExternal	=	16; // [frames of internal recording] 0 is default.
+	framesOffset_InternalFromExternal	=	18; //16// [frames of internal recording] 0 is default.
 	if(bUseExternalRecordedFile)
 		bSHOW_as_demo_movie_flow    =	true;	// true - for setting all view as flow as possible to record for presentation delivery.
 
@@ -33,6 +32,11 @@ myGUI_handler::myGUI_handler()
 		openExternalViewer();
 #endif
 
+	for (int i=0; i< NUM_OF_GUI_WINDOWS; i++)
+		if ((i==2) || (i==3) || (i==5) )
+			plotImages[i] = Mat::zeros(240,320,CV_8UC1);
+		else
+			plotImages[i] = Mat::zeros(240,320,CV_8UC3);
 }
 
 void myGUI_handler::openExternalViewer()
@@ -80,19 +84,26 @@ void myGUI_handler::showExternalVideoFrame(int w, int h)
 	for (int i=0; i<recordingFpsRatio; i++)
 	{	// redisplay : when internal record FPS is 15 and external is 30 FPS
 		externalView_RecordFile >> newFrame;
+		if (newFrame.empty())
+			break;
 		externalFrameCounter++;
 
 		resize(newFrame , newFrame , Size(w,h) );
 		rot90(newFrame,1);
 		add_counterFrame(newFrame, &externalFrameCounter);
-		imshow(plotWindowsNames[WIN7_NDX_ExternalRecord], newFrame) ;
+
+		plotImages[WIN7_NDX_ExternalRecord]	=	newFrame;
+		if (!bSHOW_as_demo_movie_flow)
+			imshow(plotWindowsNames[WIN7_NDX_ExternalRecord], newFrame) ;
 	}
 	////
 }
 
 void myGUI_handler::printFPinputMask(Mat featTrackMask)
 {
-	imshow(plotWindowsNames[WIN6_NDX_FPinptMask],	featTrackMask	);
+	plotImages[WIN6_NDX_FPinptMask]	=	featTrackMask;
+	if (!bSHOW_as_demo_movie_flow)
+		imshow(plotWindowsNames[WIN6_NDX_FPinptMask],	featTrackMask	);
 }
 
 void myGUI_handler::show_raw_captures(Mat L_in, Mat R_in, long frameCounter, StereoRobotApp::SYSTEM_STATUS sys_stat )	//inputs in colour
@@ -101,8 +112,14 @@ void myGUI_handler::show_raw_captures(Mat L_in, Mat R_in, long frameCounter, Ste
 	Mat tmpLeft = L_in.clone();
 	add_counterFrame(tmpLeft , &frameCounter ) ;
 	add_sysStatus_to_Image(sys_stat, tmpLeft);
-	imshow(plotWindowsNames[WIN1_NDX_RightRawIm],	R_in	);
-	imshow(plotWindowsNames[WIN2_NDX_LeftRawIm],	tmpLeft );
+
+	plotImages[WIN1_NDX_RightRawIm]	=	R_in;	
+	plotImages[WIN2_NDX_LeftRawIm]	=	tmpLeft;
+	if (!bSHOW_as_demo_movie_flow)
+	{
+		imshow(plotWindowsNames[WIN1_NDX_RightRawIm],	R_in	);
+		imshow(plotWindowsNames[WIN2_NDX_LeftRawIm],	tmpLeft );
+	}
 }
 
 void myGUI_handler::show_disparity_map(Mat sum_of_N_disparities, int avg_depth, int dbgNdx)
@@ -110,7 +127,9 @@ void myGUI_handler::show_disparity_map(Mat sum_of_N_disparities, int avg_depth, 
 	Mat tmpIm = sum_of_N_disparities.clone();
 	add_distance_to_disparityIM(avg_depth, tmpIm);
 
-	imshow ( plotWindowsNames[WIN4_NDX_DisparityMask] + _intToString(dbgNdx), tmpIm );	 
+	plotImages[WIN4_NDX_DisparityMask]	=	tmpIm;
+	if (!bSHOW_as_demo_movie_flow)
+		imshow ( plotWindowsNames[WIN4_NDX_DisparityMask] + _intToString(dbgNdx), tmpIm );	 
 
 }
 
@@ -215,7 +234,9 @@ void myGUI_handler::show_BgSubt(Mat & mask, Point MassCenter, double rCircle, Re
 	StatusText  = "frame_counter= " + _intToString(frame_counter);
 	putText(mask, StatusText, Point(15, 65), FONT_HERSHEY_COMPLEX, 0.4, (210, 210, 220), 1);
 
-	imshow( plotWindowsNames[WIN3_NDX_BgSubtMask] , mask);
+	plotImages[WIN3_NDX_BgSubtMask]	=	mask;
+	if (!bSHOW_as_demo_movie_flow)
+		imshow( plotWindowsNames[WIN3_NDX_BgSubtMask] , mask);
 }
 
 void myGUI_handler::draw_output_frames(String* WinNames, Mat* images)
